@@ -667,6 +667,7 @@ func (ws *WebServer) buildAdminMux() *http.ServeMux {
 	mux.HandleFunc("/api/access/mode", ws.requireAuth(ws.handleAccessMode))
 	mux.HandleFunc("/api/clients/", ws.requireAuth(ws.handleClientAction))
 	mux.HandleFunc("/api/policies", ws.requireAuth(ws.handlePolicies))
+	mux.HandleFunc("/api/policies/delete", ws.requireAuth(ws.handlePolicyDelete))
 	mux.HandleFunc("/api/cache/flush", ws.requireAuth(ws.handleFlushCache))
 	mux.HandleFunc("/api/settings", ws.requireAuth(ws.handleSettings))
 	mux.HandleFunc("/api/settings/regenerate-api-key", ws.requireAuth(ws.handleRegenerateAPIKey))
@@ -888,16 +889,15 @@ func (ws *WebServer) Start() error {
 	if domain != "" && (bindHost == "" || bindHost == "0.0.0.0") {
 		// Dual-stack on the wildcard: "::" accepts IPv4 and IPv6, so a host
 		// with AAAA records is reachable on both families (a v6-only visitor
-		// to a 0.0.0.0-bound panel gets connection refused). Loopback-only
-		// mode below keeps the explicit v4 loopback address.
+		// to a 0.0.0.0-bound panel gets connection refused).
 		bindHost = "::"
+	}
+	if domain == "" && (bindHost == "" || bindHost == "0.0.0.0") {
+		bindHost = "0.0.0.0"
 	}
 	addr := net.JoinHostPort(bindHost, strconv.Itoa(ws.settings.WebPort))
 	if domain == "" {
-		addr = fmt.Sprintf("127.0.0.1:%d", ws.settings.WebPort)
-		log.Printf("[Web] SECURITY: no panel domain configured — the dashboard is bound to %s (loopback only). "+
-			"Reach it via an SSH tunnel (ssh -L %d:127.0.0.1:%d user@server) or set the panel domain to expose HTTPS.",
-			addr, ws.settings.WebPort, ws.settings.WebPort)
+		log.Printf("[Web] Notice: no panel domain configured — the dashboard is bound to %s (HTTP direct access without tunnel).", addr)
 	}
 
 	// serverCtx is cancelled by Stop() (v2.1.0 B-22 remediation). http.Server.
@@ -1606,6 +1606,7 @@ func (ws *WebServer) handleClients(w http.ResponseWriter, r *http.Request) {
 			TrafficResetCycle string   `json:"traffic_reset_cycle"`
 			CustomPolicies    []string `json:"custom_policies"`
 			Note              string   `json:"note"`
+			MaxDevices        int      `json:"max_devices"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Name == "" {
 			httpx.WriteJSONError(w, http.StatusBadRequest, "Invalid request payload")
@@ -1627,6 +1628,10 @@ func (ws *WebServer) handleClients(w http.ResponseWriter, r *http.Request) {
 		if req.ExpiresAt != nil && !req.ExpiresAt.IsZero() {
 			expiresAt = *req.ExpiresAt
 		}
+		maxDev := req.MaxDevices
+		if maxDev <= 0 {
+			maxDev = 1
+		}
 		client, err := ws.clients.ProvisionClient(service.CreateClientRequest{
 			Name: req.Name,
 			Days: days,
@@ -1637,6 +1642,7 @@ func (ws *WebServer) handleClients(w http.ResponseWriter, r *http.Request) {
 			TrafficLimitGB:    req.TrafficLimitGB,
 			TrafficResetCycle: req.TrafficResetCycle,
 			CustomPolicies:    req.CustomPolicies,
+			MaxDevices:        maxDev,
 
 			Note: req.Note,
 		})
@@ -1891,6 +1897,51 @@ func (ws *WebServer) handleClientAction(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+func (ws *WebServer) reloadAllCustomRules() {
+	if ws.db == nil || ws.matcher == nil {
+		return
+	}
+	policies, err := ws.db.ListPolicies()
+	if err != nil {
+		return
+	}
+	var customProxied, customBlocked, customDirect []string
+	customRecords := map[string]string{}
+	for _, p := range policies {
+		switch p.Key {
+		case "custom_proxied":
+			customProxied = append(customProxied, p.CustomDomains...)
+		case "custom_blocked":
+			customBlocked = append(customBlocked, p.CustomDomains...)
+		case "custom_direct":
+			customDirect = append(customDirect, p.CustomDomains...)
+		case "custom_records":
+			for _, entry := range p.CustomDomains {
+				if d, ip, ok := strings.Cut(entry, "="); ok {
+					customRecords[strings.TrimSpace(d)] = strings.TrimSpace(ip)
+				}
+			}
+		default:
+			if p.Category == "custom_policy" || strings.HasPrefix(p.Key, "custom_policy_") {
+				if p.Enabled {
+					switch strings.ToUpper(p.Action) {
+					case "BLOCK":
+						customBlocked = append(customBlocked, p.CustomDomains...)
+					case "DIRECT":
+						customDirect = append(customDirect, p.CustomDomains...)
+					default:
+						customProxied = append(customProxied, p.CustomDomains...)
+					}
+				}
+			}
+		}
+	}
+	ws.matcher.SetCustomRules(customProxied, customBlocked, customDirect, customRecords)
+	if ws.cache != nil {
+		ws.cache.Flush()
+	}
+}
+
 func (ws *WebServer) handlePolicies(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	switch r.Method {
@@ -1912,22 +1963,76 @@ func (ws *WebServer) handlePolicies(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var p database.Policy
-		if err := json.NewDecoder(r.Body).Decode(&p); err != nil || p.Key == "" {
+		if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
 			httpx.WriteJSONError(w, http.StatusBadRequest, "Invalid request payload")
 			return
+		}
+		if p.Key == "" {
+			p.Key = fmt.Sprintf("custom_policy_%d", time.Now().UnixNano())
+			p.Category = "custom_policy"
+		}
+		if p.Category == "custom_policy" || strings.HasPrefix(p.Key, "custom_policy_") {
+			if p.Action == "" {
+				p.Action = "PROXY"
+			}
+			p.Category = "custom_policy"
 		}
 		if err := ws.db.SavePolicy(p); err != nil {
 			httpx.WriteJSONErrorFor(w, http.StatusInternalServerError, err)
 			return
 		}
 		if ws.matcher != nil {
-			ws.matcher.SetRuleEnabled(p.Key, p.Enabled)
+			if _, isPreset := matcher.PresetRuleKeys[p.Key]; isPreset {
+				ws.matcher.SetRuleEnabled(p.Key, p.Enabled)
+			}
 		}
+		ws.reloadAllCustomRules()
 		_ = json.NewEncoder(w).Encode(p)
 
+	case http.MethodDelete:
+		key := r.URL.Query().Get("key")
+		if key == "" {
+			var body struct {
+				Key string `json:"key"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			key = body.Key
+		}
+		if key == "" {
+			httpx.WriteJSONError(w, http.StatusBadRequest, "Missing policy key")
+			return
+		}
+		if err := ws.db.DeletePolicy(key); err != nil {
+			httpx.WriteJSONErrorFor(w, http.StatusInternalServerError, err)
+			return
+		}
+		ws.reloadAllCustomRules()
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+
 	default:
-		httpx.WriteMethodNotAllowed(w, "GET, POST")
+		httpx.WriteMethodNotAllowed(w, "GET, POST, DELETE")
 	}
+}
+
+func (ws *WebServer) handlePolicyDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		httpx.WriteMethodNotAllowed(w, "POST")
+		return
+	}
+	var body struct {
+		Key string `json:"key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Key == "" {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "Missing policy key")
+		return
+	}
+	if err := ws.db.DeletePolicy(body.Key); err != nil {
+		httpx.WriteJSONErrorFor(w, http.StatusInternalServerError, err)
+		return
+	}
+	ws.reloadAllCustomRules()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
 }
 
 // handleFlushCache empties the DNS cache. POST only: it destroys every cached

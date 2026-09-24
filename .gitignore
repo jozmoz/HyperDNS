@@ -40,9 +40,7 @@ config.prod.json
 # 4. Compiled Binaries & Executables
 /hyperdns
 /hyperdns.exe
-/hyperdns-linux
-/hyperdns-*
-/hyperdns_*
+!/hyperdns-linux
 *.exe
 *.dll
 *.so

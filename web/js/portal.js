@@ -177,7 +177,25 @@
       return;
     }
     var reg = e.target.closest('[data-reg]');
-    if (reg) runRegister(reg);
+    if (reg) {
+      runRegister(reg);
+      return;
+    }
+    var addDom = e.target.closest('[data-add-domain]');
+    if (addDom) {
+      runAddDomain(addDom);
+      return;
+    }
+    var toggleDom = e.target.closest('[data-toggle-domain]');
+    if (toggleDom) {
+      runToggleDomain(toggleDom);
+      return;
+    }
+    var delDom = e.target.closest('[data-del-domain]');
+    if (delDom) {
+      runDeleteDomain(delDom);
+      return;
+    }
   });
 
   /* --- Expiry countdown ----------------------------------------------------- */
@@ -321,6 +339,109 @@
       })
       .catch(function () {
         showToast(msg('register-fail'), 'is-bad');
+      })
+      .then(function () {
+        btn.removeAttribute('aria-busy');
+      });
+  }
+
+  /* --- Custom Domains Manager ------------------------------------------------ */
+
+  function runAddDomain(btn) {
+    var url = btn.getAttribute('data-add-domain');
+    if (!url || btn.getAttribute('aria-busy') === 'true') return;
+    var nameEl = document.getElementById('domain-name');
+    var actionEl = document.getElementById('domain-action');
+    var subsEl = document.getElementById('domain-subs');
+    var name = nameEl ? nameEl.value.trim() : '';
+    if (!name) {
+      showToast(msg('domain-error'), 'is-bad');
+      return;
+    }
+    var action = actionEl ? actionEl.value : 'PROXY';
+    var subs = subsEl ? subsEl.checked : true;
+    btn.setAttribute('aria-busy', 'true');
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ domain: name, action: action, include_subdomains: subs })
+    })
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (d) {
+          return { ok: res.ok, data: d };
+        });
+      })
+      .then(function (r) {
+        if (!r.ok) {
+          showToast(msg('domain-error'), 'is-bad');
+          return;
+        }
+        showToast(msg('domain-added'), 'is-ok');
+        setTimeout(function () { window.location.reload(); }, 600);
+      })
+      .catch(function () {
+        showToast(msg('domain-error'), 'is-bad');
+      })
+      .then(function () {
+        btn.removeAttribute('aria-busy');
+      });
+  }
+
+  function runToggleDomain(btn) {
+    var url = btn.getAttribute('data-toggle-domain');
+    if (!url || btn.getAttribute('aria-busy') === 'true') return;
+    btn.setAttribute('aria-busy', 'true');
+    fetch(url, {
+      method: 'PATCH',
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    })
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (d) {
+          return { ok: res.ok, data: d };
+        });
+      })
+      .then(function (r) {
+        if (!r.ok) {
+          showToast(msg('domain-error'), 'is-bad');
+          return;
+        }
+        showToast(msg('domain-toggled'), 'is-ok');
+        setTimeout(function () { window.location.reload(); }, 500);
+      })
+      .catch(function () {
+        showToast(msg('domain-error'), 'is-bad');
+      })
+      .then(function () {
+        btn.removeAttribute('aria-busy');
+      });
+  }
+
+  function runDeleteDomain(btn) {
+    var url = btn.getAttribute('data-del-domain');
+    if (!url || btn.getAttribute('aria-busy') === 'true') return;
+    btn.setAttribute('aria-busy', 'true');
+    fetch(url, {
+      method: 'DELETE',
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    })
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (d) {
+          return { ok: res.ok, data: d };
+        });
+      })
+      .then(function (r) {
+        if (!r.ok) {
+          showToast(msg('domain-error'), 'is-bad');
+          return;
+        }
+        showToast(msg('domain-deleted'), 'is-ok');
+        setTimeout(function () { window.location.reload(); }, 500);
+      })
+      .catch(function () {
+        showToast(msg('domain-error'), 'is-bad');
       })
       .then(function () {
         btn.removeAttribute('aria-busy');

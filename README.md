@@ -89,10 +89,14 @@ and 8443 (DoH).
 ## 🚀 Quick Installation & Deployment
 
 ### Option 1: One-Line Linux Installer (Recommended)
-Run as `root` on Ubuntu 20.04+, Debian 11+, or AlmaLinux/Rocky 8+:
+Run as `root` on Ubuntu, Debian, or AlmaLinux/Rocky/CentOS:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.2.0-beta.1/scripts/install.sh | sudo bash
+bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
 ```
+
+> **Interactive Terminal Console (`hyperdns` or `hdns`):**
+> Anytime after installation, simply run `hyperdns` or `hdns` in your shell to open the terminal management menu (service status, restart, view credentials, change domain & SSL, update from GitHub, or uninstall).
+
 
 > [!IMPORTANT]
 > **The installer never upgrades in place.** An existing install is archived to `/root/hyperdns-preinstall-<date>.tar.gz` (its sha256 printed — the only copy of the old data), then **replaced**: fresh config, fresh credentials, fresh certificates. An interactive run types `FRESH` to confirm the wipe; a piped `curl | bash` run refuses unless `HYPERDNS_FRESH=1` is set. Coming from **HyperDNS 1.x**, run `bash migrate-from-v1.sh` from the offline bundle first.

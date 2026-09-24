@@ -71,3 +71,12 @@ func (db *DB) ListPolicies() ([]Policy, error) {
 	})
 	return list, err
 }
+
+// DeletePolicy removes a policy record by key
+func (db *DB) DeletePolicy(key string) error {
+	return db.bolt.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(bucketPolicies)
+		return b.Delete([]byte(key))
+	})
+}
+

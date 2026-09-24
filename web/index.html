@@ -392,10 +392,19 @@
             </div>
           </div>
 
-          <div>
-            <label for="edit-client-ip" class="block text-[11px] font-semibold text-slate-400 mb-1">Manual IP Address (Optional)</label>
-            <input type="text" id="edit-client-ip" placeholder="e.g. 5.200.10.42"
-              class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+          <div class="grid grid-cols-2 gap-3.5">
+            <div>
+              <label for="edit-client-max-devices" class="block text-[11px] font-semibold text-slate-400 mb-1">
+                <span class="text-cyan-400 font-bold">*</span> MAX DEVICES (IP LIMIT)
+              </label>
+              <input type="number" min="1" max="50" id="edit-client-max-devices" value="1" required placeholder="e.g. 2"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-cyan-300 focus:outline-none focus:border-cyan-400 text-xs font-mono">
+            </div>
+            <div>
+              <label for="edit-client-ip" class="block text-[11px] font-semibold text-slate-400 mb-1">MANUAL IP ADDRESS</label>
+              <input type="text" id="edit-client-ip" placeholder="e.g. 5.200.10.42"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+            </div>
           </div>
         </div>
 
@@ -633,11 +642,19 @@
             </div>
           </div>
 
-          <div>
-            <label for="client-initial-ip" class="block text-[11px] font-semibold text-slate-400 mb-1">INITIAL IP ADDRESS (OPTIONAL)</label>
-            <input type="text" id="client-initial-ip" placeholder="e.g. 2.189.86.32 (or leave blank for auto-link)"
-              class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
-            <p class="text-[10px] text-slate-500 mt-1">If blank, client can self-register using their personal URL.</p>
+          <div class="grid grid-cols-2 gap-3.5">
+            <div>
+              <label for="client-max-devices" class="block text-[11px] font-semibold text-slate-400 mb-1">
+                <span class="text-cyan-400 font-bold">*</span> MAX DEVICES (IP LIMIT)
+              </label>
+              <input type="number" min="1" max="50" id="client-max-devices" value="2" required placeholder="e.g. 2"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-cyan-300 focus:outline-none focus:border-cyan-400 text-xs font-mono">
+            </div>
+            <div>
+              <label for="client-initial-ip" class="block text-[11px] font-semibold text-slate-400 mb-1">INITIAL IP (OPTIONAL)</label>
+              <input type="text" id="client-initial-ip" placeholder="e.g. 2.189.86.32"
+                class="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-cyan-400 text-xs font-mono">
+            </div>
           </div>
         </div>
 
@@ -752,6 +769,83 @@
           DONE
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Custom Policy Modal (Create / Edit) -->
+  <div id="custom-policy-modal" role="dialog" aria-modal="true" aria-labelledby="custom-policy-title"
+    data-modal-close="close-custom-policy-btn"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md px-4 hidden">
+    <div class="glass-panel p-6 sm:p-7 w-full max-w-xl max-h-[90vh] overflow-y-auto border border-cyan-500/40 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3.5 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/30">
+            <i data-feather="sliders" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h2 id="custom-policy-title" class="text-sm sm:text-base font-bold text-white font-heading">Add Custom Policy</h2>
+            <p class="text-[11px] text-slate-400">Define custom name, routing action and domain wildcards</p>
+          </div>
+        </div>
+        <button id="close-custom-policy-btn" aria-label="Close custom policy form" class="text-slate-400 hover:text-white p-1">
+          <i data-feather="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="custom-policy-form" class="space-y-4">
+        <input type="hidden" id="custom-policy-key" value="">
+        
+        <div>
+          <label for="custom-policy-name" class="block text-[11px] font-semibold text-slate-400 mb-1">
+            <span class="text-cyan-400 font-bold">*</span> POLICY NAME / LABEL
+          </label>
+          <input type="text" id="custom-policy-name" required placeholder="e.g. My Custom Game, Office VPN, Custom Service"
+            class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400">
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label for="custom-policy-action" class="block text-[11px] font-semibold text-slate-400 mb-1">ROUTING ACTION</label>
+            <select id="custom-policy-action" class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400 font-mono">
+              <option value="PROXY">PROXY (Anti-Sanction SNI Relay)</option>
+              <option value="DIRECT">DIRECT (Direct ISP Connection)</option>
+              <option value="BLOCK">BLOCK (Sinkhole 0.0.0.0)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-400 mb-1">SUBDOMAINS</label>
+            <label class="flex items-center gap-2 px-3.5 py-2.5 rounded-lg bg-slate-950/80 border border-slate-700/80 cursor-pointer">
+              <input type="checkbox" id="custom-policy-subdomains" checked class="w-4 h-4 rounded text-cyan-500 focus:ring-0 bg-slate-900 border-slate-700">
+              <span class="text-xs text-slate-300">Include Subdomains (*.)</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label for="custom-policy-domains" class="block text-[11px] font-semibold text-slate-400 mb-1">
+            <span class="text-cyan-400 font-bold">*</span> DOMAINS (one per line or comma-separated)
+          </label>
+          <textarea id="custom-policy-domains" rows="4" required placeholder="target.com&#10;*.api.target.com&#10;game-server.net"
+            class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400 leading-relaxed"></textarea>
+          <p class="text-[10px] text-slate-500 mt-1">Supports wildcard subdomains like <code>*.example.com</code> or exact hostnames.</p>
+        </div>
+
+        <div class="flex items-center justify-between pt-3 border-t border-slate-800">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="custom-policy-enabled" checked class="w-4 h-4 rounded text-cyan-500 focus:ring-0 bg-slate-900 border-slate-700">
+            <span class="text-xs text-slate-300 font-medium">Policy Enabled</span>
+          </label>
+
+          <div class="flex items-center gap-2">
+            <button type="button" id="cancel-custom-policy-btn" class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition">
+              Cancel
+            </button>
+            <button type="submit" id="save-custom-policy-btn" class="px-5 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-slate-950 font-bold text-xs transition font-heading shadow-lg shadow-cyan-500/20">
+              Save Policy
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1283,6 +1377,36 @@
               </div>
               <p class="text-[10px] text-slate-400 leading-tight">AdBlock & Family</p>
             </button>
+          </div>
+        </div>
+
+        <!-- SECTION 0: CUSTOM USER POLICIES -->
+        <div class="space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+            <div class="flex items-center gap-2.5">
+              <span class="policy-icon text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 p-2 rounded-lg">
+                <i data-feather="sliders" class="w-5 h-5"></i>
+              </span>
+              <div>
+                <h3 class="text-sm sm:text-base font-bold text-white tracking-wide font-heading flex items-center gap-2">
+                  <span>Custom Policies</span>
+                  <span class="text-[9px] uppercase font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">User Defined</span>
+                </h3>
+                <p class="text-[11px] text-slate-400 mt-0.5">Create custom policies with dedicated names, wildcard domains and routing actions</p>
+              </div>
+            </div>
+            <button id="open-custom-policy-btn" class="self-start sm:self-auto px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-2 transition font-heading shadow-lg shadow-cyan-500/20 cursor-pointer">
+              <i data-feather="plus-circle" class="w-4 h-4"></i>
+              <span>Add Custom Policy</span>
+            </button>
+          </div>
+
+          <div id="custom-policies-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div id="custom-policies-empty" class="col-span-full glass-panel p-6 text-center text-slate-400 border border-slate-800/80 border-dashed rounded-xl">
+              <i data-feather="compass" class="w-7 h-7 mx-auto text-slate-600 mb-2"></i>
+              <div class="font-bold text-slate-300 font-heading text-xs sm:text-sm">No custom policies configured yet</div>
+              <p class="text-[11px] text-slate-500 mt-1">Click "Add Custom Policy" to create your own dedicated game or service routing policy.</p>
+            </div>
           </div>
         </div>
 

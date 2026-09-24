@@ -471,7 +471,7 @@ function hideChangePwdModal() {
 // button whenever the modal is forced, and modalCloseControl below returns null for a hidden
 // control — so Escape is a no-op in exactly the mode where cancelling is not offered, and the
 // two can never drift apart.
-const MODAL_IDS = ['login-modal', 'change-pwd-modal', 'diagnostics-modal', 'edit-client-modal', 'add-client-modal', 'client-created-modal'];
+const MODAL_IDS = ['login-modal', 'change-pwd-modal', 'diagnostics-modal', 'edit-client-modal', 'add-client-modal', 'client-created-modal', 'custom-policy-modal'];
 
 // Every one of these modals is shown and hidden by toggling .hidden, so reading the class is
 // both the truth and cheap enough for a keydown handler.
@@ -643,11 +643,13 @@ async function bootDashboard() {
     initEventListeners();
     initClientEventListeners();
     initAPIEvents();
+    initCustomPolicyEventListeners();
     areEventListenersAttached = true;
   }
   const authed = await loadConfig();
   if (!authed) return; // 401 -> login modal is already shown
   await loadClients();
+  await loadCustomPolicies();
   startStatsPolling();
   startLiveStream();
   handleRouteFromURL();
@@ -1018,6 +1020,281 @@ async function saveRules() {
     }
   } catch (e) {
     showToast('Failed to save policies', 'error');
+  }
+}
+
+// =======================================================
+// CUSTOM OPERATOR POLICIES
+// =======================================================
+let currentCustomPolicies = [];
+
+async function loadCustomPolicies() {
+  if (!authToken) return;
+  try {
+    const res = await fetch(api('/api/policies'), {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const list = Array.isArray(data.policies) ? data.policies : [];
+    currentCustomPolicies = list.filter(p => p && (p.category === 'custom_policy' || (p.key && p.key.startsWith('custom_policy_'))));
+    renderCustomPolicies(currentCustomPolicies);
+  } catch (e) {
+    console.error('Failed to load custom policies:', e);
+  }
+}
+
+function renderCustomPolicies(policies) {
+  const grid = document.getElementById('custom-policies-grid');
+  if (!grid) return;
+
+  if (!policies || policies.length === 0) {
+    grid.innerHTML = `
+      <div id="custom-policies-empty" class="col-span-full glass-panel p-6 text-center text-slate-400 border border-slate-800/80 border-dashed rounded-xl">
+        <i data-feather="compass" class="w-7 h-7 mx-auto text-slate-600 mb-2"></i>
+        <div class="font-bold text-slate-300 font-heading text-xs sm:text-sm">هنوز سیاست اختصاصی ثبت نکرده‌اید</div>
+        <p class="text-[11px] text-slate-500 mt-1">با کلیک روی «افزودن سیاست اختصاصی»، بازی یا سرویس دلخواه خود را اضافه کنید.</p>
+      </div>
+    `;
+    safeFeatherReplace();
+    return;
+  }
+
+  grid.innerHTML = '';
+  policies.forEach(p => {
+    const card = document.createElement('div');
+    const action = (p.action || 'PROXY').toUpperCase();
+    let actionBadge = '<span class="badge bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[9px] font-mono">PROXY</span>';
+    let cardAccent = 'border-cyan-500/30';
+    if (action === 'BLOCK') {
+      actionBadge = '<span class="badge bg-red-500/20 text-red-300 border border-red-500/30 text-[9px] font-mono">BLOCK</span>';
+      cardAccent = 'border-red-500/30';
+    } else if (action === 'DIRECT') {
+      actionBadge = '<span class="badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-mono">DIRECT</span>';
+      cardAccent = 'border-emerald-500/30';
+    }
+
+    const domainList = Array.isArray(p.custom_domains) ? p.custom_domains : [];
+    const domainsHtml = domainList.map(d => `<span class="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-[10px] font-mono text-cyan-300 truncate max-w-full inline-block">${escapeHTML(d)}</span>`).join(' ');
+
+    card.className = `glass-panel policy-card p-4 flex flex-col justify-between border ${cardAccent} relative group`;
+    card.innerHTML = `
+      <div>
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="policy-icon text-cyan-400 bg-cyan-500/10 p-1.5 rounded-lg shrink-0">
+              <i data-feather="target" class="w-4 h-4"></i>
+            </span>
+            <div class="min-w-0">
+              <h4 class="text-xs sm:text-sm font-bold text-white font-heading truncate" title="${escapeHTML(p.name)}">${escapeHTML(p.name)}</h4>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                ${actionBadge}
+                <span class="text-[10px] text-slate-400 font-mono">${domainList.length} دامنه</span>
+              </div>
+            </div>
+          </div>
+          <label class="switch shrink-0">
+            <input type="checkbox" class="toggle-custom-policy-btn" data-key="${escapeHTML(p.key)}" ${p.enabled ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="mt-2.5 flex flex-wrap gap-1 max-h-20 overflow-y-auto">
+          ${domainsHtml || '<span class="text-slate-500 text-[10px] italic">بدون دامنه</span>'}
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-1.5 mt-3 pt-2.5 border-t border-slate-800/80">
+        <button type="button" class="edit-custom-policy-btn inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition cursor-pointer" data-key="${escapeHTML(p.key)}" aria-label="Edit policy">
+          <i data-feather="edit-2" class="w-3 h-3"></i>
+          <span>ویرایش</span>
+        </button>
+        <button type="button" class="del-custom-policy-btn inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[11px] font-medium transition cursor-pointer" data-key="${escapeHTML(p.key)}" aria-label="Delete policy">
+          <i data-feather="trash-2" class="w-3 h-3"></i>
+          <span>حذف</span>
+        </button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+  safeFeatherReplace();
+}
+
+function initCustomPolicyEventListeners() {
+  const modal = document.getElementById('custom-policy-modal');
+  const openBtn = document.getElementById('open-custom-policy-btn');
+  const closeBtn = document.getElementById('close-custom-policy-btn');
+  const cancelBtn = document.getElementById('cancel-custom-policy-btn');
+  const saveBtn = document.getElementById('save-custom-policy-btn');
+  const form = document.getElementById('custom-policy-form');
+
+  if (openBtn) {
+    openBtn.onclick = () => {
+      const keyEl = document.getElementById('custom-policy-key');
+      const nameEl = document.getElementById('custom-policy-name');
+      const actionEl = document.getElementById('custom-policy-action');
+      const subsEl = document.getElementById('custom-policy-subdomains');
+      const domainsEl = document.getElementById('custom-policy-domains');
+      const enabledEl = document.getElementById('custom-policy-enabled');
+      const titleEl = document.getElementById('custom-policy-title');
+      if (keyEl) keyEl.value = '';
+      if (nameEl) nameEl.value = '';
+      if (actionEl) actionEl.value = 'PROXY';
+      if (subsEl) subsEl.checked = true;
+      if (domainsEl) domainsEl.value = '';
+      if (enabledEl) enabledEl.checked = true;
+      if (titleEl) titleEl.innerText = 'Add Custom Policy';
+      modal?.classList.remove('hidden');
+    };
+  }
+
+  if (closeBtn) closeBtn.onclick = () => modal?.classList.add('hidden');
+  if (cancelBtn) cancelBtn.onclick = () => modal?.classList.add('hidden');
+
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const key = document.getElementById('custom-policy-key')?.value || ('custom_policy_' + Date.now());
+      const name = document.getElementById('custom-policy-name')?.value.trim();
+      const action = document.getElementById('custom-policy-action')?.value || 'PROXY';
+      const includeSubs = document.getElementById('custom-policy-subdomains')?.checked;
+      const domainsRaw = document.getElementById('custom-policy-domains')?.value || '';
+      const enabled = document.getElementById('custom-policy-enabled')?.checked ?? true;
+
+      if (!name) {
+        showToast('Please enter a policy name', 'error');
+        return;
+      }
+
+      const domainLines = domainsRaw.split(/[\r\n,]+/).map(d => d.trim().toLowerCase()).filter(Boolean);
+      if (domainLines.length === 0) {
+        showToast('Please enter at least one domain', 'error');
+        return;
+      }
+
+      const finalDomains = [];
+      domainLines.forEach(d => {
+        finalDomains.push(d);
+        if (includeSubs && !d.startsWith('*.')) {
+          finalDomains.push('*.' + d);
+        }
+      });
+      const uniqueDomains = [...new Set(finalDomains)];
+
+      const payload = {
+        key: key,
+        name: name,
+        category: 'custom_policy',
+        action: action,
+        enabled: enabled,
+        custom_domains: uniqueDomains
+      };
+
+      try {
+        const res = await fetch(api('/api/policies'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showToast('Custom policy saved successfully!', 'success');
+          modal?.classList.add('hidden');
+          await loadCustomPolicies();
+        } else {
+          showToast(await errorMessage(res, 'Failed to save custom policy'), 'error');
+        }
+      } catch (err) {
+        showToast('Network error saving policy', 'error');
+      }
+    };
+  }
+
+  const grid = document.getElementById('custom-policies-grid');
+  if (grid) {
+    grid.addEventListener('change', async (e) => {
+      const toggle = e.target.closest('.toggle-custom-policy-btn');
+      if (!toggle) return;
+      const key = toggle.dataset.key;
+      const p = currentCustomPolicies.find(x => x.key === key);
+      if (!p) return;
+      p.enabled = toggle.checked;
+      try {
+        const res = await fetch(api('/api/policies'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify(p)
+        });
+        if (res.ok) {
+          showToast('Policy updated!', 'success');
+        } else {
+          showToast('Failed to update policy status', 'error');
+          toggle.checked = !toggle.checked;
+        }
+      } catch (err) {
+        showToast('Network error updating policy', 'error');
+        toggle.checked = !toggle.checked;
+      }
+    });
+
+    grid.addEventListener('click', async (e) => {
+      const editBtn = e.target.closest('.edit-custom-policy-btn');
+      if (editBtn) {
+        const key = editBtn.dataset.key;
+        const p = currentCustomPolicies.find(x => x.key === key);
+        if (!p) return;
+        const keyEl = document.getElementById('custom-policy-key');
+        const nameEl = document.getElementById('custom-policy-name');
+        const actionEl = document.getElementById('custom-policy-action');
+        const domainsEl = document.getElementById('custom-policy-domains');
+        const enabledEl = document.getElementById('custom-policy-enabled');
+        const titleEl = document.getElementById('custom-policy-title');
+        if (keyEl) keyEl.value = p.key;
+        if (nameEl) nameEl.value = p.name || '';
+        if (actionEl) actionEl.value = p.action || 'PROXY';
+        if (domainsEl) domainsEl.value = (p.custom_domains || []).join('\n');
+        if (enabledEl) enabledEl.checked = p.enabled ?? true;
+        if (titleEl) titleEl.innerText = 'Edit Custom Policy';
+        modal?.classList.remove('hidden');
+        return;
+      }
+
+      const delBtn = e.target.closest('.del-custom-policy-btn');
+      if (delBtn) {
+        const key = delBtn.dataset.key;
+        const p = currentCustomPolicies.find(x => x.key === key);
+        const name = p ? p.name : key;
+        const ok = await confirmAction({
+          destructive: true,
+          title: `Delete Custom Policy "${name}"?`,
+          message: 'This policy and its custom domain routing rules will be removed immediately.',
+          confirmText: 'DELETE POLICY'
+        });
+        if (!ok) return;
+
+        try {
+          const res = await fetch(api('/api/policies/delete'), {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({ key: key })
+          });
+          if (res.ok) {
+            showToast('Custom policy deleted!', 'success');
+            await loadCustomPolicies();
+          } else {
+            showToast(await errorMessage(res, 'Failed to delete policy'), 'error');
+          }
+        } catch (err) {
+          showToast('Network error deleting policy', 'error');
+        }
+      }
+    });
   }
 }
 
@@ -1966,6 +2243,9 @@ function switchTab(target, updateUrl = true) {
     targetEl.classList.remove('hidden');
     if (target === 'clients') {
       loadClients();
+    }
+    if (target === 'policy') {
+      loadCustomPolicies();
     }
     // Returning to the Logs view repaints the stream from the buffer: the
     // per-query DOM work was skipped while another tab was showing (see
@@ -3334,6 +3614,7 @@ function renderClientsView(data) {
               <h4 class="text-sm font-bold text-white font-heading">${escapeHTML(c.name)}</h4>
               ${statusBadge}
               ${policyBadge}
+              <span class="text-[9px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono text-cyan-300">${c.max_devices || 1} Device(s)</span>
             </div>
             <div class="text-[10px] text-slate-400 font-mono mt-0.5 truncate" title="Code: ${escapeHTML(c.id)} · Slug: ${escapeHTML(c.token)}">
               Code: <span class="text-amber-300 font-bold">${escapeHTML(c.id)}</span> · Slug: <span class="text-slate-500">${escapeHTML(c.token)}</span>
@@ -3370,14 +3651,12 @@ function renderClientsView(data) {
         </div>
 
         <!-- Whitelisted IPs Row -->
-        <!-- The 10px label gave this button a 15px-tall hit area — wide enough to hit by
-             accident, short enough to miss on purpose. A 24px min-height reaches the
-             floor without moving the text, and the negative inline-end margin cancels the
-             new padding so the label still sits flush with the row's edge; the hit area
-             grows outward into the gutter rather than pushing the layout around. -->
         <div class="space-y-1.5 mb-3">
           <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-400 font-semibold">Registered IP (Max 1):</span>
+            <span class="text-slate-400 font-semibold flex items-center gap-1.5">
+              <span>Allowed IPs:</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-mono">${(c.allowed_ips || []).length} / ${c.max_devices || 1} limit</span>
+            </span>
             <button class="add-ip-prompt-btn text-cyan-400 hover:text-cyan-300 text-[10px] font-mono flex items-center justify-center gap-0.5 min-h-[24px] px-1.5 -me-1.5 rounded hover:bg-cyan-500/10 transition" data-id="${escapeHTML(c.id)}" data-ip="${escapeHTML(currentIP)}">
               + Set IP Manually
             </button>
@@ -3516,6 +3795,7 @@ function initClientEventListeners() {
       // with the wrong rules for the whole gap between the two writes.
       const trafficGB = parseFloat(document.getElementById('client-traffic-input')?.value) || 0;
       const cycle = document.getElementById('client-traffic-cycle')?.value || '';
+      const maxDevices = parseInt(document.getElementById('client-max-devices')?.value, 10) || 1;
 
       // The exact moment the picker answered, sent as RFC 3339 like the edit form
       // sends its expiry. An empty field is a lifetime plan and omits the key, which
@@ -3537,6 +3817,7 @@ function initClientEventListeners() {
             initial_ip: initIP,
             traffic_limit_gb: trafficGB,
             traffic_reset_cycle: cycle,
+            max_devices: maxDevices,
             custom_policies: addPolicyPicker.get()
           })
         });
@@ -4654,6 +4935,8 @@ function showToast(msg, type = 'info') {
   function resetAddClientForm() {
     const form = document.getElementById('add-client-form');
     if (form) form.reset();
+    const maxDevInput = document.getElementById('client-max-devices');
+    if (maxDevInput) maxDevInput.value = '2';
     addDatePicker.applyDefaultDays(30);
     addPolicyPicker.reset();
   }
@@ -4773,6 +5056,8 @@ function showToast(msg, type = 'info') {
       document.getElementById('edit-client-name').value = client.name || '';
       document.getElementById('edit-client-uuid').value = client.uuid || '';
       document.getElementById('edit-client-secret').value = client.register_secret || '';
+      const editMaxDevEl = document.getElementById('edit-client-max-devices');
+      if (editMaxDevEl) editMaxDevEl.value = client.max_devices || 1;
       document.getElementById('edit-client-ip').value = (client.allowed_ips && client.allowed_ips.length > 0) ? client.allowed_ips[0] : '';
       document.getElementById('edit-client-traffic').value = client.traffic_limit_gb || '';
       // The stored cycle, normalised to the empty option when the record predates
@@ -4891,6 +5176,7 @@ function showToast(msg, type = 'info') {
       const name = document.getElementById('edit-client-name').value.trim();
       const uuid = document.getElementById('edit-client-uuid').value.trim();
       const ip = document.getElementById('edit-client-ip').value.trim();
+      const maxDevices = parseInt(document.getElementById('edit-client-max-devices')?.value, 10) || 1;
       const trafficGB = parseFloat(document.getElementById('edit-client-traffic').value) || 0;
       const cycle = document.getElementById('edit-client-traffic-cycle')?.value || '';
       const expiryVal = document.getElementById('edit-client-expiry').value;
@@ -4909,6 +5195,7 @@ function showToast(msg, type = 'info') {
         name: name,
         uuid: uuid,
         allowed_ip: ip,
+        max_devices: maxDevices,
         traffic_limit_gb: trafficGB,
         // Sent on every save, including as "" — the field is a pointer on the server,
         // so omitting it means "leave the cycle alone" and there would then be no way

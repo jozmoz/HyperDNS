@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -216,16 +217,9 @@ func TestDisabledAccountIsNotServedButStillResolves(t *testing.T) {
 // connection, or a carrier NAT — and the second one to visit the portal claims it.
 // When the first one later moves, its own de-index must not take the entry the
 // second one now owns with it, or a paying account silently stops being answered
-// for. This is the conditional delete in deindexLocked.
-// Two subscriptions must not share one address through the portal: Phase B
-// (Mantis C-04) refuses the second bind with ErrDuplicateIPConflict and leaves
-// BOTH accounts intact — shared CGNAT addresses are ordinary on Iranian mobile
-// networks, and auto-disabling a paying account over one is the cure killing
-// the patient. The operator path (SetClientIP) deliberately has no such gate:
-// a human who moves an address between accounts is an override, and the
-// conditional de-index below is what keeps that move from breaking the account
-// that previously held it.
-func TestRegisterIPRefusesADuplicateAddressAndKeepsBothAccounts(t *testing.T) {
+// for. This is the conditional delete in// Two subscriptions CAN share one address through the portal (e.g. CGNAT or same Wi-Fi):
+// both accounts stay active and both can resolve queries.
+func TestRegisterIPAllowsSharedAddressAndKeepsBothAccounts(t *testing.T) {
 	svc, db, cleanup := setupClientFixture(t)
 	defer cleanup()
 
@@ -239,30 +233,25 @@ func TestRegisterIPRefusesADuplicateAddressAndKeepsBothAccounts(t *testing.T) {
 		AllowedIPs: []string{"203.0.113.60"}, Enabled: true,
 	})
 
-	// The second account tries to claim the address the first holds: refused.
-	if _, _, err := funcIP(svc, "tok-b", shared); !errors.Is(err, database.ErrDuplicateIPConflict) {
-		t.Fatalf("portal bind over a bound address = %v, want ErrDuplicateIPConflict", err)
+	// The second account claims the shared address: allowed without error!
+	if _, _, err := funcIP(svc, "tok-b", shared); err != nil {
+		t.Fatalf("portal bind over a bound address = %v, want nil", err)
 	}
 
-	// The first account still owns the address.
-	if got := indexedIP(t, svc, shared); got != "a1" {
-		t.Fatalf("the shared address maps to %q after the refusal, want a1", got)
+	// Address resolves as allowed.
+	if _, ok := svc.IsIPAllowed(shared); !ok {
+		t.Fatalf("the shared address is not allowed")
 	}
 
-	// Neither account was disabled by the refusal.
+	// Both accounts remain enabled.
 	for _, id := range []string{"a1", "b1"} {
 		stored, err := db.GetClient(id)
 		if err != nil {
 			t.Fatalf("GetClient(%s): %v", id, err)
 		}
 		if !stored.Enabled {
-			t.Errorf("account %s was disabled by a duplicate-address refusal", id)
+			t.Errorf("account %s was disabled", id)
 		}
-	}
-
-	// The second account's own binding is untouched.
-	if got := indexedIP(t, svc, "203.0.113.60"); got != "b1" {
-		t.Errorf("the refused account lost its own binding (%q), want b1", got)
 	}
 
 	// The operator override still works: a human moving the address between
@@ -282,6 +271,46 @@ func TestRegisterIPRefusesADuplicateAddressAndKeepsBothAccounts(t *testing.T) {
 	}
 	if got := indexedIP(t, svc, shared); got != "b1" {
 		t.Errorf("the first account's move took the second account's entry with it (%q), want b1", got)
+	}
+}
+
+func TestRegisterIPLimitsMaxDevices(t *testing.T) {
+	svc, db, cleanup := setupClientFixture(t)
+	defer cleanup()
+
+	seedClient(t, svc, db, database.Client{
+		ID: "dev1", Name: "multi-device", Token: "tok-dev",
+		MaxDevices: 2, Enabled: true,
+	})
+
+	// Bind IP 1
+	if _, _, err := funcIP(svc, "tok-dev", "192.0.2.1"); err != nil {
+		t.Fatalf("bind ip1: %v", err)
+	}
+	// Bind IP 2
+	if _, _, err := funcIP(svc, "tok-dev", "192.0.2.2"); err != nil {
+		t.Fatalf("bind ip2: %v", err)
+	}
+
+	stored, _ := db.GetClient("dev1")
+	if len(stored.AllowedIPs) != 2 {
+		t.Fatalf("expected 2 allowed IPs, got %v", stored.AllowedIPs)
+	}
+
+	// Bind IP 3 -> should evict IP 1 and keep IP 2 and IP 3
+	if _, _, err := funcIP(svc, "tok-dev", "192.0.2.3"); err != nil {
+		t.Fatalf("bind ip3: %v", err)
+	}
+
+	stored, _ = db.GetClient("dev1")
+	if len(stored.AllowedIPs) != 2 {
+		t.Fatalf("expected 2 allowed IPs after eviction, got %v", stored.AllowedIPs)
+	}
+	if slices.Contains(stored.AllowedIPs, "192.0.2.1") {
+		t.Errorf("oldest IP was not evicted: %v", stored.AllowedIPs)
+	}
+	if !slices.Contains(stored.AllowedIPs, "192.0.2.2") || !slices.Contains(stored.AllowedIPs, "192.0.2.3") {
+		t.Errorf("expected IPs [192.0.2.2, 192.0.2.3], got %v", stored.AllowedIPs)
 	}
 }
 

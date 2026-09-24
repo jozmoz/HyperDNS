@@ -33,6 +33,7 @@ func fillClient(t *testing.T, c *Client) {
 	base := time.Date(2026, 3, 31, 12, 34, 56, 789000000, time.UTC)
 	timeType := reflect.TypeFor[time.Time]()
 	strSliceType := reflect.TypeFor[[]string]()
+	cdSliceType := reflect.TypeFor[[]ClientCustomDomain]()
 
 	for i := range typ.NumField() {
 		f := typ.Field(i)
@@ -50,8 +51,21 @@ func fillClient(t *testing.T, c *Client) {
 			fv.Set(reflect.ValueOf(base.AddDate(0, 0, n)))
 		case f.Type == strSliceType:
 			fv.Set(reflect.ValueOf([]string{fmt.Sprintf("%s-%d", strings.ToLower(f.Name), n)}))
+		case f.Type == cdSliceType:
+			fv.Set(reflect.ValueOf([]ClientCustomDomain{
+				{
+					ID:                fmt.Sprintf("cd-%d", n),
+					Domain:            fmt.Sprintf("example%d.com", n),
+					Action:            "PROXY",
+					IncludeSubdomains: true,
+					Enabled:           true,
+					CreatedAt:         base.AddDate(0, 0, n),
+				},
+			}))
 		case f.Type.Kind() == reflect.String:
 			fv.SetString(fmt.Sprintf("%s-%d", strings.ToLower(f.Name), n))
+		case f.Type.Kind() == reflect.Int:
+			fv.SetInt(int64(n))
 		case f.Type.Kind() == reflect.Uint64:
 			fv.SetUint(uint64(n) * 1_000)
 		case f.Type.Kind() == reflect.Float64:
@@ -79,6 +93,7 @@ func diffClientFields(t *testing.T, want, got Client, via string) {
 	gv := reflect.ValueOf(got)
 	typ := wv.Type()
 	timeType := reflect.TypeFor[time.Time]()
+	cdSliceType := reflect.TypeFor[[]ClientCustomDomain]()
 
 	for i := range typ.NumField() {
 		f := typ.Field(i)
@@ -92,6 +107,24 @@ func diffClientFields(t *testing.T, want, got Client, via string) {
 			// Equal rather than DeepEqual: a time that survived JSON has no monotonic
 			// reading, and a location pointer can differ while the instant does not.
 			equal = w.Interface().(time.Time).Equal(g.Interface().(time.Time))
+		} else if f.Type == cdSliceType {
+			wSlice := w.Interface().([]ClientCustomDomain)
+			gSlice := g.Interface().([]ClientCustomDomain)
+			if len(wSlice) == len(gSlice) {
+				allEq := true
+				for idx := range wSlice {
+					if wSlice[idx].ID != gSlice[idx].ID ||
+						wSlice[idx].Domain != gSlice[idx].Domain ||
+						wSlice[idx].Action != gSlice[idx].Action ||
+						wSlice[idx].IncludeSubdomains != gSlice[idx].IncludeSubdomains ||
+						wSlice[idx].Enabled != gSlice[idx].Enabled ||
+						!wSlice[idx].CreatedAt.Equal(gSlice[idx].CreatedAt) {
+						allEq = false
+						break
+					}
+				}
+				equal = allEq
+			}
 		} else {
 			equal = reflect.DeepEqual(w.Interface(), g.Interface())
 		}

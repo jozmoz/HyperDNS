@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"hyperdns/internal/core/matcher"
+	"hyperdns/internal/database"
 	"hyperdns/internal/httpx"
 	"hyperdns/internal/service"
 	"hyperdns/internal/version"
@@ -76,16 +77,18 @@ func decodeStrict(w http.ResponseWriter, r *http.Request, dst any) bool {
 // it, and the field names match in both directions (v1's ip/allowed_ip split
 // is the asymmetry this exists to end).
 type v2ClientDTO struct {
-	ID              string   `json:"id"`
-	DisplayName     string   `json:"display_name"`
-	Token           string   `json:"token"`
-	AllowedIPs      []string `json:"allowed_ips"`
-	ExpiresAt       string   `json:"expires_at,omitempty"` // RFC 3339 UTC; absent = lifetime
-	QuotaLimitBytes float64  `json:"quota_limit_gb"`       // 0 = unlimited (unit kept for v1 parity)
-	QuotaResetCycle string   `json:"quota_reset_cycle"`    // "", daily, weekly, monthly
-	PolicyIDs       []string `json:"policy_ids"`
-	Note            string   `json:"note,omitempty"`
-	Enabled         bool     `json:"enabled"`
+	ID              string                        `json:"id"`
+	DisplayName     string                        `json:"display_name"`
+	Token           string                        `json:"token"`
+	AllowedIPs      []string                      `json:"allowed_ips"`
+	MaxDevices      int                           `json:"max_devices,omitempty"`
+	CustomDomains   []database.ClientCustomDomain `json:"custom_domains,omitempty"`
+	ExpiresAt       string                        `json:"expires_at,omitempty"` // RFC 3339 UTC; absent = lifetime
+	QuotaLimitBytes float64                       `json:"quota_limit_gb"`       // 0 = unlimited (unit kept for v1 parity)
+	QuotaResetCycle string                        `json:"quota_reset_cycle"`    // "", daily, weekly, monthly
+	PolicyIDs       []string                      `json:"policy_ids"`
+	Note            string                        `json:"note,omitempty"`
+	Enabled         bool                          `json:"enabled"`
 	// Admin-only credential surfaces, exactly as /api/clients v1 exposes them
 	// (never on any public route; the portal's public view is a different,
 	// smaller struct).
@@ -199,13 +202,15 @@ func (a *API) handleV2Clients(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodPost:
 		var req struct {
-			DisplayName     string   `json:"display_name"`
-			ValidityDays    int      `json:"validity_days"`
-			AllowedIPs      []string `json:"allowed_ips"`
-			QuotaLimitGB    float64  `json:"quota_limit_gb"`
-			QuotaResetCycle string   `json:"quota_reset_cycle"`
-			PolicyIDs       []string `json:"policy_ids"`
-			Note            string   `json:"note"`
+			DisplayName     string                        `json:"display_name"`
+			ValidityDays    int                           `json:"validity_days"`
+			AllowedIPs      []string                      `json:"allowed_ips"`
+			MaxDevices      int                           `json:"max_devices"`
+			CustomDomains   []database.ClientCustomDomain `json:"custom_domains"`
+			QuotaLimitGB    float64                       `json:"quota_limit_gb"`
+			QuotaResetCycle string                        `json:"quota_reset_cycle"`
+			PolicyIDs       []string                      `json:"policy_ids"`
+			Note            string                        `json:"note"`
 		}
 		if !decodeStrict(w, r, &req) {
 			return
@@ -217,10 +222,9 @@ func (a *API) handleV2Clients(w http.ResponseWriter, r *http.Request) {
 		client, err := a.clients.ProvisionClient(service.CreateClientRequest{
 			Name: req.DisplayName,
 			Days: req.ValidityDays,
-			// v1 accepted one `ip`; v2 takes the plural list and uses the first,
-			// because the storage model is still 1-IP-bound per account and a
-			// silent multi-IP create would be a lie.
-			IP:                firstNonEmpty(req.AllowedIPs),
+			IP:   firstNonEmpty(req.AllowedIPs),
+			MaxDevices:        req.MaxDevices,
+			CustomDomains:     req.CustomDomains,
 			TrafficLimitGB:    req.QuotaLimitGB,
 			TrafficResetCycle: req.QuotaResetCycle,
 			Note:              req.Note,
@@ -250,6 +254,12 @@ func (a *API) handleV2ClientItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.v2ClientAction(w, clientID, action)
+		return
+	}
+
+	if clientID, sub, ok := strings.Cut(rest, "/domains"); ok {
+		domainID := strings.TrimPrefix(sub, "/")
+		a.handleV2ClientDomains(w, r, clientID, domainID)
 		return
 	}
 
@@ -291,13 +301,15 @@ func (a *API) handleV2ClientItem(w http.ResponseWriter, r *http.Request) {
 // nil-when-absent so "not sent" and "sent empty" stay distinguishable — the
 // difference between leaving a note alone and clearing it.
 type v2PatchRequest struct {
-	DisplayName     *string   `json:"display_name"`
-	AllowedIPs      *[]string `json:"allowed_ips"`
-	QuotaLimitGB    *float64  `json:"quota_limit_gb"`
-	QuotaResetCycle *string   `json:"quota_reset_cycle"`
-	Note            *string   `json:"note"`
-	Enabled         *bool     `json:"enabled"`
-	ValidityDaysAdd *int      `json:"validity_days_add"`
+	DisplayName     *string                        `json:"display_name"`
+	AllowedIPs      *[]string                      `json:"allowed_ips"`
+	MaxDevices      *int                           `json:"max_devices"`
+	CustomDomains   *[]database.ClientCustomDomain `json:"custom_domains"`
+	QuotaLimitGB    *float64                       `json:"quota_limit_gb"`
+	QuotaResetCycle *string                        `json:"quota_reset_cycle"`
+	Note            *string                        `json:"note"`
+	Enabled         *bool                          `json:"enabled"`
+	ValidityDaysAdd *int                           `json:"validity_days_add"`
 }
 
 func (p v2PatchRequest) toService() service.UpdateClientRequest {
@@ -307,6 +319,12 @@ func (p v2PatchRequest) toService() service.UpdateClientRequest {
 	}
 	if p.AllowedIPs != nil && len(*p.AllowedIPs) > 0 {
 		req.AllowedIP = &(*p.AllowedIPs)[0:1][0]
+	}
+	if p.MaxDevices != nil {
+		req.MaxDevices = p.MaxDevices
+	}
+	if p.CustomDomains != nil {
+		req.CustomDomains = p.CustomDomains
 	}
 	if p.QuotaLimitGB != nil {
 		req.TrafficLimitGB = p.QuotaLimitGB
@@ -379,6 +397,8 @@ func v2ViewToDTO(c service.ClientView) v2ClientDTO {
 		DisplayName:     c.Name,
 		Token:           c.Token,
 		AllowedIPs:      c.AllowedIPs,
+		MaxDevices:      c.MaxDevices,
+		CustomDomains:   c.CustomDomains,
 		QuotaLimitBytes: c.TrafficLimitGB,
 		QuotaResetCycle: c.TrafficResetCycle,
 		PolicyIDs:       c.CustomPolicies,
@@ -390,6 +410,73 @@ func v2ViewToDTO(c service.ClientView) v2ClientDTO {
 		dto.ExpiresAt = c.ExpiresAt.UTC().Format(timeFormatRFC3339)
 	}
 	return dto
+}
+
+func (a *API) handleV2ClientDomains(w http.ResponseWriter, r *http.Request, clientID, domainID string) {
+	client, err := a.clients.GetClient(clientID)
+	if err != nil {
+		writeProblem(w, http.StatusNotFound, "not_found", "client not found")
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet, http.MethodHead:
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"domains": client.CustomDomains,
+		})
+
+	case http.MethodPost:
+		var req struct {
+			Domain            string `json:"domain"`
+			Action            string `json:"action"` // PROXY, DIRECT, BLOCK
+			IncludeSubdomains bool   `json:"include_subdomains"`
+		}
+		if !decodeStrict(w, r, &req) {
+			return
+		}
+		if strings.TrimSpace(req.Domain) == "" {
+			writeProblem(w, http.StatusBadRequest, "invalid_request", "domain is required")
+			return
+		}
+		cd, err := a.clients.AddCustomDomain(clientID, req.Domain, req.Action, req.IncludeSubdomains)
+		if err != nil {
+			httpx.WriteClientError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(cd)
+
+	case http.MethodDelete:
+		if domainID == "" {
+			writeProblem(w, http.StatusBadRequest, "invalid_request", "domain ID required")
+			return
+		}
+		if err := a.clients.DeleteCustomDomain(clientID, domainID); err != nil {
+			httpx.WriteClientError(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+
+	case http.MethodPatch:
+		if domainID == "" {
+			writeProblem(w, http.StatusBadRequest, "invalid_request", "domain ID required")
+			return
+		}
+		var req struct {
+			Enabled bool `json:"enabled"`
+		}
+		if !decodeStrict(w, r, &req) {
+			return
+		}
+		if err := a.clients.ToggleCustomDomain(clientID, domainID, req.Enabled); err != nil {
+			httpx.WriteClientError(w, err)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]bool{"success": true})
+
+	default:
+		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", "GET, POST, PATCH or DELETE")
+	}
 }
 
 const timeFormatRFC3339 = "2006-01-02T15:04:05Z07:00"

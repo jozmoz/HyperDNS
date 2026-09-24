@@ -426,6 +426,8 @@
   --svg-command: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z'/></svg>");
   --svg-wifi: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0'/><line x1='12' y1='20' x2='12.01' y2='20'/></svg>");
   --svg-x: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><line x1='15' y1='9' x2='9' y2='15'/><line x1='9' y1='9' x2='15' y2='15'/></svg>");
+  --svg-plus: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/></svg>");
+  --svg-trash: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='3 6 5 6 21 6'/><path d='M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/></svg>");
 }
 
 /* One square em, coloured by the text around it. Sized in em rather than px on purpose:
@@ -479,6 +481,8 @@
 .ico-command { --ico: var(--svg-command); }
 .ico-wifi { --ico: var(--svg-wifi); }
 .ico-x { --ico: var(--svg-x); }
+.ico-plus { --ico: var(--svg-plus); }
+.ico-trash { --ico: var(--svg-trash); }
 
 /* --- Pills and buttons ------------------------------------------------------ */
 
@@ -557,6 +561,11 @@
   color: var(--on-accent);
   background: linear-gradient(135deg, var(--cyan), var(--cyan-deep));
   box-shadow: 0 8px 20px rgba(56, 189, 248, 0.22);
+}
+
+.btn-sm {
+  padding: 0.25rem 0.55rem;
+  font-size: 11px;
 }
 
 .btn:hover {
@@ -650,6 +659,81 @@
 .reg-input::placeholder {
   color: var(--ink-dim);
   letter-spacing: 0;
+}
+
+.reg-select {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--chip-face);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 0.5rem 0.65rem;
+}
+
+.reg-select:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
+
+.check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 12px;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.check-box {
+  cursor: pointer;
+  accent-color: var(--cyan);
+}
+
+.domain-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.domain-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+}
+
+.domain-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.domain-name {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.domain-btns {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.domain-empty {
+  padding: 0.8rem;
+  text-align: center;
+  color: var(--ink-faint);
+  font-size: 12px;
+  border: 1px dashed var(--line-soft);
+  border-radius: var(--radius-sm);
 }
 
 

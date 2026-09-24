@@ -195,6 +195,35 @@ type portalText struct {
 	MsgRegisterQuota     string
 	MsgRegisterConflict  string
 	StatusOverview       string
+
+	// Connected Devices & limits card.
+	CardDevices     string
+	LabelMaxDevices string
+	LabelActiveIPs  string
+	NoBoundIPs      string
+	DeviceUnlimited string
+
+	// Custom Domains & routing card.
+	CardCustomDomains string
+	HintCustomDomains string
+	LabelDomainName   string
+	PlaceholderDomain string
+	LabelDomainAction string
+	ActionProxy       string
+	ActionDirect      string
+	ActionBlock       string
+	LabelIncludeSubs  string
+	BtnAddDomain      string
+	BtnDeleteDomain   string
+	BtnToggleDomain   string
+	NoCustomDomains   string
+	TagSubdomains     string
+	TagActive         string
+	TagInactive       string
+	MsgDomainAdded    string
+	MsgDomainDeleted  string
+	MsgDomainToggled  string
+	MsgDomainError    string
 }
 
 // portalFa is the default bundle. Where a term is one an operator will also read in
@@ -339,6 +368,33 @@ var portalFa = portalText{
 	MsgRegisterQuota:     "حجم این اشتراک به پایان رسیده است. برای شارژ با پشتیبانی تماس بگیرید.",
 	MsgRegisterConflict:  "این آی‌پی قبلاً برای اشتراک دیگری ثبت شده است. با پشتیبانی تماس بگیرید.",
 	StatusOverview:       "این صفحه نمای کلی اشتراک شماست؛ آی‌پی شناسایی‌شده‌ی شما در پایین نمایش داده شده است.",
+
+	CardDevices:     "دستگاه‌های متصل و محدودیت اتصال",
+	LabelMaxDevices: "حداکثر دستگاه‌های مجاز:",
+	LabelActiveIPs:  "آی‌پی‌های فعال متصل:",
+	NoBoundIPs:      "هنوز دستگاهی متصل نشده است.",
+	DeviceUnlimited: "نامحدود",
+
+	CardCustomDomains: "سیاست‌های اختصاصی و دامنه‌های سفارشی",
+	HintCustomDomains: "دامنه‌ها و زیرمجموعه‌های اختصاصی خود را وارد کنید تا ترافیک آن‌ها بر اساس قانون موردنظر شما مسیردهی شود.",
+	LabelDomainName:   "نام دامنه:",
+	PlaceholderDomain: "مثال: epicgames.com",
+	LabelDomainAction: "نوع سیاست:",
+	ActionProxy:       "عبور از پروکسی (PROXY)",
+	ActionDirect:      "اتصال مستقیم (DIRECT)",
+	ActionBlock:       "مسدودسازی (BLOCK)",
+	LabelIncludeSubs:  "شامل تمام زیر‌دامنه‌ها (*.domain)",
+	BtnAddDomain:      "افزودن دامنه",
+	BtnDeleteDomain:   "حذف",
+	BtnToggleDomain:   "تغییر وضعیت",
+	NoCustomDomains:   "هنوز هیچ دامنهٔ سفارشی ثبت نشده است.",
+	TagSubdomains:     "+ زیر‌دامنه‌ها",
+	TagActive:         "فعال",
+	TagInactive:       "غیرفعال",
+	MsgDomainAdded:    "دامنهٔ سفارشی با موفقیت اضافه شد!",
+	MsgDomainDeleted:  "دامنهٔ سفارشی حذف شد.",
+	MsgDomainToggled:  "وضعیت دامنه تغییر کرد.",
+	MsgDomainError:    "خطا در پردازش دامنه — نام دامنه را بررسی کنید.",
 }
 
 // portalEn is what a request has to ask for. The console menu names are the same strings
@@ -478,6 +534,33 @@ var portalEn = portalText{
 	MsgRegisterQuota:     "This subscription's traffic allowance is used up. Please contact support to top it up.",
 	MsgRegisterConflict:  "This IP address is already registered to a different subscription. Please contact support.",
 	StatusOverview:       "This is your subscription overview; the address this device was seen from is shown below.",
+
+	CardDevices:     "Connected Devices & Limits",
+	LabelMaxDevices: "Simultaneous Device Limit:",
+	LabelActiveIPs:  "Currently Connected IPs:",
+	NoBoundIPs:      "No connected devices yet.",
+	DeviceUnlimited: "Unlimited",
+
+	CardCustomDomains: "Custom Routing & Dedicated Domains",
+	HintCustomDomains: "Add your dedicated domains and subdomains to customize their routing behavior (Route via Proxy, Direct, or Block).",
+	LabelDomainName:   "Domain Name:",
+	PlaceholderDomain: "e.g. epicgames.com",
+	LabelDomainAction: "Routing Policy:",
+	ActionProxy:       "Proxy Route (PROXY)",
+	ActionDirect:      "Direct Connection (DIRECT)",
+	ActionBlock:       "Block Domain (BLOCK)",
+	LabelIncludeSubs:  "Include all subdomains (*.domain)",
+	BtnAddDomain:      "Add Domain",
+	BtnDeleteDomain:   "Delete",
+	BtnToggleDomain:   "Toggle",
+	NoCustomDomains:   "No custom domains registered yet.",
+	TagSubdomains:     "+ Subdomains",
+	TagActive:         "Active",
+	TagInactive:       "Inactive",
+	MsgDomainAdded:    "Custom domain added successfully!",
+	MsgDomainDeleted:  "Custom domain deleted.",
+	MsgDomainToggled:  "Custom domain status updated.",
+	MsgDomainError:    "Failed to process custom domain — check domain name.",
 }
 
 // portalBundle resolves a language code to its strings. Anything unrecognised is Persian,

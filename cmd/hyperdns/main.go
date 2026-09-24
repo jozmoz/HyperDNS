@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
@@ -54,6 +55,8 @@ func main() {
 	dnsPort := flag.Int("dns-port", 0, "Override DNS Port (e.g. 53)")
 	webPort := flag.Int("web-port", 0, "Override Web Dashboard Port (e.g. 8080)")
 	publicIP := flag.String("public-ip", "", "Override Server Public IP")
+	domainFlag := flag.String("domain", "", "Override Panel Domain (e.g. dns.example.com)")
+	emailFlag := flag.String("email", "", "Admin email for ACME / Let's Encrypt")
 	daemonMode := flag.Bool("daemon", false, "Run as background server engine (for systemd)")
 	serverMode := flag.Bool("server", false, "Run as background server engine")
 	showVersion := flag.Bool("version", false, "Print version information")
@@ -298,6 +301,15 @@ func main() {
 	if *publicIP != "" {
 		serverSettings.PublicIP = *publicIP
 	}
+	if *domainFlag != "" {
+		tlsSettings.Domain = strings.TrimSpace(*domainFlag)
+		tlsSettings.AutoRenewACME = true
+		_ = db.SetSetting("tls", tlsSettings)
+	}
+	if *emailFlag != "" {
+		tlsSettings.Email = strings.TrimSpace(*emailFlag)
+		_ = db.SetSetting("tls", tlsSettings)
+	}
 
 	// settingsDirty collects every reason the "server" record needs rewriting, so
 	// the daemon persists once, at the end, after the password has been hashed.
@@ -321,6 +333,33 @@ func main() {
 		} else {
 			log.Printf("[Main] Warning: public IP is %q and auto-detection failed; proxied domains will not redirect correctly. Set it in Settings or with -public-ip.", serverSettings.PublicIP)
 		}
+	}
+
+	// Interactive domain setup prompt when running in an interactive terminal without a domain
+	if tlsSettings.Domain == "" && *domainFlag == "" && !*daemonMode && stdinIsInteractive(os.Stdin) {
+		fmt.Println("\n──────────────────────────────────────────────────────────")
+		fmt.Println("  ⚡ HyperDNS Domain & SSL Setup")
+		fmt.Printf("  Server Public IP: %s\n", serverSettings.PublicIP)
+		fmt.Println("  (Point an A record to this IP before configuring your domain)")
+		fmt.Print("? Enter Panel Domain (e.g. dns.example.com) [Press Enter to skip & use direct IP]: ")
+		reader := bufio.NewReader(os.Stdin)
+		inputDomain, _ := reader.ReadString('\n')
+		inputDomain = strings.TrimSpace(inputDomain)
+		if inputDomain != "" {
+			tlsSettings.Domain = inputDomain
+			tlsSettings.AutoRenewACME = true
+			fmt.Print("? Enter Admin Email for Let's Encrypt [Press Enter to skip]: ")
+			inputEmail, _ := reader.ReadString('\n')
+			inputEmail = strings.TrimSpace(inputEmail)
+			if inputEmail != "" {
+				tlsSettings.Email = inputEmail
+			}
+			_ = db.SetSetting("tls", tlsSettings)
+			log.Printf("[Main] Configured panel domain %q with Let's Encrypt SSL.", tlsSettings.Domain)
+		} else {
+			log.Printf("[Main] No domain entered — dashboard will bind to direct public HTTP without tunnel.")
+		}
+		fmt.Println("──────────────────────────────────────────────────────────")
 	}
 
 	// First run with no supplied password: the generated one is the only way in,
@@ -752,11 +791,17 @@ func main() {
 	if tlsSettings.PanelHTTPS {
 		dashboardScheme = "https"
 	}
+	dashboardHost := listenHost
+	if tlsSettings.Domain != "" {
+		dashboardHost = tlsSettings.Domain
+	} else if serverSettings.PublicIP != "" && serverSettings.PublicIP != "127.0.0.1" {
+		dashboardHost = serverSettings.PublicIP
+	}
 	log.Println("================================================================")
 	// The dashboard URL carries the hidden admin namespace: the panel has not
 	// lived at /dashboard since v2.1, and a banner that printed the retired
 	// route would send the operator to a 404.
-	log.Printf(" HyperDNS Dashboard : %s://%s/%s/dash/", dashboardScheme, net.JoinHostPort(listenHost, strconv.Itoa(serverSettings.WebPort)), serverSettings.AdminPath)
+	log.Printf(" HyperDNS Dashboard : %s://%s/%s/dash/", dashboardScheme, net.JoinHostPort(dashboardHost, strconv.Itoa(serverSettings.WebPort)), serverSettings.AdminPath)
 	log.Printf(" Standard DNS       : %s (UDP/TCP)", net.JoinHostPort(listenHost, strconv.Itoa(dnsSettings.Port)))
 	log.Printf(" DNS-over-TLS (DoT) : %s (TCP/TLS)", net.JoinHostPort(listenHost, strconv.Itoa(dnsSettings.DoTPort)))
 	log.Printf(" DNS-over-HTTPS     : https://%s/dns-query", net.JoinHostPort(listenHost, strconv.Itoa(dnsSettings.DoHPort)))
@@ -982,7 +1027,19 @@ func loadPersistedRules(db *database.DB, m *matcher.Matcher) {
 				}
 			}
 		default:
-			if presetName, ok := matcher.PresetRuleKeys[p.Key]; ok {
+			if strings.HasPrefix(p.Key, "custom_policy_") || p.Category == "custom_policy" {
+				if p.Enabled {
+					switch strings.ToUpper(p.Action) {
+					case "BLOCK":
+						customBlocked = append(customBlocked, p.CustomDomains...)
+					case "DIRECT":
+						customDirect = append(customDirect, p.CustomDomains...)
+					default: // PROXY
+						customProxied = append(customProxied, p.CustomDomains...)
+					}
+					applied++
+				}
+			} else if presetName, ok := matcher.PresetRuleKeys[p.Key]; ok {
 				m.SetRuleEnabled(presetName, p.Enabled)
 				applied++
 			}

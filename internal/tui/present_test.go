@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -82,7 +83,11 @@ func TestBannerHasNoInterpolatedBytes(t *testing.T) {
 // -y still archives the data) and run through runInteractive, which wires the
 // real terminal. A custom command exercises the same interactive path.
 func TestUninstallCommandIsInteractiveAndPreConfirmed(t *testing.T) {
-	err := ExecSystemController{UninstallCommand: []string{"true"}}.Uninstall(context.Background())
+	cmd := []string{"true"}
+	if runtime.GOOS == "windows" {
+		cmd = []string{"cmd.exe", "/c", "exit", "0"}
+	}
+	err := ExecSystemController{UninstallCommand: cmd}.Uninstall(context.Background())
 	if err != nil {
 		t.Fatalf("custom uninstall command failed through the interactive path: %v", err)
 	}
@@ -91,7 +96,12 @@ func TestUninstallCommandIsInteractiveAndPreConfirmed(t *testing.T) {
 // sanitizedError must show an exit-status error rather than the redacted
 // generic string — that redaction is what hid the uninstaller failure.
 func TestSanitizedErrorShowsSystemCommandFailures(t *testing.T) {
-	exitErr := exec.Command("false").Run() // *exec.ExitError
+	var exitErr error
+	if runtime.GOOS == "windows" {
+		exitErr = exec.Command("cmd.exe", "/c", "exit", "1").Run()
+	} else {
+		exitErr = exec.Command("false").Run()
+	}
 	got := sanitizedError(exitErr)
 	if got == "control request failed" {
 		t.Fatal("a system-command exit status was redacted to the generic control string — the uninstaller's failure reason would be hidden")

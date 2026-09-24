@@ -169,11 +169,11 @@ func TestPoC04ReasonCodesRequireASecretFirst(t *testing.T) {
 			taken.Code, taken.Body.String(), free.Code, free.Body.String())
 	}
 
-	// With the right secret the conflict IS reported — that is the feature, and
-	// the subscriber is the only one who can reach it.
+	// With the right secret the address is successfully registered (200 OK),
+	// supporting multiple subscribers sharing an IP address (e.g. Iranian CGNAT/Wi-Fi).
 	legit := post(attacker.RegisterSecret, "203.0.113.10")
-	if legit.Code != http.StatusConflict {
-		t.Errorf("with the correct secret a taken address should answer 409, got %d: %s",
+	if legit.Code != http.StatusOK {
+		t.Errorf("with the correct secret a shared address should answer 200 OK, got %d: %s",
 			legit.Code, legit.Body.String())
 	}
 }

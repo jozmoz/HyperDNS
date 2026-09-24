@@ -701,6 +701,30 @@
       'برای بارگذاری تنظیمات نمی‌توان به سرور دسترسی پیدا کرد.',
     'Policies updated & active!': 'سیاست‌ها به‌روز و فعال شدند!',
     'Failed to save policies': 'ذخیرهٔ سیاست‌ها ناموفق بود',
+    'Custom Policies': 'سیاست‌های اختصاصی',
+    'User Defined': 'تعریف‌شده توسط شما',
+    'Add Custom Policy': 'افزودن سیاست اختصاصی',
+    'Edit Custom Policy': 'ویرایش سیاست اختصاصی',
+    'No custom policies configured yet': 'هنوز سیاست اختصاصی ثبت نکرده‌اید',
+    'Click "Add Custom Policy" to create your own dedicated game or service routing policy.':
+      'با کلیک روی «افزودن سیاست اختصاصی»، بازی یا سرویس دلخواه خود را اضافه کنید.',
+    'Create custom policies with dedicated names, wildcard domains and routing actions':
+      'افزودن و مدیریت سیاست‌های سفارشی با نام، دامنه‌ها و زیرمجموعه‌ها (*.domain.com) و نوع هدایت',
+    'Define custom name, routing action and domain wildcards':
+      'تعریف نام، نحوه هدایت (Routing) و دامنه‌ها با زیرمجموعه',
+    'POLICY NAME / LABEL': 'نام سیاست',
+    'ROUTING ACTION': 'نوع هدایت',
+    'SUBDOMAINS': 'پوشش زیردامنه‌ها',
+    'Include Subdomains (*.)': 'شامل تمام ساب‌دامین‌ها (*.)',
+    'DOMAINS (one per line or comma-separated)': 'دامنه‌ها (هر دامنه در یک خط یا با ویرگول)',
+    'Supports wildcard subdomains like *.example.com or exact hostnames.':
+      'می‌توانید از ستاره مانند *.target.com برای پوشش تمام زیرمجموعه‌ها استفاده کنید.',
+    'Policy Enabled': 'سیاست فعال باشد',
+    'Save Policy': 'ذخیره سیاست',
+    'Cancel': 'انصراف',
+    'Custom policy saved successfully!': 'سیاست اختصاصی با موفقیت ذخیره شد!',
+    'Custom policy deleted!': 'سیاست اختصاصی حذف شد!',
+    'Policy updated!': 'سیاست به‌روز شد!',
     'Regenerate Master API Key?': 'کلید اصلی API تولید مجدد شود؟',
     'EVERY INTEGRATION BREAKS IMMEDIATELY': 'همهٔ یکپارچه‌سازی‌ها بلافاصله می‌شکنند',
     'The current key stops working the moment the new one is issued. Every external bot, billing hook and script still holding the old key will start getting 401s until you update it by hand.':
@@ -794,6 +818,12 @@
       'انجام شد، ولی نه آن بخشی که انتظارش را داشتید.',
     'Testing VPS connectivity to Riot, Epic, Steam, Discord, EA, Battle.net, PUBG, Spotify...':
       'تست اتصال VPS به Riot، Epic، Steam، Discord، EA، Battle.net، PUBG و Spotify…',
+    'MAX DEVICES (IP LIMIT)': 'حداکثر دستگاه (سقف آی‌پی)',
+    'Max Devices / IPs': 'حداکثر دستگاه / سقف IP',
+    'Device(s)': 'دستگاه',
+    'Allowed IPs:': 'آی‌پی‌های مجاز:',
+    'devices': 'دستگاه',
+    'limit': 'سقف',
 
     /* --- language + theme switcher labels (this file's own UI) --- */
     'Language': 'زبان',

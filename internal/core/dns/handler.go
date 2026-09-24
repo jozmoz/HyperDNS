@@ -450,13 +450,43 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP string, protocol ...string) 
 		}
 	}
 
-	// 4. Rule matcher (honoring per-client policy exceptions if configured)
+	// 4. Rule matcher (honoring per-client custom domains and policy exceptions if configured)
 	var action matcher.Action
 	var ruleName string
-	if activeClient != nil && len(activeClient.CustomPolicies) > 0 {
-		action, ruleName = h.matcher.MatchForClient(domain, activeClient.CustomPolicies)
-	} else {
-		action, ruleName = h.matcher.Match(domain)
+
+	matchedUserCustom := false
+	if activeClient != nil && len(activeClient.CustomDomains) > 0 {
+		for _, cd := range activeClient.CustomDomains {
+			if !cd.Enabled {
+				continue
+			}
+			target := strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(cd.Domain), "*."), "."))
+			if target == "" {
+				continue
+			}
+			// Exact domain match or subdomain match
+			if domain == target || (cd.IncludeSubdomains && strings.HasSuffix(domain, "."+target)) {
+				matchedUserCustom = true
+				ruleName = "User Custom: " + cd.Domain
+				switch strings.ToUpper(cd.Action) {
+				case "BLOCK":
+					action = matcher.ActionBlock
+				case "DIRECT":
+					action = matcher.ActionDirect
+				default:
+					action = matcher.ActionProxy
+				}
+				break
+			}
+		}
+	}
+
+	if !matchedUserCustom {
+		if activeClient != nil && len(activeClient.CustomPolicies) > 0 {
+			action, ruleName = h.matcher.MatchForClient(domain, activeClient.CustomPolicies)
+		} else {
+			action, ruleName = h.matcher.Match(domain)
+		}
 	}
 
 	switch action {

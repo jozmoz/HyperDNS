@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"strings"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -79,6 +80,8 @@ type encClient struct {
 	Enabled           bool      `json:"enabled"`
 	Note              string    `json:"note"`
 	CustomPolicies    []string  `json:"custom_policies"`
+	MaxDevices        int       `json:"max_devices,omitempty"`
+	CustomDomainsEnc  string    `json:"custom_domains_enc,omitempty"`
 
 	// The recurring-quota fields are stored in the clear beside the limit they
 	// govern. A cycle name and two counters say nothing about who the subscriber is
@@ -188,6 +191,23 @@ func (db *DB) packClient(c Client) ([]byte, error) {
 		}
 	}
 
+	var customDomainsEnc string
+	if len(c.CustomDomains) > 0 {
+		cdData, err := json.Marshal(c.CustomDomains)
+		if err != nil {
+			return nil, err
+		}
+		customDomainsEnc, err = db.cipher.EncryptString(string(cdData))
+		if err != nil {
+			return nil, fmt.Errorf("could not encrypt custom domains of client %q: %w", c.ID, err)
+		}
+	}
+
+	maxDev := c.MaxDevices
+	if maxDev <= 0 {
+		maxDev = 1
+	}
+
 	enc := encClient{
 		ID:                c.ID,
 		UUID:              c.UUID,
@@ -205,6 +225,8 @@ func (db *DB) packClient(c Client) ([]byte, error) {
 		Enabled:           c.Enabled,
 		Note:              c.Note,
 		CustomPolicies:    c.CustomPolicies,
+		MaxDevices:        maxDev,
+		CustomDomainsEnc:  customDomainsEnc,
 
 		TrafficResetCycle:     c.TrafficResetCycle,
 		TrafficResetAnchor:    c.TrafficResetAnchor,
@@ -254,6 +276,21 @@ func (db *DB) unpackClient(data []byte) (*Client, error) {
 		customPolicies = []string{}
 	}
 
+	var customDomains []ClientCustomDomain
+	if enc.CustomDomainsEnc != "" {
+		if decCD, err := db.cipher.DecryptString(enc.CustomDomainsEnc); err == nil {
+			_ = json.Unmarshal([]byte(decCD), &customDomains)
+		}
+	}
+	if customDomains == nil {
+		customDomains = []ClientCustomDomain{}
+	}
+
+	maxDev := enc.MaxDevices
+	if maxDev <= 0 {
+		maxDev = 1
+	}
+
 	// Decrypt the register secret. An empty value is the legacy shape — records
 	// written before Phase B have none, and the client service backfills one.
 	registerSecret := ""
@@ -269,6 +306,8 @@ func (db *DB) unpackClient(data []byte) (*Client, error) {
 		Name:             name,
 		Token:            token,
 		AllowedIPs:       ips,
+		MaxDevices:       maxDev,
+		CustomDomains:    customDomains,
 		RegisterSecret:   registerSecret,
 		TrafficLimitGB:   enc.TrafficLimitGB,
 		TrafficUsedBytes: enc.TrafficUsedBytes,
@@ -347,7 +386,7 @@ func (db *DB) validateClient(bucketKey, data []byte) error {
 		return errors.New("client record requires a master key")
 	}
 	for name, sealed := range map[string]string{
-		"name": enc.NameEnc, "token": enc.TokenEnc, "allowed IPs": enc.AllowedIPEnc, "register secret": enc.RegisterSecretEnc,
+		"name": enc.NameEnc, "token": enc.TokenEnc, "allowed IPs": enc.AllowedIPEnc, "register secret": enc.RegisterSecretEnc, "custom domains": enc.CustomDomainsEnc,
 	} {
 		if sealed == "" {
 			continue
@@ -375,6 +414,12 @@ func (db *DB) validateClient(bucketKey, data []byte) error {
 			}
 			if ips == nil {
 				return errors.New("decode allowed IPs: expected a JSON string array")
+			}
+		}
+		if name == "custom domains" {
+			var cds []ClientCustomDomain
+			if err := json.Unmarshal([]byte(plain), &cds); err != nil {
+				return fmt.Errorf("decode custom domains: %w", err)
 			}
 		}
 	}
@@ -569,7 +614,20 @@ func (db *DB) registerIP(client *Client, newIP string) (*Client, bool, error) {
 		}
 	}
 
-	alreadyPresent := len(client.AllowedIPs) == 1 && client.AllowedIPs[0] == newIP
+	maxDev := client.MaxDevices
+	if maxDev <= 0 {
+		maxDev = 1
+	}
+
+	ipIndex := -1
+	for i, ip := range client.AllowedIPs {
+		if ip == newIP {
+			ipIndex = i
+			break
+		}
+	}
+
+	alreadyPresent := ipIndex >= 0
 
 	// A repeat visit from the same address changes nothing the resolver or the
 	// operator can observe except LastSeen, so it does not earn a write until that
@@ -578,23 +636,107 @@ func (db *DB) registerIP(client *Client, newIP string) (*Client, bool, error) {
 		return client, true, nil
 	}
 
-	// Phase B (Mantis C-04): refuse to bind an address that is already the
-	// registered address of a DIFFERENT live subscription. The scan is one pass
-	// over the accounts bucket on a bind — the write path this guards is
-	// rate-limited by human behaviour, not by a resolver hot loop — and it is
-	// the only place an IP->account uniqueness claim can be made honestly,
-	// because bbolt has no secondary index to consult. Deliberately NOT
-	// deactivating either account: CGNAT makes shared addresses routine, and
-	// the caller surfaces a 409 with instructions instead.
-	if existing, owner := db.findOwnerOfIP(newIP, client.ID); existing {
-		return client, alreadyPresent, fmt.Errorf("%w: already bound to account %s", ErrDuplicateIPConflict, owner)
+	if alreadyPresent {
+		// Move to end (most recent)
+		client.AllowedIPs = append(client.AllowedIPs[:ipIndex], client.AllowedIPs[ipIndex+1:]...)
+		client.AllowedIPs = append(client.AllowedIPs, newIP)
+	} else {
+		// Limit simultaneous connected devices by evicting oldest if maxDev reached
+		for len(client.AllowedIPs) >= maxDev {
+			client.AllowedIPs = client.AllowedIPs[1:]
+		}
+		client.AllowedIPs = append(client.AllowedIPs, newIP)
 	}
 
-	client.AllowedIPs = []string{newIP}
 	client.LastSeen = now
 
 	err := db.SaveClient(*client)
 	return client, alreadyPresent, err
+}
+
+// AddClientCustomDomain adds or updates a custom domain for a client.
+func (db *DB) AddClientCustomDomain(clientID string, domain, action string, includeSubdomains bool) (*ClientCustomDomain, error) {
+	client, err := db.GetClient(clientID)
+	if err != nil {
+		return nil, err
+	}
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	if domain == "" {
+		return nil, errors.New("domain cannot be empty")
+	}
+	action = strings.ToUpper(strings.TrimSpace(action))
+	if action != "PROXY" && action != "DIRECT" && action != "BLOCK" {
+		action = "PROXY"
+	}
+
+	now := time.Now()
+	for i, cd := range client.CustomDomains {
+		if strings.EqualFold(cd.Domain, domain) {
+			client.CustomDomains[i].Action = action
+			client.CustomDomains[i].IncludeSubdomains = includeSubdomains
+			client.CustomDomains[i].Enabled = true
+			if err := db.SaveClient(*client); err != nil {
+				return nil, err
+			}
+			return &client.CustomDomains[i], nil
+		}
+	}
+
+	newCD := ClientCustomDomain{
+		ID:                GenerateUUID(),
+		Domain:            domain,
+		Action:            action,
+		IncludeSubdomains: includeSubdomains,
+		Enabled:           true,
+		CreatedAt:         now,
+	}
+	client.CustomDomains = append(client.CustomDomains, newCD)
+	if err := db.SaveClient(*client); err != nil {
+		return nil, err
+	}
+	return &newCD, nil
+}
+
+// DeleteClientCustomDomain removes a custom domain by its ID from a client.
+func (db *DB) DeleteClientCustomDomain(clientID, domainID string) error {
+	client, err := db.GetClient(clientID)
+	if err != nil {
+		return err
+	}
+	newDomains := make([]ClientCustomDomain, 0, len(client.CustomDomains))
+	found := false
+	for _, cd := range client.CustomDomains {
+		if cd.ID == domainID {
+			found = true
+			continue
+		}
+		newDomains = append(newDomains, cd)
+	}
+	if !found {
+		return errors.New("custom domain not found")
+	}
+	client.CustomDomains = newDomains
+	return db.SaveClient(*client)
+}
+
+// ToggleClientCustomDomain toggles the enabled state of a custom domain.
+func (db *DB) ToggleClientCustomDomain(clientID, domainID string, enabled bool) error {
+	client, err := db.GetClient(clientID)
+	if err != nil {
+		return err
+	}
+	found := false
+	for i, cd := range client.CustomDomains {
+		if cd.ID == domainID {
+			client.CustomDomains[i].Enabled = enabled
+			found = true
+			break
+		}
+	}
+	if !found {
+		return errors.New("custom domain not found")
+	}
+	return db.SaveClient(*client)
 }
 
 // findOwnerOfIP walks the accounts bucket for a record whose registered address

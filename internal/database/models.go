@@ -22,6 +22,12 @@ type Client struct {
 	Note             string    `json:"note"`
 	CustomPolicies   []string  `json:"custom_policies"` // empty = inherit global policies
 
+	// MaxDevices is the maximum number of simultaneous connected IPs/devices for this subscriber (0 or 1 = default 1 device).
+	MaxDevices int `json:"max_devices"`
+
+	// CustomDomains stores individual custom domain rules specific to this subscriber.
+	CustomDomains []ClientCustomDomain `json:"custom_domains"`
+
 	// RegisterSecret is the second credential the subscriber's IP-registration
 	// API (/ip/<token>) demands on top of the token in the path (v2.1.0 Phase B,
 	// Mantis C-03). The token travels inside a link that gets pasted into group
@@ -61,13 +67,24 @@ type Client struct {
 	TrafficPrevCycleBytes uint64 `json:"traffic_prev_cycle_bytes"`
 }
 
+// ClientCustomDomain represents a user-specific custom domain rule with subdomains support.
+type ClientCustomDomain struct {
+	ID                string    `json:"id"`
+	Domain            string    `json:"domain"`
+	Action            string    `json:"action"` // "PROXY", "DIRECT", "BLOCK"
+	IncludeSubdomains bool      `json:"include_subdomains"`
+	Enabled           bool      `json:"enabled"`
+	CreatedAt         time.Time `json:"created_at"`
+}
+
 // Policy represents a rule toggle or custom domain list
 type Policy struct {
 	Key           string   `json:"key"`      // e.g. "enable_riot", "enable_steam"
 	Name          string   `json:"name"`     // e.g. "Riot Games & Valorant"
-	Category      string   `json:"category"` // "gaming", "streaming", "dev", "custom"
+	Category      string   `json:"category"` // "gaming", "streaming", "dev", "custom", "custom_policy"
 	Enabled       bool     `json:"enabled"`
 	CustomDomains []string `json:"custom_domains"` // for custom rules
+	Action        string   `json:"action,omitempty"` // "PROXY", "DIRECT", "BLOCK"
 }
 
 // QueryLogItem represents a real-time DNS telemetry record

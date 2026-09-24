@@ -32,18 +32,32 @@ import (
 // everything it returns is display data.
 func (ws *WebServer) handleSubDataAPI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		httpx.WriteMethodNotAllowed(w, "GET, HEAD")
+
+	subPath := strings.TrimPrefix(r.URL.Path, "/api/sub/")
+	subPath = strings.Trim(subPath, "/")
+	parts := strings.Split(subPath, "/")
+	if len(parts) == 0 || parts[0] == "" {
+		httpx.WriteJSONError(w, http.StatusNotFound, "missing subscription token")
 		return
 	}
-	token := strings.TrimPrefix(r.URL.Path, "/api/sub/")
-	token = strings.TrimSpace(strings.TrimSuffix(token, "/"))
+	token := parts[0]
 	token = strings.TrimSuffix(token, "/sync")
 
 	client, err := ws.clients.LookupByToken(token)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"success":false,"error":"Invalid or expired subscription token"}`))
+		return
+	}
+
+	// Handle custom domain sub-resource: /api/sub/<token>/domains...
+	if len(parts) >= 2 && parts[1] == "domains" {
+		ws.handleSubDomainsAPI(w, r, client, parts[2:])
+		return
+	}
+
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		httpx.WriteMethodNotAllowed(w, "GET, HEAD")
 		return
 	}
 
@@ -55,11 +69,6 @@ func (ws *WebServer) handleSubDataAPI(w http.ResponseWriter, r *http.Request) {
 
 	serverDNS := ws.settings.GetPublicIP()
 	if serverDNS == "" || serverDNS == "127.0.0.1" || serverDNS == "0.0.0.0" {
-		// v2.1.0 B-16 remediation: a bare Host (no port — the default on port
-		// 80) is just as trustworthy as host:port here; both are display-only
-		// values the HTML handler already accepts. SplitHostPort failed on the
-		// bare form and left server_dns at 127.0.0.1 while the HTML page of the
-		// same portal showed the right address.
 		host := r.Host
 		if h, _, err := net.SplitHostPort(r.Host); err == nil {
 			host = h
@@ -69,10 +78,6 @@ func (ws *WebServer) handleSubDataAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// The encrypted transports are addressed by name, not by address; see the
-	// ServerHost comment on portalData. A JSON consumer of this endpoint needs the
-	// same distinction the HTML page makes, or it builds a DoT string from an IP
-	// that Android will not accept.
 	serverHost := serverDNS
 	if ws.tlsSettings != nil {
 		if d := ws.tlsSettings.GetDomain(); d != "" {
@@ -80,23 +85,8 @@ func (ws *WebServer) handleSubDataAPI(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// RegisterIP hands back the record as it is stored, so its counter is only as
-	// fresh as the last flush — up to a flush interval behind. Quota enforcement
-	// compares against the live total, so reporting the stored one let a subscriber
-	// whose traffic had already been cut off read a page that still showed quota
-	// left. ViewClient folds the pending bytes in and answers the two questions the
-	// page would otherwise have to answer for itself — am I over my limit, and when
-	// does the allowance come back — using the daemon's own rule rather than a second
-	// copy of it in JavaScript.
 	view := ws.clients.ViewClient(client)
 
-	// The view embeds the whole stored record, and two of its fields are not
-	// display data. register_secret is the WRITE credential: this endpoint is
-	// unauthenticated and reached by anyone holding the portal link, so serving
-	// the secret here would collapse the out-of-band separation the whole Phase B
-	// design rests on (Mantis C-03) — a leaked link alone would again be enough
-	// to move the binding. The note is the operator's private comment about the
-	// customer, never shown on the portal either.
 	view.RegisterSecret = ""
 	view.Note = ""
 
@@ -105,20 +95,128 @@ func (ws *WebServer) handleSubDataAPI(w http.ResponseWriter, r *http.Request) {
 		"client":      &view,
 		"detected_ip": clientIP,
 		"server_dns":  serverDNS,
-		// server_host is the DoT/DoH name; server_dns stays the plain-DNS address so
-		// existing consumers keep working.
 		"server_host":        serverHost,
 		"has_domain":         serverHost != serverDNS,
 		"traffic_used_bytes": view.TrafficUsedBytes,
 		"traffic_limit_gb":   view.TrafficLimitGB,
 		"expires_at":         view.ExpiresAt,
 
-		// Flat copies of the computed figures, so a client of this endpoint does not
-		// have to reach into the nested object for them. Absent, not zero, when the
-		// account has no cycle.
 		"next_traffic_reset": view.NextTrafficReset,
 		"quota_exceeded":     view.QuotaExceeded,
+
+		"max_devices":    view.MaxDevices,
+		"allowed_ips":    view.AllowedIPs,
+		"custom_domains": view.CustomDomains,
 	})
+}
+
+// handleSubDomainsAPI provides subscriber-facing custom domain management under /api/sub/<token>/domains.
+func (ws *WebServer) handleSubDomainsAPI(w http.ResponseWriter, r *http.Request, client *database.Client, subParts []string) {
+	if len(subParts) == 0 {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead:
+			fresh, err := ws.clients.GetClient(client.ID)
+			if err != nil {
+				httpx.WriteJSONError(w, http.StatusNotFound, "Client not found")
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"success": true,
+				"domains": fresh.CustomDomains,
+			})
+			return
+		case http.MethodPost:
+			var req struct {
+				Domain            string `json:"domain"`
+				Action            string `json:"action"`
+				IncludeSubdomains bool   `json:"include_subdomains"`
+			}
+			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
+				httpx.WriteJSONError(w, http.StatusBadRequest, "the request body could not be read as JSON")
+				return
+			}
+			dom := strings.ToLower(strings.TrimSpace(req.Domain))
+			dom = strings.TrimPrefix(dom, ".")
+			if dom == "" || strings.Contains(dom, " ") {
+				httpx.WriteJSONError(w, http.StatusBadRequest, "Invalid domain name")
+				return
+			}
+			action := strings.ToUpper(strings.TrimSpace(req.Action))
+			if action == "" {
+				action = "PROXY"
+			}
+			if action != "PROXY" && action != "DIRECT" && action != "BLOCK" {
+				httpx.WriteJSONError(w, http.StatusBadRequest, "Invalid action, must be PROXY, DIRECT or BLOCK")
+				return
+			}
+			created, err := ws.clients.AddCustomDomain(client.ID, dom, action, req.IncludeSubdomains)
+			if err != nil {
+				httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+			fresh, _ := ws.clients.GetClient(client.ID)
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"success": true,
+				"domain":  created,
+				"domains": fresh.CustomDomains,
+			})
+			return
+		default:
+			httpx.WriteMethodNotAllowed(w, "GET, HEAD, POST")
+			return
+		}
+	}
+
+	domainID := subParts[0]
+	if domainID == "" {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "Missing domain ID")
+		return
+	}
+
+	switch r.Method {
+	case http.MethodDelete:
+		if err := ws.clients.DeleteCustomDomain(client.ID, domainID); err != nil {
+			httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success":    true,
+			"deleted_id": domainID,
+		})
+		return
+	case http.MethodPatch:
+		var req struct {
+			Enabled *bool `json:"enabled"`
+		}
+		_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req)
+		targetEnabled := true
+		if req.Enabled != nil {
+			targetEnabled = *req.Enabled
+		} else {
+			fresh, err := ws.clients.GetClient(client.ID)
+			if err == nil {
+				for _, cd := range fresh.CustomDomains {
+					if cd.ID == domainID {
+						targetEnabled = !cd.Enabled
+						break
+					}
+				}
+			}
+		}
+		if err := ws.clients.ToggleCustomDomain(client.ID, domainID, targetEnabled); err != nil {
+			httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"enabled": targetEnabled,
+		})
+		return
+	default:
+		httpx.WriteMethodNotAllowed(w, "DELETE, PATCH")
+		return
+	}
 }
 
 // handleSubscriptionPage renders the subscriber portal at GET /sub/<token>.
@@ -486,6 +584,18 @@ type portalData struct {
 	HasCycle      bool
 	CycleLabel    string
 	NextResetAt   string
+
+	// Device limits & currently connected devices.
+	MaxDevices      int
+	MaxDevicesLabel string
+	ActiveDevices   int
+	AllowedIPs      []string
+	HasAllowedIPs   bool
+
+	// Dedicated custom domain routing.
+	CustomDomains    []database.ClientCustomDomain
+	HasCustomDomains bool
+	DomainsAPIPath   string
 }
 
 // The portal's two pages are parsed once, at startup. A parse failure is a typo
@@ -667,6 +777,19 @@ func (ws *WebServer) renderIPResultPage(w http.ResponseWriter, r *http.Request, 
 		label := strings.ToUpper(strings.ReplaceAll(strings.TrimPrefix(p, "enable_"), "_", " "))
 		data.Policies = append(data.Policies, label)
 	}
+
+	data.MaxDevices = client.MaxDevices
+	data.ActiveDevices = len(client.AllowedIPs)
+	data.AllowedIPs = client.AllowedIPs
+	data.HasAllowedIPs = len(client.AllowedIPs) > 0
+	if client.MaxDevices <= 0 {
+		data.MaxDevicesLabel = t.DeviceUnlimited
+	} else {
+		data.MaxDevicesLabel = fmt.Sprintf("%d", client.MaxDevices)
+	}
+	data.CustomDomains = client.CustomDomains
+	data.HasCustomDomains = len(client.CustomDomains) > 0
+	data.DomainsAPIPath = "/api/sub/" + client.Token + "/domains"
 
 	renderPortal(w, status.httpStatus(), portalPageTpl, data)
 }
@@ -856,6 +979,90 @@ const portalPageHTML = `<!DOCTYPE html>
         <div class="hint"><i class="ico ico-info" aria-hidden="true"></i>{{.T.HintModem}}</div>
       </div>
 
+    </div>
+
+    <div class="card">
+      <div class="hd">
+        <span class="hd-title"><i class="ico ico-smartphone" aria-hidden="true"></i>{{.T.CardDevices}}</span>
+        <span class="pill pill-info mono">{{.ActiveDevices}} / {{.MaxDevicesLabel}}</span>
+      </div>
+      <div class="split">
+        <span>{{.T.LabelMaxDevices}}</span>
+        <span class="split-strong mono">{{.MaxDevicesLabel}}</span>
+      </div>
+      <div class="split">
+        <span>{{.T.LabelActiveIPs}} ({{.ActiveDevices}}):</span>
+        <div class="chips">
+          {{- if .HasAllowedIPs}}
+          {{- range .AllowedIPs}}
+          <span class="chip mono"><i class="ico ico-check" aria-hidden="true"></i>{{.}}</span>
+          {{- end}}
+          {{- else}}
+          <span class="chip chip-all">{{.T.NoBoundIPs}}</span>
+          {{- end}}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="hd">
+        <span class="hd-title"><i class="ico ico-globe" aria-hidden="true"></i>{{.T.CardCustomDomains}}</span>
+        <span class="pill pill-info mono">{{len .CustomDomains}}</span>
+      </div>
+      <div class="hint"><i class="ico ico-info" aria-hidden="true"></i>{{.T.HintCustomDomains}}</div>
+
+      <div class="reg-row">
+        <input type="text" id="domain-name" class="reg-input" placeholder="{{.T.PlaceholderDomain}}" aria-label="{{.T.LabelDomainName}}">
+        <select id="domain-action" class="reg-select" aria-label="{{.T.LabelDomainAction}}">
+          <option value="PROXY">{{.T.ActionProxy}}</option>
+          <option value="DIRECT">{{.T.ActionDirect}}</option>
+          <option value="BLOCK">{{.T.ActionBlock}}</option>
+        </select>
+        <button type="button" class="btn btn-primary" id="domain-add-btn" data-add-domain="{{.DomainsAPIPath}}"><i class="ico ico-plus" aria-hidden="true"></i>{{.T.BtnAddDomain}}</button>
+      </div>
+
+      <div class="row">
+        <label class="check-label">
+          <input type="checkbox" id="domain-subs" checked class="check-box">
+          <span>{{.T.LabelIncludeSubs}}</span>
+        </label>
+      </div>
+
+      <div class="domain-list">
+        {{- if .HasCustomDomains}}
+        {{- range .CustomDomains}}
+        <div class="domain-item">
+          <div class="domain-info">
+            <span class="domain-name mono">{{.Domain}}</span>
+            {{- if .IncludeSubdomains}}
+            <span class="pill pill-info">{{$.T.TagSubdomains}}</span>
+            {{- end}}
+            {{- if eq .Action "PROXY"}}
+            <span class="pill pill-ok">PROXY</span>
+            {{- else if eq .Action "DIRECT"}}
+            <span class="pill pill-mute">DIRECT</span>
+            {{- else}}
+            <span class="pill pill-bad">BLOCK</span>
+            {{- end}}
+          </div>
+          <div class="domain-btns">
+            <button type="button" class="btn btn-sm" data-toggle-domain="{{$.DomainsAPIPath}}/{{.ID}}" title="{{$.T.BtnToggleDomain}}">
+              {{- if .Enabled}}
+              <span class="pill pill-ok">{{$.T.TagActive}}</span>
+              {{- else}}
+              <span class="pill pill-bad">{{$.T.TagInactive}}</span>
+              {{- end}}
+            </button>
+            <button type="button" class="btn btn-sm" data-del-domain="{{$.DomainsAPIPath}}/{{.ID}}" title="{{$.T.BtnDeleteDomain}}">
+              <i class="ico ico-trash" aria-hidden="true"></i>{{$.T.BtnDeleteDomain}}
+            </button>
+          </div>
+        </div>
+        {{- end}}
+        {{- else}}
+        <div class="domain-empty mono">{{.T.NoCustomDomains}}</div>
+        {{- end}}
+      </div>
     </div>
 
 
@@ -1115,7 +1322,11 @@ const portalPageHTML = `<!DOCTYPE html>
          data-msg-reason-suspended="{{.T.MsgRegisterSuspended}}"
          data-msg-reason-expired="{{.T.MsgRegisterExpired}}"
          data-msg-reason-quota="{{.T.MsgRegisterQuota}}"
-         data-msg-reason-conflict="{{.T.MsgRegisterConflict}}"></div>
+         data-msg-reason-conflict="{{.T.MsgRegisterConflict}}"
+         data-msg-domain-added="{{.T.MsgDomainAdded}}"
+         data-msg-domain-deleted="{{.T.MsgDomainDeleted}}"
+         data-msg-domain-toggled="{{.T.MsgDomainToggled}}"
+         data-msg-domain-error="{{.T.MsgDomainError}}"></div>
 
     <div class="footer">
       HyperDNS Smart Controller • UDP/TCP SmartDNS &amp; Transparent SNI Proxy Engine

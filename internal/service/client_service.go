@@ -76,8 +76,10 @@ type UpdateClientRequest struct {
 	ExpiresAt      *time.Time `json:"expires_at"`
 	DaysToAdd      *int       `json:"days_to_add"`
 	Enabled        *bool      `json:"enabled"`
-	Note           *string    `json:"note"`
-	CustomPolicies *[]string  `json:"custom_policies"`
+	Note           *string                        `json:"note"`
+	CustomPolicies *[]string                      `json:"custom_policies"`
+	MaxDevices     *int                           `json:"max_devices"`
+	CustomDomains  *[]database.ClientCustomDomain `json:"custom_domains"`
 
 	// TrafficResetCycle is "", "daily", "weekly" or "monthly". Switching a cycle on
 	// anchors it at the moment of the request, so the first rollover is a whole
@@ -86,12 +88,13 @@ type UpdateClientRequest struct {
 }
 
 type ClientService struct {
-	db       *database.DB
-	allowAll bool
-	idMap    map[string]*database.Client // in-memory fast ID lookup
-	ipMap    map[string]*database.Client // in-memory fast IP lookup
-	tokenMap map[string]*database.Client // in-memory fast Token lookup
-	uuidMap  map[string]*database.Client // in-memory fast UUID lookup
+	db        *database.DB
+	allowAll  bool
+	idMap     map[string]*database.Client   // in-memory fast ID lookup
+	ipMap     map[string]*database.Client   // in-memory fast IP lookup
+	ipClients map[string][]*database.Client // in-memory fast multiple clients per IP lookup
+	tokenMap  map[string]*database.Client   // in-memory fast Token lookup
+	uuidMap   map[string]*database.Client   // in-memory fast UUID lookup
 	// bindMu serializes RegisterIP per token (v2.1.0 B-23 remediation): two
 	// concurrent binds both read the cached record, both saved, and the
 	// interleaving left the resolver index and the DB pointing at different
@@ -109,13 +112,14 @@ type ClientService struct {
 
 func NewClientService(db *database.DB, allowAll bool) *ClientService {
 	s := &ClientService{
-		db:       db,
-		allowAll: allowAll,
-		idMap:    make(map[string]*database.Client),
-		ipMap:    make(map[string]*database.Client),
-		tokenMap: make(map[string]*database.Client),
-		uuidMap:  make(map[string]*database.Client),
-		traffic:  newTrafficLedger(),
+		db:        db,
+		allowAll:  allowAll,
+		idMap:     make(map[string]*database.Client),
+		ipMap:     make(map[string]*database.Client),
+		ipClients: make(map[string][]*database.Client),
+		tokenMap:  make(map[string]*database.Client),
+		uuidMap:   make(map[string]*database.Client),
+		traffic:   newTrafficLedger(),
 	}
 	s.reloadCache()
 	// Phase B (Mantis C-03) migration: records written before the registration
@@ -181,6 +185,7 @@ func (s *ClientService) reloadCache() {
 
 	s.idMap = make(map[string]*database.Client, len(clients))
 	s.ipMap = make(map[string]*database.Client, len(clients))
+	s.ipClients = make(map[string][]*database.Client, len(clients))
 	s.tokenMap = make(map[string]*database.Client, len(clients))
 	s.uuidMap = make(map[string]*database.Client, len(clients))
 	now := time.Now()
@@ -216,6 +221,7 @@ func (s *ClientService) indexLocked(c *database.Client, now time.Time) {
 	for _, ip := range c.AllowedIPs {
 		if ip != "" {
 			s.ipMap[ip] = c
+			s.ipClients[ip] = append(s.ipClients[ip], c)
 		}
 	}
 }
@@ -239,7 +245,25 @@ func (s *ClientService) deindexLocked(old *database.Client) {
 		delete(s.uuidMap, old.UUID)
 	}
 	for _, ip := range old.AllowedIPs {
-		if s.ipMap[ip] == old {
+		if list, ok := s.ipClients[ip]; ok {
+			filtered := make([]*database.Client, 0, len(list))
+			for _, item := range list {
+				if item.ID != old.ID {
+					filtered = append(filtered, item)
+				}
+			}
+			if len(filtered) == 0 {
+				delete(s.ipClients, ip)
+				if s.ipMap[ip] == old {
+					delete(s.ipMap, ip)
+				}
+			} else {
+				s.ipClients[ip] = filtered
+				if s.ipMap[ip] == old {
+					s.ipMap[ip] = filtered[len(filtered)-1]
+				}
+			}
+		} else if s.ipMap[ip] == old {
 			delete(s.ipMap, ip)
 		}
 	}
@@ -263,6 +287,7 @@ func (s *ClientService) refreshClientIndex(c *database.Client) {
 	stored := *c
 	stored.AllowedIPs = slices.Clone(c.AllowedIPs)
 	stored.CustomPolicies = slices.Clone(c.CustomPolicies)
+	stored.CustomDomains = slices.Clone(c.CustomDomains)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -300,6 +325,23 @@ func (s *ClientService) IsIPAllowed(ip string) (*database.Client, bool) {
 	}
 
 	client, ok := s.ipMap[ip]
+	if !ok || client == nil {
+		return nil, false
+	}
+
+	// If the indexed client is active, return it.
+	now := time.Now()
+	if client.Enabled && (client.ExpiresAt.IsZero() || now.Before(client.ExpiresAt)) {
+		return client, true
+	}
+
+	// Check if any other client sharing this IP is active.
+	for _, alt := range s.ipClients[ip] {
+		if alt != nil && alt.Enabled && (alt.ExpiresAt.IsZero() || now.Before(alt.ExpiresAt)) {
+			return alt, true
+		}
+	}
+
 	return client, ok
 }
 
@@ -340,6 +382,9 @@ type CreateClientRequest struct {
 	// at creation, so the first rollover is a whole period away.
 	TrafficLimitGB    float64
 	TrafficResetCycle string
+
+	MaxDevices    int
+	CustomDomains []database.ClientCustomDomain
 
 	Note           string
 	CustomPolicies []string
@@ -415,12 +460,23 @@ func (s *ClientService) ProvisionClient(req CreateClientRequest) (*database.Clie
 		policies = []string{}
 	}
 
+	maxDev := req.MaxDevices
+	if maxDev <= 0 {
+		maxDev = 1
+	}
+	customDomains := req.CustomDomains
+	if customDomains == nil {
+		customDomains = []database.ClientCustomDomain{}
+	}
+
 	client := database.Client{
 		ID:             id,
 		UUID:           database.GenerateUUID(),
 		Name:           req.Name,
 		Token:          token,
 		AllowedIPs:     ips,
+		MaxDevices:     maxDev,
+		CustomDomains:  customDomains,
 		TrafficLimitGB: req.TrafficLimitGB,
 		ExpiresAt:      expiresAt,
 		CreatedAt:      now,
@@ -513,6 +569,16 @@ func (s *ClientService) UpdateClient(id string, req UpdateClientRequest) (*datab
 	if req.CustomPolicies != nil {
 		client.CustomPolicies = *req.CustomPolicies
 	}
+	if req.MaxDevices != nil {
+		if *req.MaxDevices <= 0 {
+			client.MaxDevices = 1
+		} else {
+			client.MaxDevices = *req.MaxDevices
+		}
+	}
+	if req.CustomDomains != nil {
+		client.CustomDomains = *req.CustomDomains
+	}
 
 	if err := s.db.SaveClient(*client); err != nil {
 		return nil, err
@@ -520,6 +586,40 @@ func (s *ClientService) UpdateClient(id string, req UpdateClientRequest) (*datab
 
 	s.reloadCache()
 	return client, nil
+}
+
+// AddCustomDomain adds or updates a custom domain for a client.
+func (s *ClientService) AddCustomDomain(clientID, domain, action string, includeSubdomains bool) (*database.ClientCustomDomain, error) {
+	cd, err := s.db.AddClientCustomDomain(clientID, domain, action, includeSubdomains)
+	if err != nil {
+		return nil, err
+	}
+	if updated, err := s.db.GetClient(clientID); err == nil {
+		s.refreshClientIndex(updated)
+	}
+	return cd, nil
+}
+
+// DeleteCustomDomain removes a custom domain from a client.
+func (s *ClientService) DeleteCustomDomain(clientID, domainID string) error {
+	if err := s.db.DeleteClientCustomDomain(clientID, domainID); err != nil {
+		return err
+	}
+	if updated, err := s.db.GetClient(clientID); err == nil {
+		s.refreshClientIndex(updated)
+	}
+	return nil
+}
+
+// ToggleCustomDomain enables or disables a client custom domain.
+func (s *ClientService) ToggleCustomDomain(clientID, domainID string, enabled bool) error {
+	if err := s.db.ToggleClientCustomDomain(clientID, domainID, enabled); err != nil {
+		return err
+	}
+	if updated, err := s.db.GetClient(clientID); err == nil {
+		s.refreshClientIndex(updated)
+	}
+	return nil
 }
 
 func (s *ClientService) RegenerateUUID(id string) (string, error) {
