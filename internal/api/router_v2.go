@@ -103,6 +103,26 @@ func (a *API) RegisterRoutesV2(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v2/clients/", a.SecurityMiddleware(a.handleV2ClientItem))
 	mux.HandleFunc("/api/v2/policies", a.SecurityMiddleware(a.handleV2Policies))
 	mux.HandleFunc("/api/v2/cache/flush", a.SecurityMiddleware(a.handleV2FlushCache))
+	mux.HandleFunc("/api/v2/config/telegram", a.SecurityMiddleware(a.handleV2ConfigTelegram))
+}
+
+// handleV2ConfigTelegram exposes the Telegram bot settings via the REST API
+// (API-key authenticated) so the Python bot can pull its own configuration
+// from the panel database at startup instead of requiring env vars.
+func (a *API) handleV2ConfigTelegram(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", "Use GET")
+		return
+	}
+	var cfg database.TelegramSettings
+	if err := a.db.GetSetting("telegram", &cfg); err != nil {
+		cfg = *database.DefaultTelegramSettings()
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"success": true,
+		"config":  &cfg,
+	})
 }
 
 // DeprecateV1 wraps a v1 route handler with the deprecation markers. The

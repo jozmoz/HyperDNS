@@ -393,6 +393,130 @@ uninstall_hyperdns() {
     fi
 }
 
+manage_telegram_bot() {
+    echo -e "\n${BOLD}${CYAN}=== HyperDNS Telegram Bot Management ===${NC}"
+    local bot_service="hyperdns-bot"
+    local bot_script="$INSTALL_DIR/integrations/telegram_bot.py"
+    local bot_env="$INSTALL_DIR/telegram.env"
+    local bot_unit="/etc/systemd/system/${bot_service}.service"
+
+    if systemctl is-active --quiet "$bot_service" 2>/dev/null; then
+        echo -e "  Bot Status: ${GREEN}● RUNNING${NC}"
+    else
+        echo -e "  Bot Status: ${RED}● STOPPED${NC}"
+    fi
+
+    echo ""
+    echo -e "  ${CYAN}[1]${NC} 🚀 نصب و راه‌اندازی ربات (Install & Start Bot)"
+    echo -e "  ${CYAN}[2]${NC} ▶️  روشن کردن ربات (Start Bot)"
+    echo -e "  ${CYAN}[3]${NC} ⏹️  توقف ربات (Stop Bot)"
+    echo -e "  ${CYAN}[4]${NC} 🔄 ری‌استارت ربات (Restart Bot)"
+    echo -e "  ${CYAN}[5]${NC} 📜 مشاهده لاگ ربات (View Bot Logs)"
+    echo -e "  ${CYAN}[6]${NC} 🔑 ویرایش API Key ربات (Edit Bot API Key)"
+    echo -e "  ${YELLOW}[0]${NC} بازگشت (Back)"
+    read -rp " Choose option [0-6]: " bot_choice
+
+    case "$bot_choice" in
+        1)
+            echo -e "\n${CYAN}Installing Telegram Bot dependencies...${NC}"
+            # Install Python3 and requests if not present
+            if ! command -v python3 &>/dev/null; then
+                apt-get update -qq && apt-get install -y -qq python3 python3-pip 2>/dev/null || {
+                    yum install -y python3 python3-pip 2>/dev/null || true
+                }
+            fi
+            python3 -c "import requests" 2>/dev/null || pip3 install requests 2>/dev/null || python3 -m pip install requests 2>/dev/null
+
+            # Copy bot files
+            mkdir -p "$INSTALL_DIR/integrations"
+            if [ -f "$(dirname "$BIN_PATH")/integrations/telegram_bot.py" ]; then
+                cp "$(dirname "$BIN_PATH")/integrations/telegram_bot.py" "$INSTALL_DIR/integrations/telegram_bot.py"
+            elif [ -f "/root/HyperDNS-main/integrations/telegram_bot.py" ]; then
+                cp /root/HyperDNS-main/integrations/telegram_bot.py "$INSTALL_DIR/integrations/telegram_bot.py"
+            else
+                echo -e "${CYAN}Downloading bot script from GitHub...${NC}"
+                curl -fsSL -o "$INSTALL_DIR/integrations/telegram_bot.py" "${REPO_RAW_URL}/integrations/telegram_bot.py"
+            fi
+
+            # Create env file if not exists
+            if [ ! -f "$bot_env" ]; then
+                echo -e "\n${YELLOW}Please enter your HyperDNS REST API Key:${NC}"
+                echo -e "(You can find it in the Dashboard → Settings → API Key)"
+                read -rp "API Key: " input_api_key
+                cat > "$bot_env" <<ENVEOF
+# HyperDNS Telegram Bot Environment
+# The bot reads all other settings (Token, Admin IDs, etc.) from the panel database.
+HYPERDNS_API_BASE=http://127.0.0.1:8080/api/v2
+HYPERDNS_API_KEY=${input_api_key}
+ENVEOF
+                chmod 600 "$bot_env"
+                echo -e "${GREEN}✓ Environment file created at $bot_env${NC}"
+            fi
+
+            # Install systemd service
+            cat > "$bot_unit" <<'SVCEOF'
+[Unit]
+Description=HyperDNS Telegram Sales & Subscription Bot
+Documentation=https://github.com/jozmoz/HyperDNS
+After=hyperdns.service
+Wants=hyperdns.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hyperdns
+EnvironmentFile=-/opt/hyperdns/telegram.env
+ExecStart=/usr/bin/python3 /opt/hyperdns/integrations/telegram_bot.py
+Restart=always
+RestartSec=10s
+TimeoutStopSec=10s
+SyslogIdentifier=hyperdns-bot
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+            systemctl daemon-reload
+            systemctl enable "$bot_service"
+            systemctl restart "$bot_service"
+
+            echo -e "\n${GREEN}${BOLD}✓ Telegram Bot installed and started successfully!${NC}"
+            echo -e "${YELLOW}Note: Make sure you have configured the Telegram bot settings in the HyperDNS Dashboard → Settings → Telegram Bot.${NC}"
+            ;;
+        2)
+            systemctl start "$bot_service" 2>/dev/null && echo -e "${GREEN}✓ Bot started!${NC}" || echo -e "${RED}Failed to start bot. Run option [1] first to install.${NC}"
+            ;;
+        3)
+            systemctl stop "$bot_service" 2>/dev/null && echo -e "${YELLOW}✓ Bot stopped.${NC}" || echo -e "${RED}Bot service not found.${NC}"
+            ;;
+        4)
+            systemctl restart "$bot_service" 2>/dev/null && echo -e "${GREEN}✓ Bot restarted!${NC}" || echo -e "${RED}Failed. Run option [1] first.${NC}"
+            ;;
+        5)
+            echo -e "\n${CYAN}Bot logs (Press Ctrl+C to return)...${NC}"
+            sleep 1
+            journalctl -u "$bot_service" -f -n 50 || true
+            ;;
+        6)
+            echo -e "\n${YELLOW}Enter the new HyperDNS API Key:${NC}"
+            read -rp "API Key: " new_key
+            if [ -n "$new_key" ]; then
+                cat > "$bot_env" <<ENVEOF
+HYPERDNS_API_BASE=http://127.0.0.1:8080/api/v2
+HYPERDNS_API_KEY=${new_key}
+ENVEOF
+                chmod 600 "$bot_env"
+                systemctl restart "$bot_service" 2>/dev/null || true
+                echo -e "${GREEN}✓ API Key updated and bot restarted!${NC}"
+            fi
+            ;;
+        *)
+            return
+            ;;
+    esac
+    sleep 2
+}
+
 main_menu() {
     while true; do
         show_banner
@@ -408,10 +532,11 @@ main_menu() {
         echo -e "  ${CYAN}[10]${NC} 🚀 آپدیت HyperDNS به آخرین نسخه از گیت‌هاب (Update)"
         echo -e "  ${CYAN}[11]${NC} 💾 ایجاد فایل پشتیبان دیتابیس (Backup Database)"
         echo -e "  ${CYAN}[12]${NC} ♻️  بازیابی نسخه پشتیبان (Restore Database)"
-        echo -e "  ${RED}[13]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
+        echo -e "  ${CYAN}[13]${NC} 🤖 مدیریت ربات تلگرام (Telegram Bot)"
+        echo -e "  ${RED}[14]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
         echo -e "  ${YELLOW}[0]${NC}  🚪 خروج (Exit)"
         echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}"
-        read -rp " عدد مورد نظر را وارد کنید [0-13]: " choice
+        read -rp " عدد مورد نظر را وارد کنید [0-14]: " choice
 
         case "$choice" in
             1)
@@ -464,6 +589,9 @@ main_menu() {
                 restore_database
                 ;;
             13)
+                manage_telegram_bot
+                ;;
+            14)
                 uninstall_hyperdns
                 ;;
             0|q|exit)

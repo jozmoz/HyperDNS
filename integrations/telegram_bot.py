@@ -629,7 +629,20 @@ class HyperDNSTelegramBot:
             self.send_message(chat_id, msg)
 
         elif data == "menu_trial":
-            # 1-Click Free Trial
+            # 1-Click Free Trial — use panel config if available
+            trial_enabled = getattr(self, '_panel_trial_enabled', True)
+            trial_days = getattr(self, '_panel_trial_days', 1)
+            trial_gb = getattr(self, '_panel_trial_gb', 2.0)
+
+            if not trial_enabled:
+                self.send_message(
+                    chat_id,
+                    "⚠️ <b>اکانت تست رایگان در حال حاضر غیرفعال است.</b>\n\n"
+                    "جهت دریافت اشتراک از بخش «خرید اشتراک» اقدام فرمایید.",
+                    self.main_customer_keyboard(is_admin_user)
+                )
+                return
+
             if str(user_id) in self.store.data["trials"]:
                 self.send_message(
                     chat_id,
@@ -640,9 +653,8 @@ class HyperDNSTelegramBot:
                 return
 
             try:
-                # Provision trial client (2 days, 2 GB)
                 trial_name = f"Trial_{user_id}_{int(time.time())%1000}"
-                client = self.api.create_client(name=trial_name, days=2, traffic_gb=2.0, max_devices=1, note=f"Free Trial via Bot for TG:{user_id}")
+                client = self.api.create_client(name=trial_name, days=trial_days, traffic_gb=trial_gb, max_devices=1, note=f"Free Trial via Bot for TG:{user_id}")
                 self.store.data["trials"][str(user_id)] = time.time()
                 self.store.data["user_clients"][str(user_id)] = client["id"]
                 self.store.save()
@@ -650,7 +662,7 @@ class HyperDNSTelegramBot:
                 status_data = self.api.get_status()
                 pub_ip = status_data.get("public_ip", "127.0.0.1")
                 card = (
-                    "🎁 <b>تبریک! اکانت تست رایگان ۲ روزه شما فعال شد:</b>\n\n" +
+                    f"🎁 <b>تبریک! اکانت تست رایگان {trial_days} روزه شما فعال شد:</b>\n\n" +
                     self.format_client_card(client, pub_ip) +
                     "\n<i>جهت تست، کافی است آدرس Primary DNS را در کنسول، سیستم یا مودم خود وارد فرمایید.</i>"
                 )
@@ -892,15 +904,104 @@ class HyperDNSTelegramBot:
             logger.debug(f"Polling update error (expected if network isolated): {e}")
 
 
-if __name__ == "__main__":
-    token = require_env("TELEGRAM_BOT_TOKEN", TELEGRAM_BOT_TOKEN)
-    api_key = require_env("HYPERDNS_API_KEY", HYPERDNS_API_KEY)
-    admin_ids = parse_admin_chat_ids(os.getenv("TELEGRAM_ADMIN_CHAT_IDS", ""))
+def fetch_panel_config(api_base: str, api_key: str) -> dict:
+    """
+    Fetch Telegram bot settings from the HyperDNS panel API.
+    Returns the config dict on success, or empty dict on failure.
+    Endpoint: GET /api/v2/config/telegram (API-key authenticated).
+    """
+    url = f"{api_base.rstrip('/')}/config/telegram"
+    headers = {"X-API-Key": api_key, "Content-Type": "application/json"}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("success") and data.get("config"):
+                return data["config"]
+        logger.warning(f"Panel config fetch returned status {r.status_code}: {r.text[:200]}")
+    except Exception as e:
+        logger.warning(f"Could not fetch config from panel API ({url}): {e}")
+    return {}
 
-    client = HyperDNSClient(HYPERDNS_API_BASE, api_key)
+
+if __name__ == "__main__":
+    # -------------------------------------------------------------------------
+    # Configuration resolution order:
+    #   1. HyperDNS Panel API (/api/v2/config/telegram)  — preferred
+    #   2. Environment variables                          — fallback
+    # -------------------------------------------------------------------------
+
+    # Step 0: We always need the API base URL and API key from env to talk
+    # to HyperDNS at all. These two cannot come from the panel.
+    api_base = os.getenv("HYPERDNS_API_BASE", "http://127.0.0.1:8080/api/v2").strip()
+    api_key = os.getenv("HYPERDNS_API_KEY", "").strip()
+    if not api_key:
+        sys.exit(
+            "[FATAL] HYPERDNS_API_KEY is not set.\n"
+            "        Set it in the environment, your systemd unit, or a .env file:\n"
+            "            export HYPERDNS_API_KEY=hdns_live_...\n"
+            "        The bot needs this key to communicate with the HyperDNS REST API."
+        )
+
+    # Step 1: Try to pull the full config from the panel database.
+    panel_cfg = fetch_panel_config(api_base, api_key)
+
+    if panel_cfg:
+        logger.info("✓ Loaded Telegram bot configuration from the HyperDNS panel database.")
+        if not panel_cfg.get("enabled", False):
+            sys.exit(
+                "[INFO] Telegram bot integration is DISABLED in the panel settings.\n"
+                "       Enable it from the HyperDNS Dashboard → Settings → Telegram Bot card."
+            )
+        token = panel_cfg.get("bot_token", "").strip()
+        admin_ids_raw = panel_cfg.get("admin_chat_ids", "").strip()
+
+        # Override globals from panel config
+        if panel_cfg.get("card_number"):
+            globals()["PAYMENT_CARD_NUMBER"] = panel_cfg["card_number"]
+        if panel_cfg.get("card_holder"):
+            globals()["PAYMENT_CARD_HOLDER"] = panel_cfg["card_holder"]
+        if panel_cfg.get("support_username"):
+            globals()["SUPPORT_ADMIN_USERNAME"] = panel_cfg["support_username"]
+
+        # Override trial settings in PLANS[0] if trial is configured
+        if panel_cfg.get("trial_enabled") is not None:
+            # Trial configuration is handled in the free trial callback
+            pass
+        if panel_cfg.get("monthly_price_toman"):
+            PLANS[0]["price_toman"] = panel_cfg["monthly_price_toman"]
+
+    else:
+        logger.warning("⚠ Could not load config from panel API; falling back to environment variables.")
+        token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+        admin_ids_raw = os.getenv("TELEGRAM_ADMIN_CHAT_IDS", "").strip()
+
+    # Step 2: Validate essential credentials.
+    if not token:
+        sys.exit(
+            "[FATAL] TELEGRAM_BOT_TOKEN is not configured.\n"
+            "        Set it in the HyperDNS Dashboard → Settings → Telegram Bot card,\n"
+            "        or set TELEGRAM_BOT_TOKEN in the environment."
+        )
+
+    admin_ids = parse_admin_chat_ids(admin_ids_raw)
+
+    # Step 3: Initialize API client and bot instance.
+    client = HyperDNSClient(api_base, api_key)
     bot = HyperDNSTelegramBot(token, client, admin_ids)
+
+    # Inject panel trial config into bot instance for runtime use
+    if panel_cfg:
+        bot._panel_trial_days = panel_cfg.get("trial_days", 1)
+        bot._panel_trial_gb = panel_cfg.get("trial_traffic_gb", 2.0)
+        bot._panel_trial_enabled = panel_cfg.get("trial_enabled", True)
+
     logger.info("HyperDNS Sales & Management Telegram Bot initialized successfully.")
     logger.info("Serving customers and %d admin(s); polling for updates...", len(admin_ids))
+    if panel_cfg:
+        logger.info("Config source: HyperDNS Panel Database | Support: %s", SUPPORT_ADMIN_USERNAME)
+    else:
+        logger.info("Config source: Environment Variables")
 
     try:
         while True:

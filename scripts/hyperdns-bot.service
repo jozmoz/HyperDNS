@@ -1,0 +1,31 @@
+# HyperDNS Telegram Bot systemd unit.
+#
+# This service runs the Telegram Sales & Subscription Bot as a companion to the
+# main HyperDNS service. It reads its configuration (bot token, admin IDs, payment
+# details, trial settings) from the HyperDNS panel database via the REST API.
+#
+# Prerequisites:
+#   1. The main HyperDNS service must be running (it provides the REST API).
+#   2. HYPERDNS_API_KEY must be set in the environment file.
+#   3. Python 3 and the 'requests' package must be installed.
+#   4. Telegram bot settings must be configured in the HyperDNS Dashboard.
+
+[Unit]
+Description=HyperDNS Telegram Sales & Subscription Bot
+Documentation=https://github.com/jozmoz/HyperDNS
+After=hyperdns.service
+Wants=hyperdns.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hyperdns
+EnvironmentFile=-/opt/hyperdns/telegram.env
+ExecStart=/usr/bin/python3 /opt/hyperdns/integrations/telegram_bot.py
+Restart=always
+RestartSec=10s
+TimeoutStopSec=10s
+SyslogIdentifier=hyperdns-bot
+
+[Install]
+WantedBy=multi-user.target
