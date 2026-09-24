@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -314,3 +315,77 @@ func (db *DB) Close() error {
 	}
 	return db.bolt.Close()
 }
+
+// Backup streams an atomic, point-in-time snapshot of the database to w.
+func (db *DB) Backup(w io.Writer) error {
+	if db == nil || db.bolt == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+	return db.bolt.View(func(tx *bolt.Tx) error {
+		_, err := tx.WriteTo(w)
+		return err
+	})
+}
+
+// RestoreFromReader atomically restores all buckets from a bbolt database stream.
+func (db *DB) RestoreFromReader(r io.Reader) error {
+	if db == nil || db.bolt == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+
+	tmpFile, err := os.CreateTemp("", "hyperdns-restore-*.db")
+	if err != nil {
+		return fmt.Errorf("failed to create temporary restore file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := io.Copy(tmpFile, r); err != nil {
+		_ = tmpFile.Close()
+		return fmt.Errorf("failed to write uploaded backup: %w", err)
+	}
+	_ = tmpFile.Close()
+
+	uploadedDB, err := bolt.Open(tmpPath, 0600, &bolt.Options{
+		ReadOnly: true,
+		Timeout:  3 * time.Second,
+	})
+	if err != nil {
+		return fmt.Errorf("uploaded file is not a valid HyperDNS database: %w", err)
+	}
+	defer uploadedDB.Close()
+
+	// Verify required buckets exist in the backup
+	err = uploadedDB.View(func(tx *bolt.Tx) error {
+		for _, bName := range [][]byte{bucketClients, bucketPolicies, bucketSettings} {
+			if b := tx.Bucket(bName); b == nil {
+				return fmt.Errorf("backup is missing required bucket %q", string(bName))
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	return db.bolt.Update(func(liveTx *bolt.Tx) error {
+		return uploadedDB.View(func(upTx *bolt.Tx) error {
+			return upTx.ForEach(func(name []byte, upBucket *bolt.Bucket) error {
+				_ = liveTx.DeleteBucket(name)
+				newLiveBucket, err := liveTx.CreateBucket(name)
+				if err != nil {
+					return fmt.Errorf("failed to recreate bucket %s: %w", string(name), err)
+				}
+				return upBucket.ForEach(func(k, v []byte) error {
+					return newLiveBucket.Put(k, v)
+				})
+			})
+		})
+	})
+}
+

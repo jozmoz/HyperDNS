@@ -322,3 +322,30 @@ type SubscriptionSettings struct {
 	// permanently.
 	PortExplicit bool `json:"port_explicit"`
 }
+
+// TelegramSettings holds the sales & subscription bot configuration
+type TelegramSettings struct {
+	Enabled           bool    `json:"enabled"`
+	BotToken          string  `json:"bot_token"`
+	AdminChatIDs      string  `json:"admin_chat_ids"`
+	ChannelID         string  `json:"channel_id"`
+	CardNumber        string  `json:"card_number"`
+	CardHolder        string  `json:"card_holder"`
+	SupportUsername   string  `json:"support_username"`
+	TrialEnabled      bool    `json:"trial_enabled"`
+	TrialDays         int     `json:"trial_days"`
+	TrialTrafficGB    float64 `json:"trial_traffic_gb"`
+	MonthlyPriceToman string  `json:"monthly_price_toman"`
+}
+
+// DefaultTelegramSettings returns sensible defaults for the Telegram integration.
+func DefaultTelegramSettings() *TelegramSettings {
+	return &TelegramSettings{
+		Enabled:           false,
+		TrialEnabled:      true,
+		TrialDays:         1,
+		TrialTrafficGB:    2.0,
+		MonthlyPriceToman: "120,000 تومان",
+	}
+}
+

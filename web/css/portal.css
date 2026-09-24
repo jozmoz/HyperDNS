@@ -481,8 +481,6 @@
 .ico-command { --ico: var(--svg-command); }
 .ico-wifi { --ico: var(--svg-wifi); }
 .ico-x { --ico: var(--svg-x); }
-.ico-plus { --ico: var(--svg-plus); }
-.ico-trash { --ico: var(--svg-trash); }
 
 /* --- Pills and buttons ------------------------------------------------------ */
 
@@ -563,10 +561,7 @@
   box-shadow: 0 8px 20px rgba(56, 189, 248, 0.22);
 }
 
-.btn-sm {
-  padding: 0.25rem 0.55rem;
-  font-size: 11px;
-}
+
 
 .btn:hover {
   filter: brightness(1.12);
@@ -661,34 +656,7 @@
   letter-spacing: 0;
 }
 
-.reg-select {
-  font: inherit;
-  font-size: 12px;
-  color: var(--ink);
-  background: var(--chip-face);
-  border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  padding: 0.5rem 0.65rem;
-}
 
-.reg-select:focus {
-  outline: none;
-  border-color: var(--cyan);
-}
-
-.check-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  font-size: 12px;
-  color: var(--ink-dim);
-  cursor: pointer;
-}
-
-.check-box {
-  cursor: pointer;
-  accent-color: var(--cyan);
-}
 
 .domain-list {
   display: flex;
@@ -721,10 +689,9 @@
   font-size: 12.5px;
 }
 
-.domain-btns {
+.domain-status {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
 }
 
 .domain-empty {

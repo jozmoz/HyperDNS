@@ -232,6 +232,129 @@ run_diagnostics() {
     read -rp "Press Enter to continue..."
 }
 
+get_db_path() {
+    if [ -f "$INSTALL_DIR/data.db" ]; then
+        echo "$INSTALL_DIR/data.db"
+    elif [ -f "/root/HyperDNS-main/data.db" ]; then
+        echo "/root/HyperDNS-main/data.db"
+    elif [ -f "./data.db" ]; then
+        echo "./data.db"
+    else
+        echo "$INSTALL_DIR/data.db"
+    fi
+}
+
+backup_database() {
+    echo -e "\n${BOLD}${CYAN}=== HyperDNS Database Backup ===${NC}"
+    local db_path
+    db_path=$(get_db_path)
+    if [ ! -f "$db_path" ]; then
+        echo -e "${RED}Error: Database file not found at $db_path${NC}"
+        read -rp "Press Enter to continue..."
+        return
+    fi
+
+    local backup_dir="$INSTALL_DIR/backups"
+    mkdir -p "$backup_dir"
+    local timestamp
+    timestamp=$(date +"%Y%m%d_%H%M%S")
+    local backup_file="$backup_dir/hyperdns_backup_${timestamp}.db"
+
+    echo -e "${CYAN}Creating database snapshot from ${db_path}...${NC}"
+    cp "$db_path" "$backup_file"
+    chmod 600 "$backup_file"
+
+    echo -e "${GREEN}✓ Database backup created successfully:${NC}"
+    echo -e "  File: ${YELLOW}$backup_file${NC}"
+    echo -e "  Size: $(du -h "$backup_file" | cut -f1)"
+    echo ""
+    read -rp "Press Enter to continue..."
+}
+
+restore_database() {
+    echo -e "\n${BOLD}${CYAN}=== HyperDNS Database Restore ===${NC}"
+    local backup_dir="$INSTALL_DIR/backups"
+    local db_path
+    db_path=$(get_db_path)
+
+    echo -e "Available local backups in ${YELLOW}$backup_dir${NC}:"
+    local backups=()
+    if [ -d "$backup_dir" ]; then
+        while IFS= read -r f; do
+            [ -n "$f" ] && backups+=("$f")
+        done < <(ls -1t "$backup_dir"/*.db 2>/dev/null || true)
+    fi
+
+    local selected_backup=""
+    if [ ${#backups[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No automated backups found in $backup_dir.${NC}"
+        read -rp "Enter full path to backup .db file (or press Enter to cancel): " custom_path
+        if [ -z "$custom_path" ] || [ ! -f "$custom_path" ]; then
+            echo -e "${RED}File not found or cancelled.${NC}"
+            sleep 1.5
+            return
+        fi
+        selected_backup="$custom_path"
+    else
+        local i=1
+        for b in "${backups[@]}"; do
+            local bsize
+            bsize=$(du -h "$b" | cut -f1)
+            local bdate
+            bdate=$(date -r "$b" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || stat -c "%y" "$b" 2>/dev/null || echo "")
+            echo -e "  ${CYAN}[$i]${NC} $(basename "$b") ($bsize) - $bdate"
+            ((i++))
+        done
+        echo -e "  ${CYAN}[c]${NC} Custom file path"
+        echo -e "  ${YELLOW}[0]${NC} Cancel"
+        read -rp "Select backup to restore [1-${#backups[@]}]: " bchoice
+        if [ "$bchoice" = "0" ] || [ -z "$bchoice" ]; then
+            return
+        elif [ "$bchoice" = "c" ] || [ "$bchoice" = "C" ]; then
+            read -rp "Enter full path to backup .db file: " custom_path
+            if [ ! -f "$custom_path" ]; then
+                echo -e "${RED}File not found!${NC}"
+                sleep 1.5
+                return
+            fi
+            selected_backup="$custom_path"
+        elif [[ "$bchoice" =~ ^[0-9]+$ ]] && [ "$bchoice" -ge 1 ] && [ "$bchoice" -le "${#backups[@]}" ]; then
+            selected_backup="${backups[$((bchoice-1))]}"
+        else
+            echo -e "${RED}Invalid selection.${NC}"
+            sleep 1.5
+            return
+        fi
+    fi
+
+    echo -e "\n${RED}${BOLD}⚠️  WARNING: Restoring will overwrite the active database!${NC}"
+    echo -e "Target Database: ${CYAN}$db_path${NC}"
+    echo -e "Backup Source:   ${YELLOW}$selected_backup${NC}"
+    read -rp "Are you sure you want to proceed? (y/N): " confirm_restore
+    if [[ ! "$confirm_restore" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}Restore cancelled.${NC}"
+        sleep 1.5
+        return
+    fi
+
+    echo -e "${CYAN}Stopping HyperDNS service...${NC}"
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+
+    if [ -f "$db_path" ]; then
+        cp "$db_path" "${db_path}.before_restore"
+    fi
+
+    echo -e "${CYAN}Restoring database file...${NC}"
+    cp "$selected_backup" "$db_path"
+    chmod 600 "$db_path"
+
+    echo -e "${CYAN}Starting HyperDNS service...${NC}"
+    systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
+
+    echo -e "\n${GREEN}${BOLD}✓ Database successfully restored from $(basename "$selected_backup")!${NC}"
+    read -rp "Press Enter to continue..."
+}
+
 uninstall_hyperdns() {
     echo -e "\n${RED}${BOLD}======================================================${NC}"
     echo -e "${RED}${BOLD}           ⚠️  UNINSTALL HYPERDNS  ⚠️                ${NC}"
@@ -283,10 +406,12 @@ main_menu() {
         echo -e "  ${CYAN}[8]${NC}  🧹 پاک‌سازی کش DNS (Flush DNS Cache)"
         echo -e "  ${CYAN}[9]${NC}  🩺 بررسی پورت‌ها و عیب‌یابی (Diagnostics & Port Check)"
         echo -e "  ${CYAN}[10]${NC} 🚀 آپدیت HyperDNS به آخرین نسخه از گیت‌هاب (Update)"
-        echo -e "  ${RED}[11]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
+        echo -e "  ${CYAN}[11]${NC} 💾 ایجاد فایل پشتیبان دیتابیس (Backup Database)"
+        echo -e "  ${CYAN}[12]${NC} ♻️  بازیابی نسخه پشتیبان (Restore Database)"
+        echo -e "  ${RED}[13]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
         echo -e "  ${YELLOW}[0]${NC}  🚪 خروج (Exit)"
         echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}"
-        read -rp " عدد مورد نظر را وارد کنید [0-11]: " choice
+        read -rp " عدد مورد نظر را وارد کنید [0-13]: " choice
 
         case "$choice" in
             1)
@@ -333,6 +458,12 @@ main_menu() {
                 update_hyperdns
                 ;;
             11)
+                backup_database
+                ;;
+            12)
+                restore_database
+                ;;
+            13)
                 uninstall_hyperdns
                 ;;
             0|q|exit)

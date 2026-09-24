@@ -684,6 +684,9 @@ func (ws *WebServer) buildAdminMux() *http.ServeMux {
 	mux.HandleFunc("/api/upstreams/delete", ws.requireAuth(ws.handleUpstreamsDelete))
 	mux.HandleFunc("/api/tls/issue", ws.requireAuth(ws.handleTLSSettings))
 	mux.HandleFunc("/api/tls/acme/status", ws.requireAuth(ws.handleACMEStatus))
+	mux.HandleFunc("/api/config/telegram", ws.requireAuth(ws.handleConfigTelegram))
+	mux.HandleFunc("/api/system/backup", ws.requireAuth(ws.handleSystemBackup))
+	mux.HandleFunc("/api/system/restore", ws.requireAuth(ws.handleSystemRestore))
 
 	// 7. Embedded Offline SPA Static Assets & Clean Routes
 	//
@@ -2452,3 +2455,87 @@ func (ws *WebServer) handleDiagnosticsRun(w http.ResponseWriter, r *http.Request
 		"timestamp":       time.Now(),
 	})
 }
+
+func (ws *WebServer) handleConfigTelegram(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	switch r.Method {
+	case http.MethodGet, http.MethodHead:
+		var cfg database.TelegramSettings
+		if err := ws.db.GetSetting("telegram", &cfg); err != nil {
+			cfg = *database.DefaultTelegramSettings()
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"config":  &cfg,
+		})
+	case http.MethodPost:
+		var req database.TelegramSettings
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
+			httpx.WriteJSONError(w, http.StatusBadRequest, "Invalid JSON payload")
+			return
+		}
+		if err := ws.db.SetSetting("telegram", req); err != nil {
+			httpx.WriteJSONError(w, http.StatusInternalServerError, "Failed to save telegram settings: "+err.Error())
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"message": "Telegram bot settings saved successfully",
+			"config":  &req,
+		})
+	default:
+		httpx.WriteMethodNotAllowed(w, "GET, HEAD, POST")
+	}
+}
+
+func (ws *WebServer) handleSystemBackup(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		httpx.WriteMethodNotAllowed(w, "GET, HEAD")
+		return
+	}
+	timestamp := time.Now().Format("2006-01-02_150405")
+	filename := fmt.Sprintf("hyperdns-backup-%s.db", timestamp)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+
+	if err := ws.db.Backup(w); err != nil {
+		log.Printf("[WEB] Failed to stream database backup: %v", err)
+	}
+}
+
+func (ws *WebServer) handleSystemRestore(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		httpx.WriteMethodNotAllowed(w, "POST")
+		return
+	}
+	// Max 100MB
+	if err := r.ParseMultipartForm(100 << 20); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "Invalid upload form: "+err.Error())
+		return
+	}
+	file, _, err := r.FormFile("backup_file")
+	if err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "Missing backup_file file field in form")
+		return
+	}
+	defer file.Close()
+
+	if err := ws.db.RestoreFromReader(file); err != nil {
+		log.Printf("[WEB] Database restore failed: %v", err)
+		httpx.WriteJSONError(w, http.StatusBadRequest, "Restore failed: "+err.Error())
+		return
+	}
+
+	// Reload server settings into memory
+	var s database.ServerSettings
+	if err := ws.db.GetSetting("server", &s); err == nil {
+		ws.settings = &s
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"success": true,
+		"message": "Database backup restored successfully! Server settings have been reloaded.",
+	})
+}
+

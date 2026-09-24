@@ -2567,11 +2567,185 @@ function initAPIEvents() {
 
   window.initSubscriptionSettings?.();
   initAdminPathControls();
+  initTelegramSettings();
+  initBackupRestoreControls();
   // The 2FA/LDAP panel lives in its own ES module (js/modules/twofa.js);
   // it registers these two hooks on window when the module executes.
   window.initTwoFactorControls?.();
   window.initLdapControls?.();
 }
+
+function initTelegramSettings() {
+  const saveBtn = document.getElementById('telegram-save-btn');
+  if (!saveBtn) return;
+
+  const enabledInput = document.getElementById('telegram-enabled-input');
+  const tokenInput = document.getElementById('telegram-token-input');
+  const adminIdInput = document.getElementById('telegram-admin-id-input');
+  const channelIdInput = document.getElementById('telegram-channel-id-input');
+  const supportUserInput = document.getElementById('telegram-support-user-input');
+  const cardNumberInput = document.getElementById('telegram-card-number-input');
+  const cardHolderInput = document.getElementById('telegram-card-holder-input');
+  const trialEnabledInput = document.getElementById('telegram-trial-enabled-input');
+  const trialDaysInput = document.getElementById('telegram-trial-days-input');
+  const trialGbInput = document.getElementById('telegram-trial-gb-input');
+  const priceInput = document.getElementById('telegram-price-input');
+  const statusSpan = document.getElementById('telegram-save-status');
+
+  async function loadTelegramConfig() {
+    try {
+      const res = await fetch(api('/api/config/telegram'), {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const cfg = data.config || {};
+        if (enabledInput) enabledInput.checked = !!cfg.enabled;
+        if (tokenInput && cfg.bot_token) tokenInput.value = cfg.bot_token;
+        if (adminIdInput && cfg.admin_chat_ids) adminIdInput.value = cfg.admin_chat_ids;
+        if (channelIdInput && cfg.channel_id) channelIdInput.value = cfg.channel_id;
+        if (supportUserInput && cfg.support_username) supportUserInput.value = cfg.support_username;
+        if (cardNumberInput && cfg.card_number) cardNumberInput.value = cfg.card_number;
+        if (cardHolderInput && cfg.card_holder) cardHolderInput.value = cfg.card_holder;
+        if (trialEnabledInput) trialEnabledInput.checked = cfg.trial_enabled !== false;
+        if (trialDaysInput && cfg.trial_days) trialDaysInput.value = cfg.trial_days;
+        if (trialGbInput && cfg.trial_traffic_gb) trialGbInput.value = cfg.trial_traffic_gb;
+        if (priceInput && cfg.monthly_price_toman) priceInput.value = cfg.monthly_price_toman;
+      }
+    } catch (e) {
+      console.error('Failed to load telegram settings', e);
+    }
+  }
+
+  saveBtn.onclick = async () => {
+    saveBtn.disabled = true;
+    if (statusSpan) statusSpan.textContent = 'Saving…';
+    try {
+      const payload = {
+        enabled: enabledInput ? enabledInput.checked : false,
+        bot_token: tokenInput ? tokenInput.value.trim() : '',
+        admin_chat_ids: adminIdInput ? adminIdInput.value.trim() : '',
+        channel_id: channelIdInput ? channelIdInput.value.trim() : '',
+        support_username: supportUserInput ? supportUserInput.value.trim() : '',
+        card_number: cardNumberInput ? cardNumberInput.value.trim() : '',
+        card_holder: cardHolderInput ? cardHolderInput.value.trim() : '',
+        trial_enabled: trialEnabledInput ? trialEnabledInput.checked : true,
+        trial_days: trialDaysInput ? parseInt(trialDaysInput.value, 10) || 1 : 1,
+        trial_traffic_gb: trialGbInput ? parseFloat(trialGbInput.value) || 2.0 : 2.0,
+        monthly_price_toman: priceInput ? priceInput.value.trim() : '120,000 تومان'
+      };
+
+      const res = await fetch(api('/api/config/telegram'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        showToast('Telegram bot settings saved successfully!', 'success');
+        if (statusSpan) statusSpan.textContent = 'Saved!';
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Failed to save telegram settings', 'error');
+        if (statusSpan) statusSpan.textContent = 'Error';
+      }
+    } catch (e) {
+      showToast('Error connecting to server', 'error');
+      if (statusSpan) statusSpan.textContent = 'Error';
+    } finally {
+      saveBtn.disabled = false;
+      setTimeout(() => { if (statusSpan) statusSpan.textContent = ''; }, 3000);
+    }
+  };
+
+  loadTelegramConfig();
+}
+
+function initBackupRestoreControls() {
+  const dlBtn = document.getElementById('btn-download-backup');
+  if (dlBtn) {
+    dlBtn.onclick = async () => {
+      dlBtn.disabled = true;
+      try {
+        const res = await fetch(api('/api/system/backup'), {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (!res.ok) {
+          showToast('Failed to download database backup', 'error');
+          return;
+        }
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const now = new Date();
+        const stamp = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
+        a.download = `hyperdns-backup-${stamp}.db`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        showToast('Database backup downloaded successfully', 'success');
+      } catch (e) {
+        showToast('Backup download failed', 'error');
+      } finally {
+        dlBtn.disabled = false;
+      }
+    };
+  }
+
+  const restoreBtn = document.getElementById('btn-restore-backup');
+  const restoreInput = document.getElementById('restore-file-input');
+  const restoreStatus = document.getElementById('restore-status');
+  if (restoreBtn && restoreInput) {
+    restoreBtn.onclick = () => restoreInput.click();
+    restoreInput.onchange = async () => {
+      if (!restoreInput.files || restoreInput.files.length === 0) return;
+      const file = restoreInput.files[0];
+      if (!confirm(`Are you sure you want to restore the database from "${file.name}"? This will overwrite all active subscribers, rules, and settings.`)) {
+        restoreInput.value = '';
+        return;
+      }
+
+      restoreBtn.disabled = true;
+      if (restoreStatus) restoreStatus.textContent = 'Restoring…';
+
+      try {
+        const formData = new FormData();
+        formData.append('backup_file', file);
+
+        const res = await fetch(api('/api/system/restore'), {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` },
+          body: formData
+        });
+
+        if (res.ok) {
+          showToast('Database restored successfully! Reloading data…', 'success');
+          if (restoreStatus) restoreStatus.textContent = 'Restored!';
+          setTimeout(() => {
+            window.location.reload();
+          }, 1200);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          showToast(err.error || 'Failed to restore database', 'error');
+          if (restoreStatus) restoreStatus.textContent = 'Failed';
+        }
+      } catch (e) {
+        showToast('Error communicating with server during restore', 'error');
+        if (restoreStatus) restoreStatus.textContent = 'Error';
+      } finally {
+        restoreBtn.disabled = false;
+        restoreInput.value = '';
+        setTimeout(() => { if (restoreStatus) restoreStatus.textContent = ''; }, 4000);
+      }
+    };
+  }
+}
+
 
 // =======================================================
 // v2.1 HIDDEN ADMIN PATH DISPLAY + REGENERATION

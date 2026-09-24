@@ -110,7 +110,8 @@ func (ws *WebServer) handleSubDataAPI(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleSubDomainsAPI provides subscriber-facing custom domain management under /api/sub/<token>/domains.
+// handleSubDomainsAPI provides subscriber-facing custom domain view under /api/sub/<token>/domains.
+// Modifications are strictly restricted to administrators via the management dashboard.
 func (ws *WebServer) handleSubDomainsAPI(w http.ResponseWriter, r *http.Request, client *database.Client, subParts []string) {
 	if len(subParts) == 0 {
 		switch r.Method {
@@ -125,98 +126,12 @@ func (ws *WebServer) handleSubDomainsAPI(w http.ResponseWriter, r *http.Request,
 				"domains": fresh.CustomDomains,
 			})
 			return
-		case http.MethodPost:
-			var req struct {
-				Domain            string `json:"domain"`
-				Action            string `json:"action"`
-				IncludeSubdomains bool   `json:"include_subdomains"`
-			}
-			if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&req); err != nil {
-				httpx.WriteJSONError(w, http.StatusBadRequest, "the request body could not be read as JSON")
-				return
-			}
-			dom := strings.ToLower(strings.TrimSpace(req.Domain))
-			dom = strings.TrimPrefix(dom, ".")
-			if dom == "" || strings.Contains(dom, " ") {
-				httpx.WriteJSONError(w, http.StatusBadRequest, "Invalid domain name")
-				return
-			}
-			action := strings.ToUpper(strings.TrimSpace(req.Action))
-			if action == "" {
-				action = "PROXY"
-			}
-			if action != "PROXY" && action != "DIRECT" && action != "BLOCK" {
-				httpx.WriteJSONError(w, http.StatusBadRequest, "Invalid action, must be PROXY, DIRECT or BLOCK")
-				return
-			}
-			created, err := ws.clients.AddCustomDomain(client.ID, dom, action, req.IncludeSubdomains)
-			if err != nil {
-				httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-				return
-			}
-			fresh, _ := ws.clients.GetClient(client.ID)
-			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"success": true,
-				"domain":  created,
-				"domains": fresh.CustomDomains,
-			})
-			return
 		default:
-			httpx.WriteMethodNotAllowed(w, "GET, HEAD, POST")
+			httpx.WriteJSONError(w, http.StatusForbidden, "Custom policies and domains can only be modified by the administrator from the dashboard.")
 			return
 		}
 	}
-
-	domainID := subParts[0]
-	if domainID == "" {
-		httpx.WriteJSONError(w, http.StatusBadRequest, "Missing domain ID")
-		return
-	}
-
-	switch r.Method {
-	case http.MethodDelete:
-		if err := ws.clients.DeleteCustomDomain(client.ID, domainID); err != nil {
-			httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"success":    true,
-			"deleted_id": domainID,
-		})
-		return
-	case http.MethodPatch:
-		var req struct {
-			Enabled *bool `json:"enabled"`
-		}
-		_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req)
-		targetEnabled := true
-		if req.Enabled != nil {
-			targetEnabled = *req.Enabled
-		} else {
-			fresh, err := ws.clients.GetClient(client.ID)
-			if err == nil {
-				for _, cd := range fresh.CustomDomains {
-					if cd.ID == domainID {
-						targetEnabled = !cd.Enabled
-						break
-					}
-				}
-			}
-		}
-		if err := ws.clients.ToggleCustomDomain(client.ID, domainID, targetEnabled); err != nil {
-			httpx.WriteJSONError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"success": true,
-			"enabled": targetEnabled,
-		})
-		return
-	default:
-		httpx.WriteMethodNotAllowed(w, "DELETE, PATCH")
-		return
-	}
+	httpx.WriteJSONError(w, http.StatusForbidden, "Custom policies and domains can only be modified by the administrator from the dashboard.")
 }
 
 // handleSubscriptionPage renders the subscriber portal at GET /sub/<token>.
@@ -1011,23 +926,6 @@ const portalPageHTML = `<!DOCTYPE html>
       </div>
       <div class="hint"><i class="ico ico-info" aria-hidden="true"></i>{{.T.HintCustomDomains}}</div>
 
-      <div class="reg-row">
-        <input type="text" id="domain-name" class="reg-input" placeholder="{{.T.PlaceholderDomain}}" aria-label="{{.T.LabelDomainName}}">
-        <select id="domain-action" class="reg-select" aria-label="{{.T.LabelDomainAction}}">
-          <option value="PROXY">{{.T.ActionProxy}}</option>
-          <option value="DIRECT">{{.T.ActionDirect}}</option>
-          <option value="BLOCK">{{.T.ActionBlock}}</option>
-        </select>
-        <button type="button" class="btn btn-primary" id="domain-add-btn" data-add-domain="{{.DomainsAPIPath}}"><i class="ico ico-plus" aria-hidden="true"></i>{{.T.BtnAddDomain}}</button>
-      </div>
-
-      <div class="row">
-        <label class="check-label">
-          <input type="checkbox" id="domain-subs" checked class="check-box">
-          <span>{{.T.LabelIncludeSubs}}</span>
-        </label>
-      </div>
-
       <div class="domain-list">
         {{- if .HasCustomDomains}}
         {{- range .CustomDomains}}
@@ -1045,17 +943,12 @@ const portalPageHTML = `<!DOCTYPE html>
             <span class="pill pill-bad">BLOCK</span>
             {{- end}}
           </div>
-          <div class="domain-btns">
-            <button type="button" class="btn btn-sm" data-toggle-domain="{{$.DomainsAPIPath}}/{{.ID}}" title="{{$.T.BtnToggleDomain}}">
-              {{- if .Enabled}}
-              <span class="pill pill-ok">{{$.T.TagActive}}</span>
-              {{- else}}
-              <span class="pill pill-bad">{{$.T.TagInactive}}</span>
-              {{- end}}
-            </button>
-            <button type="button" class="btn btn-sm" data-del-domain="{{$.DomainsAPIPath}}/{{.ID}}" title="{{$.T.BtnDeleteDomain}}">
-              <i class="ico ico-trash" aria-hidden="true"></i>{{$.T.BtnDeleteDomain}}
-            </button>
+          <div class="domain-status">
+            {{- if .Enabled}}
+            <span class="pill pill-ok"><i class="ico ico-check" aria-hidden="true"></i>{{$.T.TagActive}}</span>
+            {{- else}}
+            <span class="pill pill-bad">{{$.T.TagInactive}}</span>
+            {{- end}}
           </div>
         </div>
         {{- end}}
@@ -1322,11 +1215,7 @@ const portalPageHTML = `<!DOCTYPE html>
          data-msg-reason-suspended="{{.T.MsgRegisterSuspended}}"
          data-msg-reason-expired="{{.T.MsgRegisterExpired}}"
          data-msg-reason-quota="{{.T.MsgRegisterQuota}}"
-         data-msg-reason-conflict="{{.T.MsgRegisterConflict}}"
-         data-msg-domain-added="{{.T.MsgDomainAdded}}"
-         data-msg-domain-deleted="{{.T.MsgDomainDeleted}}"
-         data-msg-domain-toggled="{{.T.MsgDomainToggled}}"
-         data-msg-domain-error="{{.T.MsgDomainError}}"></div>
+         data-msg-reason-conflict="{{.T.MsgRegisterConflict}}"></div>
 
     <div class="footer">
       HyperDNS Smart Controller • UDP/TCP SmartDNS &amp; Transparent SNI Proxy Engine

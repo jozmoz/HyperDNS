@@ -565,35 +565,40 @@ func TestPortalCustomDomainsAPI(t *testing.T) {
 
 	handler := ws.buildAdminHandler()
 
-	// 1. Add custom domain
-	addPayload := `{"domain":"epicgames.com","action":"PROXY","include_subdomains":true}`
+	// 1. Admin adds custom domain directly
+	createdDomain, err := ws.clients.AddCustomDomain(client.ID, "epicgames.com", "PROXY", true)
+	if err != nil {
+		t.Fatalf("AddCustomDomain: %v", err)
+	}
+	domainID := createdDomain.ID
+
+	// 2. Subscriber POST must be refused with 403 Forbidden
+	addPayload := `{"domain":"youtube.com","action":"BLOCK","include_subdomains":true}`
 	req := httptest.NewRequest(http.MethodPost, "/api/sub/"+client.Token+"/domains", strings.NewReader(addPayload))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("POST /domains status = %d, want 403: %s", w.Code, w.Body.String())
+	}
 
-	if w.Code != http.StatusCreated {
-		t.Fatalf("POST /domains status = %d, want 201: %s", w.Code, w.Body.String())
+	// 3. Subscriber PATCH must be refused with 403 Forbidden
+	req = httptest.NewRequest(http.MethodPatch, "/api/sub/"+client.Token+"/domains/"+domainID, nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("PATCH /domains/%s status = %d, want 403: %s", domainID, w.Code, w.Body.String())
 	}
-	var addResp struct {
-		Success bool `json:"success"`
-		Domain  struct {
-			ID                string `json:"id"`
-			Domain            string `json:"domain"`
-			Action            string `json:"action"`
-			IncludeSubdomains bool   `json:"include_subdomains"`
-			Enabled           bool   `json:"enabled"`
-		} `json:"domain"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &addResp); err != nil {
-		t.Fatalf("Unmarshal addResp: %v", err)
-	}
-	if !addResp.Success || addResp.Domain.Domain != "epicgames.com" || !addResp.Domain.IncludeSubdomains {
-		t.Fatalf("Unexpected domain response: %+v", addResp)
-	}
-	domainID := addResp.Domain.ID
 
-	// 2. List custom domains
+	// 4. Subscriber DELETE must be refused with 403 Forbidden
+	req = httptest.NewRequest(http.MethodDelete, "/api/sub/"+client.Token+"/domains/"+domainID, nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("DELETE /domains/%s status = %d, want 403: %s", domainID, w.Code, w.Body.String())
+	}
+
+	// 5. Subscriber GET is allowed (read-only)
 	req = httptest.NewRequest(http.MethodGet, "/api/sub/"+client.Token+"/domains", nil)
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -601,15 +606,7 @@ func TestPortalCustomDomainsAPI(t *testing.T) {
 		t.Fatalf("GET /domains status = %d, want 200: %s", w.Code, w.Body.String())
 	}
 
-	// 3. Toggle custom domain
-	req = httptest.NewRequest(http.MethodPatch, "/api/sub/"+client.Token+"/domains/"+domainID, nil)
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("PATCH /domains/%s status = %d, want 200: %s", domainID, w.Code, w.Body.String())
-	}
-
-	// 4. Verify in sub data API
+	// 6. Verify in sub data API
 	req = httptest.NewRequest(http.MethodGet, "/api/sub/"+client.Token, nil)
 	w = httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
@@ -622,13 +619,5 @@ func TestPortalCustomDomainsAPI(t *testing.T) {
 	}
 	if _, ok := subData["custom_domains"]; !ok {
 		t.Errorf("GET /api/sub/<token> missing custom_domains key")
-	}
-
-	// 5. Delete custom domain
-	req = httptest.NewRequest(http.MethodDelete, "/api/sub/"+client.Token+"/domains/"+domainID, nil)
-	w = httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("DELETE /domains/%s status = %d, want 200: %s", domainID, w.Code, w.Body.String())
 	}
 }
