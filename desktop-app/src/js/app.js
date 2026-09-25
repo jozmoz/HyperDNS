@@ -127,57 +127,53 @@ async function doLogin(silent = false) {
   errorEl.classList.remove('show');
 
   try {
-    // 1. Try dedicated auth endpoint (validates secret + auto-registers IP)
-    const authUrl = `${cleanUrl}/api/sub/${token}/auth`;
-    let authResult = await ipcRenderer.invoke('api-request', {
-      url: authUrl,
+    // 1. Authenticate secret and register client IP via POST /ip/<token>
+    const ipUrl = `${cleanUrl}/ip/${token}`;
+    const ipResult = await ipcRenderer.invoke('api-request', {
+      url: ipUrl,
       method: 'POST',
-      body: { secret, register_ip: true }
+      body: { secret }
     });
 
-    let clientData = null;
-
-    if (authResult.status === 200 && authResult.data && authResult.data.success) {
-      clientData = authResult.data;
-    } else if (authResult.status === 401) {
-      // Secret is WRONG! Strictly reject login
-      throw new Error('رمز عبور اشتراک اشتباه است. لطفاً رمز صحیح را بررسی کنید.');
-    } else if (authResult.status === 404) {
-      // Fallback for older HyperDNS server releases: verify via POST /ip/<token>
-      const ipUrl = `${cleanUrl}/ip/${token}`;
-      const ipResult = await ipcRenderer.invoke('api-request', {
-        url: ipUrl,
-        method: 'POST',
-        body: { secret }
-      });
-
-      if (ipResult.status === 401) {
-        throw new Error('رمز عبور اشتراک اشتباه است.');
-      } else if (ipResult.status === 404) {
-        throw new Error('توکن اشتراک یا آدرس سرور یافت نشد.');
+    if (ipResult.status === 401) {
+      throw new Error('رمز عبور اشتراک یا توکن اشتباه است.');
+    } else if (ipResult.status === 404) {
+      throw new Error('توکن اشتراک نامعتبر است یا آدرس سرور یافت نشد.');
+    } else if (ipResult.status === 0) {
+      throw new Error(`خطای اتصال به سرور: ${ipResult.data?.error || 'لطفاً آدرس سرور و اینترنت خود را بررسی کنید.'}`);
+    } else if (ipResult.status === 403) {
+      const reason = ipResult.data?.reason;
+      if (reason === 'suspended') {
+        throw new Error('این اشتراک توسط مدیر سرور مسدود شده است.');
+      } else if (reason === 'expired') {
+        throw new Error('اشتراک شما منقضی شده است. لطفاً آن را تمدید کنید.');
+      } else if (reason === 'quota') {
+        throw new Error('سقف ترافیک اشتراک شما به پایان رسیده است.');
+      } else if (reason === 'conflict') {
+        throw new Error('این آی‌پی قبلاً در اشتراک دیگری فعال شده است.');
       }
-
-      // If secret matched, load subscriber data
-      const subUrl = `${cleanUrl}/api/sub/${token}`;
-      const subResult = await ipcRenderer.invoke('api-request', { url: subUrl, method: 'GET' });
-      if (subResult.status === 200 && subResult.data && subResult.data.success) {
-        clientData = subResult.data;
-      } else {
-        throw new Error('امکان دریافت اطلاعات اشتراک وجود ندارد.');
-      }
-    } else if (authResult.status === 0) {
-      throw new Error(`اتصال به سرور برقرار نشد: ${authResult.data?.error || 'بررسی اتصال اینترنت یا فایروال'}`);
-    } else {
-      throw new Error(authResult.data?.error || 'خطا در احراز هویت');
+    } else if (ipResult.status !== 200) {
+      throw new Error(ipResult.data?.error || 'خطا در تایید هویت');
     }
+
+    // 2. Fetch full subscription details from GET /api/sub/<token>
+    const subUrl = `${cleanUrl}/api/sub/${token}`;
+    const subResult = await ipcRenderer.invoke('api-request', { url: subUrl, method: 'GET' });
+    let clientData = (subResult.status === 200 && subResult.data) ? subResult.data : ipResult.data;
 
     // Login Succeeded!
     state.serverUrl = cleanUrl;
     state.token = token;
     state.secret = secret;
     state.clientData = clientData;
-    state.serverDNS = clientData.server_dns || '';
-    state.detectedIP = clientData.detected_ip || '';
+    state.serverDNS = clientData.server_dns || ipResult.data?.server_dns || '';
+    if (!state.serverDNS) {
+      try {
+        const u = new URL(cleanUrl);
+        state.serverDNS = u.hostname;
+      } catch {}
+    }
+    state.detectedIP = clientData.detected_ip || ipResult.data?.detected_ip || '';
 
     // Save credentials if remember is checked
     const remember = document.getElementById('input-remember').checked;
