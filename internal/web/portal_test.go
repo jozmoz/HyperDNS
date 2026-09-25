@@ -621,3 +621,73 @@ func TestPortalCustomDomainsAPI(t *testing.T) {
 		t.Errorf("GET /api/sub/<token> missing custom_domains key")
 	}
 }
+
+func TestSubAuthAPI(t *testing.T) {
+	ws, _, cleanup := setupTestWebServer(t)
+	defer cleanup()
+
+	client, err := ws.clients.CreateClient("AuthTestUser", 30, "10.0.0.1")
+	if err != nil {
+		t.Fatalf("CreateClient: %v", err)
+	}
+
+	handler := ws.buildAdminHandler()
+
+	// 1. Valid token + valid secret -> 200 OK
+	body := `{"secret":"` + client.RegisterSecret + `","register_ip":true,"ip":"203.0.113.88"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/sub/"+client.Token+"/auth", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("POST /api/sub/<token>/auth with valid secret = %d, want 200. Body: %s", w.Code, w.Body.String())
+	}
+	var res map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("Unmarshal response: %v", err)
+	}
+	if res["success"] != true {
+		t.Errorf("expected success: true, got %v", res["success"])
+	}
+
+	// Verify IP was registered
+	fresh, _ := ws.clients.LookupByToken(client.Token)
+	found := false
+	for _, ip := range fresh.AllowedIPs {
+		if ip == "203.0.113.88" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected IP 203.0.113.88 to be registered in allowed_ips: %v", fresh.AllowedIPs)
+	}
+
+	// 2. Valid token + wrong secret -> 401 Unauthorized
+	wrongBody := `{"secret":"wrong_secret_123"}`
+	req = httptest.NewRequest(http.MethodPost, "/api/sub/"+client.Token+"/auth", strings.NewReader(wrongBody))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("POST /api/sub/<token>/auth with wrong secret = %d, want 401. Body: %s", w.Code, w.Body.String())
+	}
+
+	// 3. Invalid token -> 404
+	req = httptest.NewRequest(http.MethodPost, "/api/sub/non-existent-token/auth", strings.NewReader(wrongBody))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("POST /api/sub/invalid/auth = %d, want 404", w.Code)
+	}
+
+	// 4. Method not allowed (GET) -> 405
+	req = httptest.NewRequest(http.MethodGet, "/api/sub/"+client.Token+"/auth", nil)
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("GET /api/sub/<token>/auth = %d, want 405", w.Code)
+	}
+}
+

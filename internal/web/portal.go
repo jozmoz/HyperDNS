@@ -8,6 +8,7 @@ package web
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,6 +54,12 @@ func (ws *WebServer) handleSubDataAPI(w http.ResponseWriter, r *http.Request) {
 	// Handle custom domain sub-resource: /api/sub/<token>/domains...
 	if len(parts) >= 2 && parts[1] == "domains" {
 		ws.handleSubDomainsAPI(w, r, client, parts[2:])
+		return
+	}
+
+	// Handle subscriber authentication / PC app login: POST /api/sub/<token>/auth
+	if len(parts) >= 2 && parts[1] == "auth" {
+		ws.handleSubAuthAPI(w, r, client, token)
 		return
 	}
 
@@ -132,6 +139,98 @@ func (ws *WebServer) handleSubDomainsAPI(w http.ResponseWriter, r *http.Request,
 		}
 	}
 	httpx.WriteJSONError(w, http.StatusForbidden, "Custom policies and domains can only be modified by the administrator from the dashboard.")
+}
+
+// handleSubAuthAPI provides subscriber authentication for dedicated clients (desktop app, mobile app, etc.).
+// POST /api/sub/<token>/auth with body: {"secret": "...", "register_ip": true/false}
+// Returns 401 if the secret/password is incorrect.
+// If valid and register_ip is true (or omitted), it automatically binds the client's current IP address.
+func (ws *WebServer) handleSubAuthAPI(w http.ResponseWriter, r *http.Request, client *database.Client, token string) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodPost {
+		httpx.WriteMethodNotAllowed(w, "POST")
+		return
+	}
+
+	var req struct {
+		Secret     string `json:"secret"`
+		RegisterIP *bool  `json:"register_ip"`
+		IP         string `json:"ip"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
+		httpx.WriteJSONError(w, http.StatusBadRequest, "the request body could not be read as JSON")
+		return
+	}
+
+	secret := strings.TrimSpace(req.Secret)
+	if subtle.ConstantTimeCompare([]byte(client.RegisterSecret), []byte(secret)) != 1 || client.RegisterSecret == "" {
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": false,
+			"error":   "Invalid subscription password or registration secret",
+			"reason":  "secret",
+		})
+		return
+	}
+
+	clientIP := netutil.ClientIP(r)
+	bindIP := strings.TrimSpace(req.IP)
+	if bindIP == "" {
+		bindIP = clientIP
+	}
+
+	// Auto-bind IP if register_ip is true or omitted (default true for client login)
+	shouldRegister := req.RegisterIP == nil || *req.RegisterIP
+	var bindErr error
+	if shouldRegister {
+		_, _, bindErr = ws.clients.RegisterIP(token, secret, bindIP)
+		if fresh, err := ws.clients.LookupByToken(token); err == nil && fresh != nil {
+			client = fresh
+		}
+	}
+
+	view := ws.clients.ViewClient(client)
+	view.RegisterSecret = ""
+	view.Note = ""
+
+	serverDNS := ws.settings.GetPublicIP()
+	if serverDNS == "" || serverDNS == "127.0.0.1" || serverDNS == "0.0.0.0" {
+		host := r.Host
+		if h, _, err := net.SplitHostPort(r.Host); err == nil {
+			host = h
+		}
+		if host != "" && host != "localhost" && host != "127.0.0.1" && host != "0.0.0.0" {
+			serverDNS = host
+		}
+	}
+
+	serverHost := serverDNS
+	if ws.tlsSettings != nil {
+		if d := ws.tlsSettings.GetDomain(); d != "" {
+			serverHost = d
+		}
+	}
+
+	resp := map[string]any{
+		"success":            true,
+		"client":             &view,
+		"detected_ip":        clientIP,
+		"server_dns":         serverDNS,
+		"server_host":        serverHost,
+		"has_domain":         serverHost != serverDNS,
+		"traffic_used_bytes": view.TrafficUsedBytes,
+		"traffic_limit_gb":   view.TrafficLimitGB,
+		"expires_at":         view.ExpiresAt,
+		"next_traffic_reset": view.NextTrafficReset,
+		"quota_exceeded":     view.QuotaExceeded,
+		"max_devices":        view.MaxDevices,
+		"allowed_ips":        view.AllowedIPs,
+		"custom_domains":     view.CustomDomains,
+	}
+	if bindErr != nil {
+		resp["bind_warning"] = bindErr.Error()
+	}
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // handleSubscriptionPage renders the subscriber portal at GET /sub/<token>.

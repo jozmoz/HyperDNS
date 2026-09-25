@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HyperDNS Client</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <!-- Title Bar -->
+  <div class="titlebar">
+    <div class="titlebar-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      HYPERDNS CLIENT
+    </div>
+    <div class="titlebar-actions">
+      <button class="titlebar-btn" onclick="minimizeWindow()" title="کوچک کردن">─</button>
+      <button class="titlebar-btn close" onclick="closeWindow()" title="بستن">✕</button>
+    </div>
+  </div>
+
+  <div class="app-container">
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- LOGIN VIEW                                  -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="view-login" class="view active">
+      <div class="login-header">
+        <div class="login-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <h1 class="login-title">HyperDNS</h1>
+        <p class="login-subtitle">سرویس هوشمند DNS تحریم‌شکن و گیمینگ</p>
+      </div>
+
+      <div id="login-error" class="login-error"></div>
+
+      <div class="form-group">
+        <div class="form-label-row">
+          <label class="form-label">آدرس سرور یا لینک سابسکریپشن</label>
+          <span class="form-label-hint">پشتیبانی از پیست لینک ساب</span>
+        </div>
+        <input type="text" id="input-server" class="form-input ltr-input" placeholder="https://dns.example.com یا لینک کامل" autocomplete="off" spellcheck="false" oninput="handleServerInput(this.value)">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">توکن اشتراک (Subscription Token)</label>
+        <input type="text" id="input-token" class="form-input ltr-input" placeholder="abc123def456..." autocomplete="off" spellcheck="false">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">رمز عبور اشتراک (Registration Secret)</label>
+        <div class="input-relative">
+          <input type="password" id="input-secret" class="form-input ltr-input" placeholder="رمز عبوری که از ادمین یا ربات گرفتید" autocomplete="off">
+          <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility()" title="نمایش/مخفی‌سازی رمز">
+            <svg id="eye-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="login-options">
+        <label class="login-remember">
+          <input type="checkbox" id="input-remember" checked>
+          <span>ذخیره اطلاعات ورود برای دفعات بعد</span>
+        </label>
+      </div>
+
+      <button id="btn-login" class="btn btn-primary" onclick="doLogin()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        ورود به حساب و فعال‌سازی
+      </button>
+
+      <div class="login-footer">
+        در صورت فراموشی رمز، با پشتیبان یا ربات تلگرام در ارتباط باشید.
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- DASHBOARD VIEW                              -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="view-dashboard" class="view">
+
+      <!-- User Header -->
+      <div class="dash-header">
+        <div class="dash-user">
+          <div class="dash-avatar" id="dash-avatar">H</div>
+          <div>
+            <div class="dash-name" id="dash-name">—</div>
+            <div class="dash-status">
+              <span class="dot online" id="dash-dot"></span>
+              <span id="dash-status-text">متصل</span>
+            </div>
+          </div>
+        </div>
+        <div class="dash-actions">
+          <button class="dash-btn" id="btn-refresh" onclick="manualRefresh()" title="بروزرسانی داده‌ها">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </button>
+          <button class="dash-btn" onclick="openPortalInBrowser()" title="مشاهده پورتال وب">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </button>
+          <button class="dash-btn logout" onclick="doLogout()" title="خروج از حساب">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- DNS Main Control Card -->
+      <div class="card card-hero">
+        <div class="card-header">
+          <div class="card-icon yellow">⚡</div>
+          <div class="card-header-meta">
+            <div class="card-title">تنظیم خودکار DNS سیستم</div>
+            <div class="card-subtitle">تغییر اتوماتیک DNS ویندوز به سرور ضدتحریم</div>
+          </div>
+        </div>
+
+        <div class="dns-status-box" id="dns-status-box">
+          <div class="dns-status-indicator">
+            <span class="dns-state-dot" id="dns-state-dot"></span>
+            <span id="dns-state-label">در حال بررسی...</span>
+          </div>
+          <div class="dns-server-ip">
+            <span>سرور اختصاصی:</span>
+            <code id="dns-server-badge">—</code>
+          </div>
+        </div>
+
+        <div class="dns-actions">
+          <button class="btn btn-success" id="btn-activate-dns" onclick="activateDNS()">
+            🚀 فعال‌سازی DNS ضدتحریم
+          </button>
+          <button class="btn btn-outline" id="btn-reset-dns" onclick="deactivateDNS()">
+            🔄 بازگردانی خودکار
+          </button>
+        </div>
+
+        <div class="dns-test-section">
+          <button class="btn btn-sm btn-subtle" id="btn-test-dns" onclick="testDNSConnection()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            تست پینگ و رفع تحریم DNS
+          </button>
+          <span id="dns-test-result" class="dns-test-result"></span>
+        </div>
+      </div>
+
+      <!-- Traffic Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon purple">📊</div>
+          <div class="card-header-meta">
+            <div class="card-title">مصرف ترافیک اشتراک</div>
+            <div class="card-subtitle" id="traffic-reset-hint">دوره مصرف ماهانه</div>
+          </div>
+        </div>
+        <div class="progress-wrap">
+          <div class="progress-labels">
+            <span id="traffic-used-label">0 MB</span>
+            <span id="traffic-limit-label">نامحدود</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="traffic-bar" style="width: 0%"></div>
+          </div>
+          <div class="progress-value">
+            <span id="traffic-percent">0</span><small>%</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info & IP Registration Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon green">🌐</div>
+          <div class="card-header-meta">
+            <div class="card-title">وضعیت دستگاه و اتصال آی‌پی</div>
+            <div class="card-subtitle">آی‌پی شبکه شما برای دسترسی به سرور</div>
+          </div>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">اعتبار اشتراک</div>
+            <div class="info-value" id="info-expires">—</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">دستگاه‌های متصل</div>
+            <div class="info-value" id="info-devices">—</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">آی‌پی فعلی سیستم</div>
+            <div class="info-value" id="info-my-ip">—</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">آی‌پی ثبت‌شده در سرور</div>
+            <div class="info-value" id="info-registered-ip">—</div>
+          </div>
+        </div>
+
+        <button id="btn-register-ip" class="btn btn-secondary mt-12" onclick="registerIP()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          ثبت / بروزرسانی آی‌پی فعلی در سرور
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <div class="dash-footer">
+        HyperDNS Client v1.0.0 · ارتباط مستقیم با سرور ضدتحریم
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
