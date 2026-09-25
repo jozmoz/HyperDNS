@@ -139,6 +139,20 @@ async function resolveDNSHost(raw) {
   });
 }
 
+function formatPowerShellError(raw) {
+  if (!raw) return '';
+  if (raw.includes('#< CLIXML')) {
+    const matches = raw.match(/<S S="Error">([\s\S]*?)<\/S>/g);
+    if (matches) {
+      return matches
+        .map(m => m.replace(/<\/?S[^>]*>/g, '').replace(/_x000D__x000A_/g, '\n').trim())
+        .filter(Boolean)
+        .join(' ');
+    }
+  }
+  return raw;
+}
+
 function runPowerShell(script) {
   return new Promise((resolve, reject) => {
     const buffer = Buffer.from(script, 'utf16le');
@@ -148,7 +162,8 @@ function runPowerShell(script) {
       ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
       (error, stdout, stderr) => {
         if (error) {
-          reject(new Error(stderr || stdout || error.message));
+          const errText = formatPowerShellError(stderr) || stdout || error.message;
+          reject(new Error(errText));
         } else {
           resolve(stdout.trim());
         }
@@ -160,6 +175,19 @@ function runPowerShell(script) {
 // ─── DNS Management (requires admin/elevated) ─────────────────────────
 async function setDNS(primaryDNS, secondaryDNS = '1.1.1.1') {
   try {
+    const isAdmin = await isRunningAsAdmin();
+    if (!isAdmin) {
+      if (mainWindow) {
+        mainWindow.webContents.send('dns-result', {
+          success: false,
+          message: 'نیاز به دسترسی Administrator: لطفاً دکمه «اجرا با دسترسی ادمین» بالای صفحه را کلیک کنید.',
+          primary: '',
+          secondary: ''
+        });
+      }
+      return;
+    }
+
     const resolvedPrimary = await resolveDNSHost(primaryDNS);
     const resolvedSecondary = await resolveDNSHost(secondaryDNS);
 
@@ -193,8 +221,14 @@ async function setDNS(primaryDNS, secondaryDNS = '1.1.1.1') {
   } catch (err) {
     let msg = err.message || 'خطای ناشناخته';
     const lower = msg.toLowerCase();
-    if (lower.includes('permission') || lower.includes('access is denied') || lower.includes('administrator')) {
-      msg = 'نیاز به دسترسی Admin: لطفاً برنامه را با Run as administrator باز کنید.';
+    if (
+      lower.includes('permission') ||
+      lower.includes('access is denied') ||
+      lower.includes('administrator') ||
+      lower.includes('cim resource') ||
+      lower.includes('denied')
+    ) {
+      msg = 'نیاز به دسترسی Administrator: لطفاً با کلیک روی دکمه بالای صفحه، برنامه را با دسترسی ادمین باز کنید.';
     }
     if (mainWindow) {
       mainWindow.webContents.send('dns-result', {
@@ -209,6 +243,19 @@ async function setDNS(primaryDNS, secondaryDNS = '1.1.1.1') {
 
 async function resetDNS() {
   try {
+    const isAdmin = await isRunningAsAdmin();
+    if (!isAdmin) {
+      if (mainWindow) {
+        mainWindow.webContents.send('dns-result', {
+          success: false,
+          message: 'نیاز به دسترسی Administrator: لطفاً دکمه «اجرا با دسترسی ادمین» بالای صفحه را کلیک کنید.',
+          primary: 'Auto',
+          secondary: 'Auto'
+        });
+      }
+      return;
+    }
+
     const script = `
       $ErrorActionPreference = 'Stop'
       $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
@@ -232,8 +279,14 @@ async function resetDNS() {
   } catch (err) {
     let msg = err.message || 'خطای ناشناخته';
     const lower = msg.toLowerCase();
-    if (lower.includes('permission') || lower.includes('access is denied') || lower.includes('administrator')) {
-      msg = 'نیاز به دسترسی Admin: لطفاً برنامه را با Run as administrator باز کنید.';
+    if (
+      lower.includes('permission') ||
+      lower.includes('access is denied') ||
+      lower.includes('administrator') ||
+      lower.includes('cim resource') ||
+      lower.includes('denied')
+    ) {
+      msg = 'نیاز به دسترسی Administrator: لطفاً با کلیک روی دکمه بالای صفحه، برنامه را با دسترسی ادمین باز کنید.';
     }
     if (mainWindow) {
       mainWindow.webContents.send('dns-result', {
@@ -347,6 +400,45 @@ ipcMain.handle('clear-credentials', async () => {
 ipcMain.handle('minimize-window', () => mainWindow?.minimize());
 ipcMain.handle('close-window', () => mainWindow?.close());
 ipcMain.handle('open-external', (event, url) => shell.openExternal(url));
+
+// ─── Admin Check & Elevation ──────────────────────────────────────────
+async function isRunningAsAdmin() {
+  try {
+    const script = `
+      ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    `;
+    const res = await runPowerShell(script);
+    return res.trim().toLowerCase() === 'true';
+  } catch (e) {
+    return false;
+  }
+}
+
+ipcMain.handle('check-admin', async () => {
+  return await isRunningAsAdmin();
+});
+
+ipcMain.handle('relaunch-as-admin', async () => {
+  const exePath = process.execPath;
+  let script = '';
+  if (exePath.toLowerCase().endsWith('electron.exe')) {
+    const appDir = path.resolve(__dirname);
+    script = `Start-Process -FilePath "${exePath}" -ArgumentList '"${appDir}"' -Verb RunAs`;
+  } else {
+    script = `Start-Process -FilePath "${exePath}" -Verb RunAs`;
+  }
+  try {
+    await runPowerShell(script);
+    isQuitting = true;
+    setTimeout(() => {
+      app.quit();
+    }, 600);
+    return { success: true };
+  } catch (err) {
+    console.error('Failed to elevate:', err);
+    return { success: false, error: err.message };
+  }
+});
 
 ipcMain.handle('test-dns', async (event, dnsServer) => {
   const start = Date.now();

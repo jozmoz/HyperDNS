@@ -10,7 +10,8 @@ let state = {
   detectedIP: '',
   currentDNSList: [],
   refreshInterval: null,
-  dnsCheckInterval: null
+  dnsCheckInterval: null,
+  isAdmin: false
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────
@@ -39,12 +40,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     state.currentDNSList = result.addresses || [];
     updateDNSStatusUI();
   });
+
+  // Check Administrator Privileges
+  try {
+    state.isAdmin = await ipcRenderer.invoke('check-admin');
+    const adminBanner = document.getElementById('admin-banner');
+    if (adminBanner) {
+      adminBanner.style.display = state.isAdmin ? 'none' : 'flex';
+    }
+  } catch (err) {
+    console.error('Failed to check admin status:', err);
+  }
 });
 
 // ─── Window Controls ──────────────────────────────────────────────────
 function minimizeWindow() { ipcRenderer.invoke('minimize-window'); }
 function closeWindow() { ipcRenderer.invoke('close-window'); }
 function openExternal(url) { ipcRenderer.invoke('open-external', url); }
+
+// ─── Relaunch as Admin ────────────────────────────────────────────────
+async function relaunchAsAdmin() {
+  const btn = document.querySelector('.btn-admin-relaunch');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ در حال تایید UAC...';
+  }
+  showToast('در حال درخواست دسترسی Administrator از ویندوز...', 'info');
+  try {
+    const res = await ipcRenderer.invoke('relaunch-as-admin');
+    if (res && !res.success) {
+      showToast('درخواست دسترسی Administrator لغو شد یا با خطا مواجه شد.', 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '🛡️ اجرا با دسترسی ادمین';
+      }
+    }
+  } catch (e) {
+    showToast(`خطا: ${e.message}`, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🛡️ اجرا با دسترسی ادمین';
+    }
+  }
+}
+window.relaunchAsAdmin = relaunchAsAdmin;
 
 // ─── Toast ────────────────────────────────────────────────────────────
 function showToast(message, type = 'info') {
@@ -386,11 +425,23 @@ function activateDNS() {
     showToast('آدرس DNS سرور در دسترس نیست', 'error');
     return;
   }
+  if (!state.isAdmin) {
+    showToast('⚠️ نیاز به دسترسی Administrator: لطفاً دکمه «اجرا با دسترسی ادمین» بالای صفحه را بزنید.', 'error');
+    const banner = document.getElementById('admin-banner');
+    if (banner) banner.style.display = 'flex';
+    return;
+  }
   showToast('در حال تنظیم DNS سیستم... (نیازمند Admin)', 'info');
   ipcRenderer.invoke('set-dns', { primary: state.serverDNS, secondary: '1.1.1.1' });
 }
 
 function deactivateDNS() {
+  if (!state.isAdmin) {
+    showToast('⚠️ نیاز به دسترسی Administrator: لطفاً دکمه «اجرا با دسترسی ادمین» بالای صفحه را بزنید.', 'error');
+    const banner = document.getElementById('admin-banner');
+    if (banner) banner.style.display = 'flex';
+    return;
+  }
   showToast('در حال بازگردانی DNS به حالت خودکار...', 'info');
   ipcRenderer.invoke('reset-dns');
 }
