@@ -159,3 +159,6 @@ root@*
 /uiaudit-*.png
 # third-party skill docs that landed in the tree
 docs/superpowers/
+
+# Desktop PC Client (local only, excluded from GitHub)
+desktop-app/
