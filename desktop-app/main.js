@@ -1,6 +1,6 @@
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, shell } = require('electron');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 const https = require('https');
 const http = require('http');
 const dns = require('dns');
@@ -115,7 +115,20 @@ function createTray() {
 }
 
 // ─── DNS Host Resolution ──────────────────────────────────────────────
-async function resolveDNSHost(host) {
+function cleanHost(input) {
+  if (!input) return '';
+  let str = input.trim();
+  // Strip protocol (https://, http://)
+  str = str.replace(/^[a-zA-Z]+:\/\//, '');
+  // Strip URL path (/sub/..., etc.)
+  str = str.split('/')[0];
+  // Strip port (:56104, :8080, etc.)
+  str = str.split(':')[0];
+  return str.trim();
+}
+
+async function resolveDNSHost(raw) {
+  const host = cleanHost(raw);
   if (!host) return '';
   if (net.isIP(host)) return host;
   return new Promise((resolve) => {
@@ -126,95 +139,133 @@ async function resolveDNSHost(host) {
   });
 }
 
+function runPowerShell(script) {
+  return new Promise((resolve, reject) => {
+    const buffer = Buffer.from(script, 'utf16le');
+    const encoded = buffer.toString('base64');
+    execFile(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded],
+      (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(stderr || stdout || error.message));
+        } else {
+          resolve(stdout.trim());
+        }
+      }
+    );
+  });
+}
+
 // ─── DNS Management (requires admin/elevated) ─────────────────────────
 async function setDNS(primaryDNS, secondaryDNS = '1.1.1.1') {
-  // Resolve domain name to IPv4 if needed
-  const resolvedPrimary = await resolveDNSHost(primaryDNS);
-  const resolvedSecondary = await resolveDNSHost(secondaryDNS);
+  try {
+    const resolvedPrimary = await resolveDNSHost(primaryDNS);
+    const resolvedSecondary = await resolveDNSHost(secondaryDNS);
 
-  const cmd = `
-    $ErrorActionPreference = 'Stop'
-    try {
-      Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | ForEach-Object {
-        Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses @('${resolvedPrimary}','${resolvedSecondary}')
+    if (!net.isIPv4(resolvedPrimary)) {
+      throw new Error(`آدرس سرور (${primaryDNS}) به یک آی‌پی معتبر تبدیل نشد.`);
+    }
+
+    const script = `
+      $ErrorActionPreference = 'Stop'
+      $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.InterfaceDescription -notlike '*Tunnel*' -and $_.InterfaceDescription -notlike '*Loopback*' }
+      if (-not $adapters) {
+        $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+      }
+      foreach ($ad in $adapters) {
+        Set-DnsClientServerAddress -InterfaceIndex $ad.ifIndex -ServerAddresses @('${resolvedPrimary}', '${resolvedSecondary}')
       }
       Clear-DnsClientCache
       Write-Output "SUCCESS"
-    } catch {
-      Write-Error $_.Exception.Message
-    }
-  `;
+    `;
 
-  exec(`powershell -NoProfile -Command "${cmd.replace(/\r?\n/g, ' ')}"`, { shell: 'powershell.exe' }, (error, stdout, stderr) => {
+    await runPowerShell(script);
+
     if (mainWindow) {
-      let isSuccess = !error && stdout.includes('SUCCESS');
-      let msg = '';
-      if (isSuccess) {
-        msg = `DNS ضدتحریم (${resolvedPrimary}) فعال شد ✓`;
-      } else {
-        const errText = (stderr || error?.message || '').toLowerCase();
-        if (errText.includes('permission') || errText.includes('access is denied') || errText.includes('administrator')) {
-          msg = 'نیاز به دسترسی Admin: لطفاً برنامه را با Run as administrator باز کنید.';
-        } else {
-          msg = `خطا در تنظیم DNS: ${stderr || error?.message || 'ناشناخته'}`;
-        }
-      }
       mainWindow.webContents.send('dns-result', {
-        success: isSuccess,
-        message: msg,
+        success: true,
+        message: `DNS ضدتحریم (${resolvedPrimary}) با موفقیت فعال شد ✓`,
         primary: resolvedPrimary,
         secondary: resolvedSecondary
       });
     }
-  });
+  } catch (err) {
+    let msg = err.message || 'خطای ناشناخته';
+    const lower = msg.toLowerCase();
+    if (lower.includes('permission') || lower.includes('access is denied') || lower.includes('administrator')) {
+      msg = 'نیاز به دسترسی Admin: لطفاً برنامه را با Run as administrator باز کنید.';
+    }
+    if (mainWindow) {
+      mainWindow.webContents.send('dns-result', {
+        success: false,
+        message: `خطا در تنظیم DNS: ${msg}`,
+        primary: '',
+        secondary: ''
+      });
+    }
+  }
 }
 
-function resetDNS() {
-  const cmd = `
-    $ErrorActionPreference = 'Stop'
-    try {
-      Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | ForEach-Object {
-        Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ResetServerAddresses
+async function resetDNS() {
+  try {
+    const script = `
+      $ErrorActionPreference = 'Stop'
+      $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+      foreach ($ad in $adapters) {
+        Set-DnsClientServerAddress -InterfaceIndex $ad.ifIndex -ResetServerAddresses
       }
       Clear-DnsClientCache
       Write-Output "SUCCESS"
-    } catch {
-      Write-Error $_.Exception.Message
-    }
-  `;
+    `;
 
-  exec(`powershell -NoProfile -Command "${cmd.replace(/\r?\n/g, ' ')}"`, { shell: 'powershell.exe' }, (error, stdout, stderr) => {
+    await runPowerShell(script);
+
     if (mainWindow) {
-      let isSuccess = !error && stdout.includes('SUCCESS');
-      let msg = '';
-      if (isSuccess) {
-        msg = 'DNS به حالت پیش‌فرض ویندوز (خودکار) برگشت ✓';
-      } else {
-        const errText = (stderr || error?.message || '').toLowerCase();
-        if (errText.includes('permission') || errText.includes('access is denied') || errText.includes('administrator')) {
-          msg = 'نیاز به دسترسی Admin: لطفاً برنامه را با Run as administrator باز کنید.';
-        } else {
-          msg = `خطا: ${stderr || error?.message || 'ناشناخته'}`;
-        }
-      }
       mainWindow.webContents.send('dns-result', {
-        success: isSuccess,
-        message: msg,
+        success: true,
+        message: 'DNS به حالت پیش‌فرض ویندوز (خودکار) بازگردانده شد ✓',
         primary: 'Auto',
         secondary: 'Auto'
       });
     }
-  });
+  } catch (err) {
+    let msg = err.message || 'خطای ناشناخته';
+    const lower = msg.toLowerCase();
+    if (lower.includes('permission') || lower.includes('access is denied') || lower.includes('administrator')) {
+      msg = 'نیاز به دسترسی Admin: لطفاً برنامه را با Run as administrator باز کنید.';
+    }
+    if (mainWindow) {
+      mainWindow.webContents.send('dns-result', {
+        success: false,
+        message: `خطا در بازگردانی DNS: ${msg}`,
+        primary: 'Auto',
+        secondary: 'Auto'
+      });
+    }
+  }
 }
 
-function getCurrentDNS() {
-  const cmd = `Get-DnsClientServerAddress -AddressFamily IPv4 | Where-Object {$_.ServerAddresses.Count -gt 0} | Select-Object -First 1 -ExpandProperty ServerAddresses`;
-  exec(`powershell -NoProfile -Command "${cmd}"`, { shell: 'powershell.exe' }, (error, stdout) => {
+async function getCurrentDNS() {
+  try {
+    const script = `
+      $active = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.InterfaceDescription -notlike '*Tunnel*' }
+      if (-not $active) { $active = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } }
+      $ips = @()
+      foreach ($ad in $active) {
+        $dns = (Get-DnsClientServerAddress -InterfaceIndex $ad.ifIndex -AddressFamily IPv4).ServerAddresses
+        if ($dns) { $ips += $dns }
+      }
+      $ips | Select-Object -Unique
+    `;
+    const out = await runPowerShell(script);
+    const addresses = out ? out.split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
     if (mainWindow) {
-      const addresses = stdout ? stdout.trim().split(/\r?\n/).map(s => s.trim()).filter(Boolean) : [];
       mainWindow.webContents.send('current-dns', { addresses });
     }
-  });
+  } catch (e) {
+    console.error('getCurrentDNS error:', e);
+  }
 }
 
 // ─── API Proxy (bypass CORS) ──────────────────────────────────────────
