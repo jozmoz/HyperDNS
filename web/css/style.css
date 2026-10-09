@@ -1022,4 +1022,16 @@ input:checked + .slider:before {
   cursor: pointer;
 }
 
+/* HGI Domain Management */
+.btn-hgi-manage-domains,
+.btn-hgi-purge-game,
+.btn-hgi-export-game,
+.btn-hgi-delete-game,
+.btn-hgi-done-domain-policy,
+.btn-hgi-delete-domain-row,
+.btn-hgi-save-domain-row,
+.btn-hgi-add-domain-submit {
+  cursor: pointer;
+}
+
 

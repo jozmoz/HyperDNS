@@ -112,6 +112,12 @@ func (a *API) handleV2GameItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sub-resource: /api/v2/games/{id}/categories
+	if len(parts) >= 2 && parts[1] == "categories" {
+		a.handleV2GameCategories(w, r, gameID, parts[2:])
+		return
+	}
+
 	// Sub-resource: /api/v2/games/{id}/rollback
 	if len(parts) >= 2 && parts[1] == "rollback" {
 		if r.Method != http.MethodPost {
@@ -213,6 +219,35 @@ func (a *API) handleV2GameDomains(w http.ResponseWriter, r *http.Request, gameID
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 
+	case http.MethodPut:
+		var body struct {
+			Hostname string              `json:"hostname"`
+			Category game.DomainCategory `json:"category"`
+			Policy   game.PolicyAction   `json:"policy"`
+			Enabled  bool                `json:"enabled"`
+		}
+		if !decodeStrict(w, r, &body) {
+			return
+		}
+		targetDomain := body.Hostname
+		if targetDomain == "" && len(subParts) > 0 {
+			targetDomain = subParts[0]
+		}
+		if targetDomain == "" {
+			writeProblem(w, http.StatusBadRequest, "invalid_request", "Hostname is required")
+			return
+		}
+		if body.Policy == "" {
+			body.Policy = game.PolicyProxy
+		}
+
+		if err := a.gameEngine.UpdateGameDomainPolicy(gameID, targetDomain, body.Policy, body.Category, body.Enabled, "admin_api"); err != nil {
+			writeProblem(w, http.StatusInternalServerError, "database_error", err.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
+
 	case http.MethodDelete:
 		if len(subParts) == 0 || subParts[0] == "" {
 			writeProblem(w, http.StatusBadRequest, "invalid_request", "Domain name is required in path")
@@ -227,8 +262,42 @@ func (a *API) handleV2GameDomains(w http.ResponseWriter, r *http.Request, gameID
 		_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 
 	default:
-		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", "Use GET, POST, or DELETE")
+		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", "Use GET, POST, PUT, or DELETE")
 	}
+}
+
+func (a *API) handleV2GameCategories(w http.ResponseWriter, r *http.Request, gameID string, subParts []string) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		writeProblem(w, http.StatusMethodNotAllowed, "method_not_allowed", "Use PUT or POST")
+		return
+	}
+	var body struct {
+		Category  game.DomainCategory `json:"category"`
+		Policy    game.PolicyAction   `json:"policy"`
+		Propagate bool                `json:"propagate"`
+	}
+	if !decodeStrict(w, r, &body) {
+		return
+	}
+	if body.Category == "" {
+		if len(subParts) > 0 {
+			body.Category = game.DomainCategory(subParts[0])
+		} else {
+			writeProblem(w, http.StatusBadRequest, "invalid_request", "Category is required")
+			return
+		}
+	}
+	if body.Policy == "" {
+		writeProblem(w, http.StatusBadRequest, "invalid_request", "Policy is required")
+		return
+	}
+
+	if err := a.gameEngine.UpdateGameCategoryPolicy(gameID, body.Category, body.Policy, body.Propagate, "admin_api"); err != nil {
+		writeProblem(w, http.StatusInternalServerError, "database_error", err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"success": true})
 }
 
 // GET /api/v2/discovery/candidates

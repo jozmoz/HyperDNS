@@ -34,6 +34,10 @@ const (
 	RuleCustomDirect = "Custom Direct"
 	RuleCustomBlock  = "Custom Block"
 	RuleCustomProxy  = "Custom Proxy"
+
+	RuleGameDirect = "Game Intelligence (Direct)"
+	RuleGameBlock  = "Game Intelligence (Block)"
+	RuleGameProxy  = "Game Intelligence (Proxy)"
 )
 
 // Rule names for the forced-direct plane described in realtime.go: names the SNI
@@ -299,15 +303,15 @@ func (f policyFilter) accept(rule string) bool {
 	if !f.perClient {
 		return true
 	}
-	// The operator's own lists are not opt-in categories.
+	// The operator's own lists and Game Intelligence rules are not opt-in categories.
 	switch rule {
-	case RuleCustomDirect, RuleCustomBlock, RuleCustomProxy:
+	case RuleCustomDirect, RuleCustomBlock, RuleCustomProxy, RuleGameDirect, RuleGameBlock, RuleGameProxy:
 		return true
 	}
 	return policyAllows(f.policies, rule)
 }
 
-// Matcher resolves a domain to an action against five indexed rule sets. Reads
+// Matcher resolves a domain to an action against indexed rule sets. Reads
 // take the read lock, so rules can be replaced at runtime while queries are served.
 //
 // downloads is the odd one out: it holds no action of its own, only the names the
@@ -320,6 +324,9 @@ type Matcher struct {
 	blocked       *ruleSet
 	proxied       *ruleSet
 	downloads     *ruleSet
+	gameDirect    *ruleSet
+	gameBlocked   *ruleSet
+	gameProxied   *ruleSet
 	customRecords map[string]string // domain -> IP override
 }
 
@@ -331,6 +338,9 @@ func NewMatcher() *Matcher {
 		blocked:       newRuleSet(),
 		proxied:       newRuleSet(),
 		downloads:     newRuleSet(),
+		gameDirect:    newRuleSet(),
+		gameBlocked:   newRuleSet(),
+		gameProxied:   newRuleSet(),
 		customRecords: make(map[string]string),
 	}
 	// Blocking categories start off, and so does the download veto. A resolver that
@@ -507,6 +517,24 @@ func (m *Matcher) match(domain string, policies []string) (Action, string) {
 	if name, ok := m.realtime.lookup(d, f); ok {
 		return ActionDirect, name
 	}
+
+	// Game Intelligence Engine plane:
+	if m.gameDirect != nil {
+		if name, ok := m.gameDirect.lookup(d, f); ok {
+			return ActionDirect, name
+		}
+	}
+	if m.gameBlocked != nil {
+		if name, ok := m.gameBlocked.lookup(d, f); ok {
+			return ActionBlock, name
+		}
+	}
+	if m.gameProxied != nil {
+		if name, ok := m.gameProxied.lookup(d, f); ok {
+			return ActionProxy, name
+		}
+	}
+
 	// The download veto (downloads.go). Read with acceptAll, because the question is
 	// whether this name is bulk payload — a fact about the name, not a setting — and
 	// then answered with the ordinary filter, because whether the operator or this
@@ -623,6 +651,27 @@ func (m *Matcher) SetCustomRules(customProxied, customBlocked, customDirect []st
 		if d != "" && ip != "" {
 			m.customRecords[d] = ip
 		}
+	}
+}
+
+// SetGameRules atomically updates the Game Intelligence Engine's domain rules
+// without touching custom rules, custom records, or presets.
+func (m *Matcher) SetGameRules(gameProxied, gameBlocked, gameDirect []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.gameDirect = newRuleSet()
+	for _, d := range gameDirect {
+		m.gameDirect.index(d, RuleGameDirect, true)
+	}
+	m.gameBlocked = newRuleSet()
+	for _, d := range gameBlocked {
+		m.gameBlocked.index(d, RuleGameBlock, true)
+	}
+	m.gameProxied = newRuleSet()
+	for _, d := range gameProxied {
+		m.gameProxied.index(d, RuleGameProxy, true)
+		m.downloads.unindex(d)
 	}
 }
 

@@ -230,11 +230,14 @@
 
           <!-- Action Buttons -->
           <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-2">
-            <button class="btn-hgi-purge-game px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 text-[11px] font-semibold border border-slate-800 transition flex items-center gap-1" data-game-id="${escapeHTML(p.id)}" title="Purge DNS Cache for this game">
-              <i data-feather="refresh-cw" class="w-3 h-3 text-cyan-400"></i>
-              <span>Purge Cache</span>
+            <button class="btn-hgi-manage-domains px-2.5 py-1 rounded bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 text-[11px] font-semibold border border-cyan-500/30 transition flex items-center gap-1.5" data-game-id="${escapeHTML(p.id)}" title="Manage & Edit Domain Policies">
+              <i data-feather="sliders" class="w-3 h-3 text-cyan-400"></i>
+              <span>ویرایش سیاست‌ها</span>
             </button>
             <div class="flex items-center gap-1.5">
+              <button class="btn-hgi-purge-game p-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition" data-game-id="${escapeHTML(p.id)}" title="Purge DNS Cache for this game">
+                <i data-feather="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i>
+              </button>
               <button class="btn-hgi-export-game p-1.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition" data-game-id="${escapeHTML(p.id)}" title="Export Profile JSON">
                 <i data-feather="download" class="w-3.5 h-3.5"></i>
               </button>
@@ -244,6 +247,121 @@
             </div>
           </div>
         </div>
+      `;
+    }).join('');
+
+  // --- Domain Policies Management Editor ---
+  let currentEditProfile = null;
+
+  async function openDomainPolicyEditor(gid) {
+    const modal = document.getElementById('hgi-domain-policy-modal');
+    if (!modal) return;
+
+    try {
+      const res = await fetchHGI(`/api/v2/games/${encodeURIComponent(gid)}`);
+      if (!res.ok) {
+        showToast('Failed to load game profile', 'error');
+        return;
+      }
+      currentEditProfile = await res.json();
+    } catch (e) {
+      showToast('Error loading game profile', 'error');
+      return;
+    }
+
+    const nameEl = document.getElementById('hgi-edit-game-name');
+    const pubEl = document.getElementById('hgi-edit-game-publisher');
+    if (nameEl) nameEl.textContent = currentEditProfile.name || gid;
+    if (pubEl) pubEl.textContent = currentEditProfile.publisher || 'Unknown Publisher';
+
+    // Set category default selects
+    const pols = currentEditProfile.dns_policies || {};
+    const catKeys = ['auth', 'matchmaking', 'game_services', 'cdn', 'telemetry'];
+    catKeys.forEach(cat => {
+      const el = document.getElementById(`hgi-cat-policy-${cat}`);
+      if (el) {
+        el.value = pols[cat] || (cat === 'cdn' || cat === 'telemetry' ? 'direct' : 'proxy');
+      }
+    });
+
+    renderDomainRows();
+    modal.classList.remove('hidden');
+    safeFeatherReplace();
+  }
+
+  function renderDomainRows() {
+    const tbody = document.getElementById('hgi-domains-tbody');
+    const countEl = document.getElementById('hgi-edit-game-count');
+    if (!tbody || !currentEditProfile) return;
+
+    const searchTerm = (document.getElementById('hgi-domain-search')?.value || '').toLowerCase().trim();
+    const filterCat = document.getElementById('hgi-filter-category')?.value || '';
+    const filterPol = document.getElementById('hgi-filter-policy')?.value || '';
+
+    const rawDomains = currentEditProfile.domains || {};
+    let domainList = [];
+    if (Array.isArray(rawDomains)) {
+      domainList = rawDomains;
+    } else {
+      domainList = Object.values(rawDomains);
+    }
+
+    if (countEl) {
+      countEl.textContent = `${domainList.length} دامنه‌ ثبت‌شده`;
+    }
+
+    const filtered = domainList.filter(d => {
+      const host = (d.hostname || '').toLowerCase();
+      if (searchTerm && !host.includes(searchTerm)) return false;
+      if (filterCat && d.category !== filterCat) return false;
+      if (filterPol && d.policy !== filterPol) return false;
+      return true;
+    });
+
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500 text-xs">هیچ دامنه‌ای با این فیلتر یافت نشد.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(d => {
+      const host = escapeHTML(d.hostname);
+      const isProxy = d.policy === 'proxy';
+      const isDirect = d.policy === 'direct';
+      const isBlock = d.policy === 'block';
+
+      return `
+        <tr class="hover:bg-slate-900/50 transition">
+          <td class="py-2.5 px-3 font-mono text-cyan-300 font-bold">${host}</td>
+          <td class="py-2.5 px-3">
+            <select class="sel-domain-cat bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs font-mono" data-host="${host}">
+              <option value="auth" ${d.category === 'auth' ? 'selected' : ''}>Authentication</option>
+              <option value="matchmaking" ${d.category === 'matchmaking' ? 'selected' : ''}>Matchmaking</option>
+              <option value="game_services" ${d.category === 'game_services' ? 'selected' : ''}>Game Services</option>
+              <option value="cdn" ${d.category === 'cdn' ? 'selected' : ''}>CDN / Downloads</option>
+              <option value="telemetry" ${d.category === 'telemetry' ? 'selected' : ''}>Telemetry</option>
+            </select>
+          </td>
+          <td class="py-2.5 px-3">
+            <select class="sel-domain-pol bg-slate-900 border ${isProxy ? 'border-cyan-500/50 text-cyan-400' : isDirect ? 'border-emerald-500/50 text-emerald-400' : 'border-red-500/50 text-red-400'} rounded px-2 py-1 text-xs font-mono font-bold" data-host="${host}">
+              <option value="proxy" ${isProxy ? 'selected' : ''}>Proxy (هدایت به سرور)</option>
+              <option value="direct" ${isDirect ? 'selected' : ''}>Direct (مستقیم اینترنت)</option>
+              <option value="block" ${isBlock ? 'selected' : ''}>Block (مسدودسازی)</option>
+            </select>
+          </td>
+          <td class="py-2.5 px-3 text-center">
+            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold ${d.enabled !== false ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-500 border border-slate-700'}">
+              ${d.enabled !== false ? 'Active' : 'Disabled'}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-end whitespace-nowrap">
+            <button class="btn-hgi-save-domain-row px-2.5 py-1 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition" data-host="${host}">
+              ذخیره
+            </button>
+            <button class="btn-hgi-delete-domain-row p-1 rounded hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-800 transition ms-1" data-host="${host}" title="Delete Domain">
+              <i data-feather="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </td>
+        </tr>
       `;
     }).join('');
 
@@ -738,6 +856,81 @@
         return;
       }
 
+      const manageDomainsBtn = e.target.closest('.btn-hgi-manage-domains');
+      if (manageDomainsBtn) {
+        const gid = manageDomainsBtn.getAttribute('data-game-id');
+        if (gid) openDomainPolicyEditor(gid);
+        return;
+      }
+
+      const saveDomainBtn = e.target.closest('.btn-hgi-save-domain-row');
+      if (saveDomainBtn) {
+        const host = saveDomainBtn.getAttribute('data-host');
+        if (!host || !currentEditProfile) return;
+        const tr = saveDomainBtn.closest('tr');
+        const catSel = tr ? tr.querySelector('.sel-domain-cat') : null;
+        const polSel = tr ? tr.querySelector('.sel-domain-pol') : null;
+        const cat = catSel ? catSel.value : 'game_services';
+        const pol = polSel ? polSel.value : 'proxy';
+
+        try {
+          saveDomainBtn.disabled = true;
+          const res = await fetchHGI(`/api/v2/games/${encodeURIComponent(currentEditProfile.id)}/domains/${encodeURIComponent(host)}`, {
+            method: 'PUT',
+            body: JSON.stringify({ policy: pol, category: cat, enabled: true })
+          });
+          if (res.ok) {
+            showToast(`Policy for "${host}" updated to ${pol.toUpperCase()}!`, 'success');
+            const rawDomains = currentEditProfile.domains || {};
+            let domainList = Array.isArray(rawDomains) ? rawDomains : Object.values(rawDomains);
+            const target = domainList.find(d => (d.hostname || '').toLowerCase() === host.toLowerCase());
+            if (target) {
+              target.category = cat;
+              target.policy = pol;
+            }
+            renderDomainRows();
+            await loadProfiles();
+            updateKPIs();
+          } else {
+            showToast('Failed to update domain policy', 'error');
+          }
+        } catch (err) {
+          showToast('Error saving domain policy', 'error');
+        } finally {
+          saveDomainBtn.disabled = false;
+        }
+        return;
+      }
+
+      const delDomainBtn = e.target.closest('.btn-hgi-delete-domain-row');
+      if (delDomainBtn) {
+        const host = delDomainBtn.getAttribute('data-host');
+        if (!host || !currentEditProfile) return;
+        if (!confirm(`Delete domain "${host}" from ${currentEditProfile.name}?`)) return;
+
+        try {
+          const res = await fetchHGI(`/api/v2/games/${encodeURIComponent(currentEditProfile.id)}/domains/${encodeURIComponent(host)}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            showToast(`Domain "${host}" removed`, 'success');
+            if (Array.isArray(currentEditProfile.domains)) {
+              currentEditProfile.domains = currentEditProfile.domains.filter(d => (d.hostname || '').toLowerCase() !== host.toLowerCase());
+            } else if (currentEditProfile.domains) {
+              delete currentEditProfile.domains[host];
+            }
+            renderDomainRows();
+            await loadProfiles();
+            updateKPIs();
+          } else {
+            showToast('Failed to remove domain', 'error');
+          }
+        } catch (err) {
+          showToast('Error removing domain', 'error');
+        }
+        return;
+      }
+
       const testSingleNodeBtn = e.target.closest('.btn-hgi-test-single-node');
       if (testSingleNodeBtn) {
         const nid = testSingleNodeBtn.getAttribute('data-node-id');
@@ -917,6 +1110,112 @@
         showToast('Error communicating with server', 'error');
       }
     });
+
+    // Domain Policies Modal Handlers
+    const closeDomainModal = () => {
+      document.getElementById('hgi-domain-policy-modal')?.classList.add('hidden');
+      currentEditProfile = null;
+    };
+    document.getElementById('btn-hgi-close-domain-policy')?.addEventListener('click', closeDomainModal);
+    document.getElementById('btn-hgi-done-domain-policy')?.addEventListener('click', closeDomainModal);
+
+    document.getElementById('hgi-domain-search')?.addEventListener('input', () => {
+      renderDomainRows();
+    });
+    document.getElementById('hgi-filter-category')?.addEventListener('change', () => {
+      renderDomainRows();
+    });
+    document.getElementById('hgi-filter-policy')?.addEventListener('change', () => {
+      renderDomainRows();
+    });
+
+    const catSelectIds = [
+      { id: 'hgi-cat-policy-auth', cat: 'auth' },
+      { id: 'hgi-cat-policy-matchmaking', cat: 'matchmaking' },
+      { id: 'hgi-cat-policy-game_services', cat: 'game_services' },
+      { id: 'hgi-cat-policy-cdn', cat: 'cdn' },
+      { id: 'hgi-cat-policy-telemetry', cat: 'telemetry' }
+    ];
+    catSelectIds.forEach(item => {
+      const catEl = document.getElementById(item.id);
+      if (catEl) {
+        catEl.addEventListener('change', async () => {
+          if (!currentEditProfile) return;
+          const newPolicy = catEl.value;
+          try {
+            const res = await fetchHGI(`/api/v2/games/${encodeURIComponent(currentEditProfile.id)}/categories/${encodeURIComponent(item.cat)}?propagate=true`, {
+              method: 'PUT',
+              body: JSON.stringify({ policy: newPolicy })
+            });
+            if (res.ok) {
+              showToast(`Updated category "${item.cat}" policy to ${newPolicy.toUpperCase()}`, 'success');
+              const rawDomains = currentEditProfile.domains || {};
+              let domainList = Array.isArray(rawDomains) ? rawDomains : Object.values(rawDomains);
+              domainList.forEach(d => {
+                if (d.category === item.cat) {
+                  d.policy = newPolicy;
+                }
+              });
+              if (!currentEditProfile.dns_policies) currentEditProfile.dns_policies = {};
+              currentEditProfile.dns_policies[item.cat] = newPolicy;
+              renderDomainRows();
+              await loadProfiles();
+              updateKPIs();
+            } else {
+              showToast('Failed to update category policy', 'error');
+            }
+          } catch (err) {
+            showToast('Error updating category policy', 'error');
+          }
+        });
+      }
+    });
+
+    const addDomainForm = document.getElementById('hgi-add-domain-inline-form');
+    if (addDomainForm) {
+      addDomainForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!currentEditProfile) return;
+        const hostEl = document.getElementById('hgi-new-domain-host');
+        const catEl = document.getElementById('hgi-new-domain-category');
+        const polEl = document.getElementById('hgi-new-domain-policy');
+        const submitBtn = document.getElementById('btn-hgi-add-domain-submit');
+
+        const host = hostEl ? hostEl.value.trim().toLowerCase() : '';
+        const cat = catEl ? catEl.value : 'matchmaking';
+        const pol = polEl ? polEl.value : 'proxy';
+
+        if (!host) {
+          showToast('Please enter a hostname', 'error');
+          return;
+        }
+
+        try {
+          if (submitBtn) submitBtn.disabled = true;
+          const res = await fetchHGI(`/api/v2/games/${encodeURIComponent(currentEditProfile.id)}/domains/${encodeURIComponent(host)}`, {
+            method: 'PUT',
+            body: JSON.stringify({ policy: pol, category: cat, enabled: true })
+          });
+          if (res.ok) {
+            showToast(`Added "${host}" to ${currentEditProfile.name}`, 'success');
+            if (hostEl) hostEl.value = '';
+            const profileRes = await fetchHGI(`/api/v2/games/${encodeURIComponent(currentEditProfile.id)}`);
+            if (profileRes.ok) {
+              currentEditProfile = await profileRes.json();
+            }
+            renderDomainRows();
+            await loadProfiles();
+            updateKPIs();
+          } else {
+            showToast('Failed to add domain', 'error');
+          }
+        } catch (err) {
+          showToast('Error adding domain', 'error');
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
   }
 
   function renderSimulationResult(sim) {

@@ -445,23 +445,32 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP string, protocol ...string) 
 	// 3. Custom record overrides outrank every preset rule. Both address
 	// families are answered here — previously only A was intercepted, so a
 	// client could reach the real host by asking for AAAA instead.
-	if customIP, ok := h.matcher.GetCustomRecord(domain); ok && (q.Qtype == dns.TypeA || q.Qtype == dns.TypeAAAA) {
-		if ip := net.ParseIP(strings.TrimSpace(customIP)); ip != nil {
+	// Also sinkhole HTTPS/SVCB to prevent ECH/hint bypass around custom records.
+	if customIP, ok := h.matcher.GetCustomRecord(domain); ok {
+		if q.Qtype == dns.TypeHTTPS || q.Qtype == dns.TypeSVCB {
 			m := new(dns.Msg)
 			m.SetReply(r)
-			isV4 := ip.To4() != nil
-			if isV4 && q.Qtype == dns.TypeA {
-				if rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN A %s", q.Name, ip.String())); err == nil {
-					m.Answer = append(m.Answer, rr)
-				}
-			} else if !isV4 && q.Qtype == dns.TypeAAAA {
-				if rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN AAAA %s", q.Name, ip.String())); err == nil {
-					m.Answer = append(m.Answer, rr)
-				}
-			}
-			// The other family deliberately gets an empty NOERROR.
-			h.logQuery(start, clientIP, accountName, proto, domain, "Custom Record", "CUSTOM", false)
+			h.logQuery(start, clientIP, accountName, proto, domain, "Custom Record (ECH Sink)", "CUSTOM", false)
 			return m
+		}
+		if q.Qtype == dns.TypeA || q.Qtype == dns.TypeAAAA {
+			if ip := net.ParseIP(strings.TrimSpace(customIP)); ip != nil {
+				m := new(dns.Msg)
+				m.SetReply(r)
+				isV4 := ip.To4() != nil
+				if isV4 && q.Qtype == dns.TypeA {
+					if rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN A %s", q.Name, ip.String())); err == nil {
+						m.Answer = append(m.Answer, rr)
+					}
+				} else if !isV4 && q.Qtype == dns.TypeAAAA {
+					if rr, err := dns.NewRR(fmt.Sprintf("%s 60 IN AAAA %s", q.Name, ip.String())); err == nil {
+						m.Answer = append(m.Answer, rr)
+					}
+				}
+				// The other family deliberately gets an empty NOERROR.
+				h.logQuery(start, clientIP, accountName, proto, domain, "Custom Record", "CUSTOM", false)
+				return m
+			}
 		}
 	}
 
@@ -535,12 +544,19 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP string, protocol ...string) 
 			h.logQuery(start, clientIP, accountName, proto, domain, ruleName, "PROXY", false)
 			return m
 		}
-		if q.Qtype == dns.TypeAAAA {
-			// Prevent IPv6 leak bypass: Return clean NOERROR without AAAA answer,
-			// forcing client operating systems to use the proxied IPv4 A record.
+		if q.Qtype == dns.TypeAAAA || q.Qtype == dns.TypeHTTPS || q.Qtype == dns.TypeSVCB {
+			// Prevent IPv6 leak bypass and ECH (Encrypted Client Hello) / IP-hint bypass:
+			// Return clean NOERROR without AAAA/HTTPS/SVCB answer, forcing client operating
+			// systems, browsers, and game launchers to use the proxied IPv4 A record with cleartext SNI.
 			m := new(dns.Msg)
 			m.SetReply(r)
-			h.logQuery(start, clientIP, accountName, proto, domain, ruleName, "PROXY_IPV6_SINK", false)
+			tag := "PROXY_IPV6_SINK"
+			if q.Qtype == dns.TypeHTTPS {
+				tag = "PROXY_HTTPS_ECH_SINK"
+			} else if q.Qtype == dns.TypeSVCB {
+				tag = "PROXY_SVCB_SINK"
+			}
+			h.logQuery(start, clientIP, accountName, proto, domain, ruleName, tag, false)
 			return m
 		}
 	}

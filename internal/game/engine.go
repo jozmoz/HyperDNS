@@ -124,7 +124,7 @@ func (e *Engine) syncProfilesToMatcher() {
 	}
 
 	if e.matcher != nil {
-		e.matcher.SetCustomRules(customProxied, customBlocked, customDirect, nil)
+		e.matcher.SetGameRules(customProxied, customBlocked, customDirect)
 	}
 }
 
@@ -342,5 +342,78 @@ func (e *Engine) RemoveGameDomain(gameID, hostname, actor string) error {
 		return err
 	}
 	return e.store.DeleteDomainIntel(norm)
+}
+
+// UpdateGameDomainPolicy updates the policy, category, or enabled state of a specific domain in a game profile.
+func (e *Engine) UpdateGameDomainPolicy(gameID, hostname string, policy PolicyAction, category DomainCategory, enabled bool, actor string) error {
+	p, err := e.store.GetGameProfile(gameID)
+	if err != nil {
+		return err
+	}
+
+	norm := normalizeDomain(hostname)
+	now := time.Now()
+
+	dom, exists := p.Domains[norm]
+	if !exists {
+		dom = DomainRecord{
+			Hostname:        norm,
+			GameID:          gameID,
+			Publisher:       p.Publisher,
+			ConfidenceScore: 100,
+			Status:          StatusConfirmed,
+			FirstSeen:       now,
+			CreatedBy:       actor,
+		}
+	}
+
+	if policy != "" {
+		dom.Policy = policy
+	}
+	if category != "" {
+		dom.Category = category
+	}
+	dom.Enabled = enabled
+	dom.UpdatedAt = now
+	dom.LastSeen = now
+	dom.Evidence = append(dom.Evidence, fmt.Sprintf("Policy updated to %s [%s] by %s at %s", dom.Policy, dom.Category, actor, now.Format(time.RFC3339)))
+
+	if p.Domains == nil {
+		p.Domains = make(map[string]DomainRecord)
+	}
+	p.Domains[norm] = dom
+
+	if err := e.SaveGameProfile(*p, actor); err != nil {
+		return err
+	}
+	return e.store.SaveDomainIntel(dom)
+}
+
+// UpdateGameCategoryPolicy updates the default DNS policy for an entire category in a game profile,
+// and optionally propagates it to all member domains.
+func (e *Engine) UpdateGameCategoryPolicy(gameID string, category DomainCategory, policy PolicyAction, propagate bool, actor string) error {
+	p, err := e.store.GetGameProfile(gameID)
+	if err != nil {
+		return err
+	}
+
+	if p.DNSPolicies == nil {
+		p.DNSPolicies = make(map[DomainCategory]string)
+	}
+	p.DNSPolicies[category] = string(policy)
+
+	if propagate {
+		now := time.Now()
+		for host, d := range p.Domains {
+			if d.Category == category {
+				d.Policy = policy
+				d.UpdatedAt = now
+				p.Domains[host] = d
+				_ = e.store.SaveDomainIntel(d)
+			}
+		}
+	}
+
+	return e.SaveGameProfile(*p, actor)
 }
 
