@@ -31,6 +31,14 @@ else
 fi
 
 get_public_ip() {
+    local svc_ip
+    if [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
+        svc_ip=$(grep -oE -- '-public-ip\s+[^ ]+' "/etc/systemd/system/${SERVICE_NAME}.service" 2>/dev/null | awk '{print $2}' | tr -d '[:space:]' || true)
+    fi
+    if [ -n "$svc_ip" ]; then
+        echo "$svc_ip"
+        return
+    fi
     curl -4 -s --connect-timeout 3 https://api.ipify.org 2>/dev/null || \
     curl -4 -s --connect-timeout 3 https://ifconfig.me 2>/dev/null || \
     echo "127.0.0.1"
@@ -173,8 +181,10 @@ update_hyperdns() {
     echo -e "\n${BOLD}${CYAN}=== Update HyperDNS from GitHub ===${NC}"
     echo -e "Downloading latest release from: ${YELLOW}${REPO_RAW_URL}/hyperdns-linux${NC}..."
     
+    local cache_buster
+    cache_buster=$(date +%s)
     local tmp_file="/tmp/hyperdns_update_$$"
-    if curl -fsSL -o "$tmp_file" "${REPO_RAW_URL}/hyperdns-linux"; then
+    if curl -fsSL -o "$tmp_file" "${REPO_RAW_URL}/hyperdns-linux?t=${cache_buster}"; then
         chmod +x "$tmp_file"
         echo -e "${CYAN}Stopping HyperDNS service...${NC}"
         systemctl stop "$SERVICE_NAME" 2>/dev/null || true
@@ -190,7 +200,7 @@ update_hyperdns() {
 
         # Also update the menu script itself
         echo -e "${CYAN}Updating management menu script...${NC}"
-        curl -fsSL -o /usr/local/bin/hyperdns "${REPO_RAW_URL}/scripts/hyperdns-menu.sh" 2>/dev/null || true
+        curl -fsSL -o /usr/local/bin/hyperdns "${REPO_RAW_URL}/scripts/hyperdns-menu.sh?t=${cache_buster}" 2>/dev/null || true
         chmod +x /usr/local/bin/hyperdns 2>/dev/null || true
         ln -sf /usr/local/bin/hyperdns /usr/local/bin/hdns 2>/dev/null || true
 
@@ -517,6 +527,43 @@ ENVEOF
     sleep 2
 }
 
+change_dns_server_ip() {
+    echo -e "\n${BOLD}${CYAN}=== HyperDNS Server IP Management ===${NC}"
+    local current_ip
+    current_ip=$(get_public_ip)
+    echo -e "  Current DNS Server IP: ${GREEN}${current_ip}${NC}"
+    echo ""
+    read -rp "Enter new DNS Server IP: " new_ip
+    new_ip=$(echo "$new_ip" | tr -d '[:space:]"'\''')
+    if [ -z "$new_ip" ]; then
+        echo -e "${YELLOW}No changes made.${NC}"
+        sleep 1.5
+        return
+    fi
+
+    echo -e "\n${CYAN}Updating systemd service configuration...${NC}"
+    local svc_file="/etc/systemd/system/${SERVICE_NAME}.service"
+    if [ -f "$svc_file" ]; then
+        if grep -q -- "-public-ip" "$svc_file"; then
+            sed -i -E "s/-public-ip\s+[^ ]+/-public-ip ${new_ip}/" "$svc_file"
+        else
+            sed -i -E "s/(hyperdns\s+-server)/\1 -public-ip ${new_ip}/" "$svc_file"
+        fi
+        systemctl daemon-reload
+    fi
+
+    echo -e "${CYAN}Applying new IP to database...${NC}"
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    if [ -f "$BIN_PATH" ]; then
+        timeout 5 "$BIN_PATH" -server -public-ip "$new_ip" >/dev/null 2>&1 || true
+    fi
+
+    echo -e "${GREEN}Restarting HyperDNS service...${NC}"
+    systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
+    echo -e "\n${GREEN}${BOLD}✓ DNS Server IP updated to ${new_ip}!${NC}"
+    sleep 2
+}
+
 main_menu() {
     while true; do
         show_banner
@@ -533,10 +580,11 @@ main_menu() {
         echo -e "  ${CYAN}[11]${NC} 💾 ایجاد فایل پشتیبان دیتابیس (Backup Database)"
         echo -e "  ${CYAN}[12]${NC} ♻️  بازیابی نسخه پشتیبان (Restore Database)"
         echo -e "  ${CYAN}[13]${NC} 🤖 مدیریت ربات تلگرام (Telegram Bot)"
-        echo -e "  ${RED}[14]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
+        echo -e "  ${CYAN}[14]${NC} 🌐 تغییر IP عمومی سرور DNS (Change DNS Server IP)"
+        echo -e "  ${RED}[15]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
         echo -e "  ${YELLOW}[0]${NC}  🚪 خروج (Exit)"
         echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}"
-        read -rp " عدد مورد نظر را وارد کنید [0-14]: " choice
+        read -rp " عدد مورد نظر را وارد کنید [0-15]: " choice
 
         case "$choice" in
             1)
@@ -592,6 +640,9 @@ main_menu() {
                 manage_telegram_bot
                 ;;
             14)
+                change_dns_server_ip
+                ;;
+            15)
                 uninstall_hyperdns
                 ;;
             0|q|exit)

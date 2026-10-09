@@ -49,12 +49,43 @@ echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway 
 echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/HyperDNS${NC}"
 echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}\n"
 
-# 3. Detect Public IP
-echo -e "${CYAN}[1/5] Detecting server environment and public IP...${NC}"
-PUBLIC_IP=$(curl -4 -s --connect-timeout 4 https://api.ipify.org 2>/dev/null || \
+# 3. Detect & Configure DNS Server Public IP
+echo -e "${CYAN}[1/5] Detecting server environment and DNS Server IP...${NC}"
+DETECTED_IP=$(curl -4 -s --connect-timeout 4 https://api.ipify.org 2>/dev/null || \
             curl -4 -s --connect-timeout 4 https://ifconfig.me 2>/dev/null || \
             echo "127.0.0.1")
-echo -e "  Server Public IP: ${GREEN}${PUBLIC_IP}${NC}"
+
+EXISTING_IP=""
+if [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
+    EXISTING_IP=$(grep -oE -- '-public-ip\s+[^ ]+' "/etc/systemd/system/${SERVICE_NAME}.service" 2>/dev/null | awk '{print $2}' | tr -d '[:space:]' || true)
+fi
+
+DEFAULT_IP="${DNS_SERVER_IP:-${CUSTOM_IP:-${EXISTING_IP:-$DETECTED_IP}}}"
+USER_IP=""
+
+echo -e "  Detected Public IP: ${GREEN}${DETECTED_IP}${NC}"
+
+if [ -n "$DNS_SERVER_IP" ]; then
+    PUBLIC_IP="$DNS_SERVER_IP"
+elif [ -n "$CUSTOM_IP" ]; then
+    PUBLIC_IP="$CUSTOM_IP"
+else
+    if [ -t 0 ]; then
+        echo -e "  ${YELLOW}💡 Press Enter to use default [${DEFAULT_IP}], or enter your DNS Server IP:${NC}"
+        read -rp "  Enter DNS Server IP [${DEFAULT_IP}]: " USER_IP
+    elif [ -e /dev/tty ]; then
+        echo -e "  ${YELLOW}💡 Press Enter to use default [${DEFAULT_IP}], or enter your DNS Server IP:${NC}"
+        read -rp "  Enter DNS Server IP [${DEFAULT_IP}]: " USER_IP < /dev/tty || true
+    fi
+    USER_IP=$(echo "$USER_IP" | tr -d '[:space:]"'\''')
+    if [ -n "$USER_IP" ]; then
+        PUBLIC_IP="$USER_IP"
+    else
+        PUBLIC_IP="$DEFAULT_IP"
+    fi
+fi
+
+echo -e "  ${GREEN}✓ Confirmed DNS Server IP:${NC} ${CYAN}${BOLD}${PUBLIC_IP}${NC}"
 
 # 4. System dependencies
 echo -e "\n${CYAN}[2/5] Installing dependencies and freeing Port 53...${NC}"
@@ -119,7 +150,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/hyperdns -server
+ExecStart=${INSTALL_DIR}/hyperdns -server -public-ip ${PUBLIC_IP}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -190,10 +221,10 @@ rm -f "$BOOTSTRAP_LOG"
 
 if [ -n "$USER_DOMAIN" ]; then
     echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and generating SSL certificate..."
-    timeout 15 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" > "$BOOTSTRAP_LOG" 2>&1 || true
+    timeout 15 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
 else
     echo -e "  Configuring direct IP mode..."
-    timeout 10 "$INSTALL_DIR/hyperdns" -server > "$BOOTSTRAP_LOG" 2>&1 || true
+    timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
 fi
 
 # Enable and start the permanent background service

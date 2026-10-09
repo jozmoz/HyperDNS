@@ -289,18 +289,27 @@ func main() {
 		serverSettings.AdminUsername = "admin"
 	}
 
+	// settingsDirty collects every reason the "server" record needs rewriting, so
+	// the daemon persists once, at the end, after the password has been hashed.
+	// Writing earlier would put the plaintext on disk on the very first run.
+	settingsDirty := !serverWasPersisted
+
 	// Explicit CLI flags are the highest precedence override
-	if *bindHost != "" {
+	if *bindHost != "" && serverSettings.BindHost != *bindHost {
 		serverSettings.BindHost = *bindHost
+		settingsDirty = true
 	}
-	if *dnsPort > 0 {
+	if *dnsPort > 0 && dnsSettings.Port != *dnsPort {
 		dnsSettings.Port = *dnsPort
+		_ = db.SetSetting("dns", dnsSettings)
 	}
-	if *webPort > 0 {
+	if *webPort > 0 && serverSettings.WebPort != *webPort {
 		serverSettings.WebPort = *webPort
+		settingsDirty = true
 	}
-	if *publicIP != "" {
+	if *publicIP != "" && serverSettings.PublicIP != *publicIP {
 		serverSettings.PublicIP = *publicIP
+		settingsDirty = true
 	}
 	if *domainFlag != "" {
 		tlsSettings.Domain = strings.TrimSpace(*domainFlag)
@@ -311,11 +320,6 @@ func main() {
 		tlsSettings.Email = strings.TrimSpace(*emailFlag)
 		_ = db.SetSetting("tls", tlsSettings)
 	}
-
-	// settingsDirty collects every reason the "server" record needs rewriting, so
-	// the daemon persists once, at the end, after the password has been hashed.
-	// Writing earlier would put the plaintext on disk on the very first run.
-	settingsDirty := !serverWasPersisted
 
 	// A missing master API key is not the same failure as a wrong one, and it used
 	// to look identical from outside — see ensureAPIKey.
