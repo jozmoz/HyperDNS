@@ -148,7 +148,7 @@
       const res = await fetchHGI('/api/v2/games');
       if (!res.ok) return;
       const data = await res.json();
-      cachedProfiles = data.profiles || [];
+      cachedProfiles = data.profiles || data.items || [];
       renderProfiles();
     } catch (e) {
       console.warn('loadProfiles error', e);
@@ -165,19 +165,40 @@
     }
 
     listEl.innerHTML = cachedProfiles.map(p => {
-      const authCount = (p.domains && p.domains.authentication) ? p.domains.authentication.length : 0;
-      const matchCount = (p.domains && p.domains.matchmaking) ? p.domains.matchmaking.length : 0;
-      const svcCount = (p.domains && p.domains.game_services) ? p.domains.game_services.length : 0;
-      const cdnCount = (p.domains && p.domains.cdn_downloads) ? p.domains.cdn_downloads.length : 0;
-      const totalDomains = authCount + matchCount + svcCount + cdnCount;
+      let domainList = [];
+      if (Array.isArray(p.domains)) {
+        domainList = p.domains;
+      } else if (p.domains && typeof p.domains === 'object') {
+        for (const [k, v] of Object.entries(p.domains)) {
+          if (Array.isArray(v)) {
+            v.forEach(host => domainList.push({ hostname: host, category: k, policy: 'PROXY' }));
+          } else if (v && typeof v === 'object' && v.hostname) {
+            domainList.push(v);
+          }
+        }
+      }
+
+      let authCount = 0;
+      let matchCount = 0;
+      let svcCount = 0;
+      let cdnCount = 0;
+
+      domainList.forEach(d => {
+        const cat = (d.category || '').toLowerCase();
+        if (cat.includes('auth')) authCount++;
+        else if (cat.includes('match')) matchCount++;
+        else if (cat.includes('service')) svcCount++;
+        else if (cat.includes('cdn') || cat.includes('download')) cdnCount++;
+      });
+      const totalDomains = domainList.length;
 
       const sampleDomains = [];
-      if (p.domains) {
-        if (p.domains.matchmaking && p.domains.matchmaking.length > 0) {
-          sampleDomains.push(...p.domains.matchmaking.slice(0, 3));
-        } else if (p.domains.game_services && p.domains.game_services.length > 0) {
-          sampleDomains.push(...p.domains.game_services.slice(0, 3));
-        }
+      const matchSample = domainList.filter(d => (d.category || '').toLowerCase().includes('match')).map(d => d.hostname);
+      const otherSample = domainList.map(d => d.hostname);
+      if (matchSample.length > 0) {
+        sampleDomains.push(...matchSample.slice(0, 3));
+      } else {
+        sampleDomains.push(...otherSample.slice(0, 3));
       }
 
       return `
@@ -279,11 +300,25 @@
 
     // Set category default selects
     const pols = currentEditProfile.dns_policies || {};
-    const catKeys = ['auth', 'matchmaking', 'game_services', 'cdn', 'telemetry'];
-    catKeys.forEach(cat => {
-      const el = document.getElementById(`hgi-cat-policy-${cat}`);
+    const catKeys = [
+      { key: 'auth', match: ['auth', 'authentication'] },
+      { key: 'matchmaking', match: ['matchmaking', 'match'] },
+      { key: 'game_services', match: ['game_services', 'game services', 'services', 'service'] },
+      { key: 'cdn', match: ['cdn', 'cdn / downloads', 'cdn_downloads', 'downloads'] },
+      { key: 'telemetry', match: ['telemetry'] }
+    ];
+    catKeys.forEach(item => {
+      const el = document.getElementById(`hgi-cat-policy-${item.key}`);
       if (el) {
-        el.value = pols[cat] || (cat === 'cdn' || cat === 'telemetry' ? 'direct' : 'proxy');
+        let matchedVal = '';
+        for (const [k, v] of Object.entries(pols)) {
+          const kLower = k.toLowerCase();
+          if (item.match.some(m => kLower.includes(m))) {
+            matchedVal = (v || '').toLowerCase();
+            break;
+          }
+        }
+        el.value = matchedVal || (item.key === 'cdn' || item.key === 'telemetry' ? 'direct' : 'proxy');
       }
     });
 
@@ -316,8 +351,15 @@
     const filtered = domainList.filter(d => {
       const host = (d.hostname || '').toLowerCase();
       if (searchTerm && !host.includes(searchTerm)) return false;
-      if (filterCat && d.category !== filterCat) return false;
-      if (filterPol && d.policy !== filterPol) return false;
+      if (filterCat) {
+        const catL = (d.category || '').toLowerCase();
+        if (filterCat === 'auth' && !catL.includes('auth')) return false;
+        if (filterCat === 'matchmaking' && !catL.includes('match')) return false;
+        if (filterCat === 'game_services' && !catL.includes('service')) return false;
+        if (filterCat === 'cdn' && !catL.includes('cdn')) return false;
+        if (filterCat === 'telemetry' && !catL.includes('telemetry')) return false;
+      }
+      if (filterPol && (d.policy || '').toLowerCase() !== filterPol.toLowerCase()) return false;
       return true;
     });
 
@@ -328,20 +370,28 @@
 
     tbody.innerHTML = filtered.map(d => {
       const host = escapeHTML(d.hostname);
-      const isProxy = d.policy === 'proxy';
-      const isDirect = d.policy === 'direct';
-      const isBlock = d.policy === 'block';
+      const polLower = (d.policy || 'proxy').toLowerCase();
+      const isProxy = polLower === 'proxy';
+      const isDirect = polLower === 'direct';
+      const isBlock = polLower === 'block';
+
+      const catLower = (d.category || '').toLowerCase();
+      const isAuth = catLower.includes('auth');
+      const isMatch = catLower.includes('match');
+      const isSvc = catLower.includes('service') || (!isAuth && !isMatch && !catLower.includes('cdn') && !catLower.includes('telemetry'));
+      const isCdn = catLower.includes('cdn') || catLower.includes('download');
+      const isTel = catLower.includes('telemetry');
 
       return `
         <tr class="hover:bg-slate-900/50 transition">
           <td class="py-2.5 px-3 font-mono text-cyan-300 font-bold">${host}</td>
           <td class="py-2.5 px-3">
             <select class="sel-domain-cat bg-slate-900 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs font-mono" data-host="${host}">
-              <option value="auth" ${d.category === 'auth' ? 'selected' : ''}>Authentication</option>
-              <option value="matchmaking" ${d.category === 'matchmaking' ? 'selected' : ''}>Matchmaking</option>
-              <option value="game_services" ${d.category === 'game_services' ? 'selected' : ''}>Game Services</option>
-              <option value="cdn" ${d.category === 'cdn' ? 'selected' : ''}>CDN / Downloads</option>
-              <option value="telemetry" ${d.category === 'telemetry' ? 'selected' : ''}>Telemetry</option>
+              <option value="auth" ${isAuth ? 'selected' : ''}>Authentication</option>
+              <option value="matchmaking" ${isMatch ? 'selected' : ''}>Matchmaking</option>
+              <option value="game_services" ${isSvc ? 'selected' : ''}>Game Services</option>
+              <option value="cdn" ${isCdn ? 'selected' : ''}>CDN / Downloads</option>
+              <option value="telemetry" ${isTel ? 'selected' : ''}>Telemetry</option>
             </select>
           </td>
           <td class="py-2.5 px-3">
@@ -377,7 +427,7 @@
       const res = await fetchHGI('/api/v2/discovery/candidates');
       if (!res.ok) return;
       const data = await res.json();
-      cachedCandidates = data.candidates || [];
+      cachedCandidates = data.candidates || data.items || [];
       renderCandidates();
     } catch (e) {
       console.warn('loadCandidates error', e);
@@ -450,7 +500,7 @@
       const res = await fetchHGI('/api/v2/routes');
       if (!res.ok) return;
       const data = await res.json();
-      cachedRoutes = data.routes || [];
+      cachedRoutes = data.routes || data.items || [];
       renderRoutes();
     } catch (e) {
       console.warn('loadRoutes error', e);
@@ -538,7 +588,7 @@
       const res = await fetchHGI('/api/v2/game-detect');
       if (!res.ok) return;
       const data = await res.json();
-      currentActiveGame = data.detected;
+      currentActiveGame = data.game || (typeof data.detected === 'object' ? data.detected : null);
     } catch (e) {
       console.warn('loadActiveGame error', e);
     }
@@ -550,7 +600,7 @@
       const res = await fetchHGI('/api/v2/timeline?limit=15');
       if (!res.ok) return;
       const data = await res.json();
-      renderTimeline(data.events || []);
+      renderTimeline(data.events || data.items || []);
     } catch (e) {
       console.warn('loadTimeline error', e);
     }
@@ -595,7 +645,7 @@
       const res = await fetchHGI('/api/v2/audit?limit=15');
       if (!res.ok) return;
       const data = await res.json();
-      renderAuditLogs(data.audits || []);
+      renderAuditLogs(data.audits || data.items || []);
     } catch (e) {
       console.warn('loadAuditLogs error', e);
     }

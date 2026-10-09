@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"hyperdns/internal/core/matcher"
@@ -112,7 +113,7 @@ func (e *Engine) syncProfilesToMatcher() {
 			if !d.Enabled {
 				continue
 			}
-			switch d.Policy {
+			switch PolicyAction(strings.ToUpper(string(d.Policy))) {
 			case PolicyProxy:
 				customProxied = append(customProxied, host)
 			case PolicyBlock:
@@ -405,7 +406,7 @@ func (e *Engine) UpdateGameCategoryPolicy(gameID string, category DomainCategory
 	if propagate {
 		now := time.Now()
 		for host, d := range p.Domains {
-			if d.Category == category {
+			if strings.EqualFold(string(d.Category), string(category)) || d.Category == category {
 				d.Policy = policy
 				d.UpdatedAt = now
 				p.Domains[host] = d
