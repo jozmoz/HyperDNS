@@ -65,7 +65,7 @@
     const token = authToken();
     const headers = {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(token ? { 'Authorization': `Bearer ${token}`, 'X-API-Key': token } : {}),
       ...(options.headers || {})
     };
     return fetch(api(endpoint), { ...options, headers });
@@ -1126,16 +1126,19 @@
 
     document.getElementById('hgi-add-game-form')?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const id = document.getElementById('hgi-add-game-id')?.value.trim();
+      const rawId = document.getElementById('hgi-add-game-id')?.value.trim();
       const name = document.getElementById('hgi-add-game-name')?.value.trim();
       const pub = document.getElementById('hgi-add-game-publisher')?.value.trim();
       const pol = document.getElementById('hgi-add-game-policy')?.value || 'proxy';
       const domainsRaw = document.getElementById('hgi-add-game-domains')?.value || '';
+      const submitBtn = e.target.querySelector('button[type="submit"]');
 
-      if (!id || !name) {
+      if (!rawId || !name) {
         showToast('Game ID and Name are required', 'error');
         return;
       }
+
+      const id = rawId.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
 
       const domainList = domainsRaw
         .split(/[\n,]+/)
@@ -1145,7 +1148,7 @@
       const profilePayload = {
         id: id,
         name: name,
-        publisher: pub,
+        publisher: pub || name,
         enabled: true,
         default_policy: pol,
         domains: {
@@ -1157,6 +1160,7 @@
       };
 
       try {
+        if (submitBtn) submitBtn.disabled = true;
         const res = await fetchHGI('/api/v2/games', {
           method: 'POST',
           body: JSON.stringify(profilePayload)
@@ -1169,10 +1173,14 @@
           await loadProfiles();
           updateKPIs();
         } else {
-          showToast('Failed to create game profile', 'error');
+          const errMsg = await errorMessage(res, 'Failed to create game profile');
+          showToast(errMsg, 'error');
+          console.error('Failed to create game profile (status ' + res.status + '):', errMsg);
         }
       } catch (err) {
         showToast('Error communicating with server', 'error');
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
       }
     });
 

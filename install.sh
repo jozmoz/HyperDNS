@@ -97,21 +97,15 @@ fi
 # 6. Install HyperDNS Binary and Terminal Console
 echo -e "\n${CYAN}[3/5] Installing HyperDNS binary and Terminal Console...${NC}"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 
-if [ -f "./hyperdns-linux" ]; then
-    cp -f "./hyperdns-linux" "$INSTALL_DIR/hyperdns"
-else
-    echo -e "  Downloading HyperDNS binary from GitHub..."
-    curl -fsSL --progress-bar -o "$INSTALL_DIR/hyperdns" "${REPO_RAW}/hyperdns-linux"
-fi
+CACHE_BUSTER=$(date +%s)
+echo -e "  Downloading latest HyperDNS binary from GitHub..."
+curl -fsSL --progress-bar -o "$INSTALL_DIR/hyperdns" "${REPO_RAW}/hyperdns-linux?t=${CACHE_BUSTER}"
 chmod +x "$INSTALL_DIR/hyperdns"
 
 # Install management CLI menu
-if [ -f "./scripts/hyperdns-menu.sh" ]; then
-    cp -f "./scripts/hyperdns-menu.sh" "/usr/local/bin/hyperdns"
-else
-    curl -fsSL -o "/usr/local/bin/hyperdns" "${REPO_RAW}/scripts/hyperdns-menu.sh"
-fi
+curl -fsSL -o "/usr/local/bin/hyperdns" "${REPO_RAW}/scripts/hyperdns-menu.sh?t=${CACHE_BUSTER}"
 chmod +x "/usr/local/bin/hyperdns"
 ln -sf "/usr/local/bin/hyperdns" "/usr/local/bin/hdns"
 
