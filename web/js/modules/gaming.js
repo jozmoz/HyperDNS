@@ -250,6 +250,9 @@
       `;
     }).join('');
 
+    safeFeatherReplace();
+  }
+
   // --- Domain Policies Management Editor ---
   let currentEditProfile = null;
 
@@ -623,14 +626,26 @@
   }
 
   // Init Event Listeners
+  let hgiEventsInited = false;
   function initHGIEvents() {
-    // Sub-view buttons
+    if (hgiEventsInited) return;
+    hgiEventsInited = true;
+
+    // Sub-view buttons (direct and delegated)
     document.querySelectorAll('[data-hgi-view]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         const v = btn.getAttribute('data-hgi-view');
         if (v) switchHGIView(v);
       });
+    });
+    document.addEventListener('click', (e) => {
+      const vBtn = e.target.closest('[data-hgi-view]');
+      if (vBtn) {
+        e.preventDefault();
+        const v = vBtn.getAttribute('data-hgi-view');
+        if (v) switchHGIView(v);
+      }
     });
 
     // Test Routes All
@@ -1339,12 +1354,26 @@
 
   // Public Export
   window.renderGamingTab = () => {
+    initHGIEvents();
     loadGamingData();
   };
+  window.initHGIEvents = initHGIEvents;
 
-  // Bootstrap when DOM ready
-  document.addEventListener('DOMContentLoaded', () => {
+  // Bootstrap when DOM ready (or immediately if already parsed)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initHGIEvents();
+      const gamingTab = document.getElementById('tab-gaming');
+      if (gamingTab && !gamingTab.classList.contains('hidden')) {
+        loadGamingData();
+      }
+    });
+  } else {
     initHGIEvents();
-  });
+    const gamingTab = document.getElementById('tab-gaming');
+    if (gamingTab && !gamingTab.classList.contains('hidden')) {
+      loadGamingData();
+    }
+  }
 
 })();

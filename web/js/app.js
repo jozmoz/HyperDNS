@@ -2247,6 +2247,7 @@ function switchTab(target, updateUrl = true) {
       loadClients();
     }
     if (target === 'gaming') {
+      window.initHGIEvents?.();
       if (typeof window.renderGamingTab === 'function') {
         window.renderGamingTab();
       }
@@ -2580,6 +2581,7 @@ function initAPIEvents() {
   // it registers these two hooks on window when the module executes.
   window.initTwoFactorControls?.();
   window.initLdapControls?.();
+  window.initHGIEvents?.();
 }
 
 function initTelegramSettings() {
