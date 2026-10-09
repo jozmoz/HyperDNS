@@ -89,8 +89,15 @@ mkdir -p "$INSTALL_DIR/certs"
 mkdir -p "$INSTALL_DIR/rules"
 mkdir -p "$INSTALL_DIR/backups"
 
+IS_UPDATE=false
+if [ -f "$INSTALL_DIR/hyperdns" ] || [ -f "$INSTALL_DIR/data.db" ]; then
+    IS_UPDATE=true
+fi
+
 # 6. Install HyperDNS Binary and Terminal Console
 echo -e "\n${CYAN}[3/5] Installing HyperDNS binary and Terminal Console...${NC}"
+systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+
 if [ -f "./hyperdns-linux" ]; then
     cp -f "./hyperdns-linux" "$INSTALL_DIR/hyperdns"
 else
@@ -108,23 +115,7 @@ fi
 chmod +x "/usr/local/bin/hyperdns"
 ln -sf "/usr/local/bin/hyperdns" "/usr/local/bin/hdns"
 
-# 7. Interactive Domain & SSL Configuration
-echo ""
-echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
-echo -e "${YELLOW}${BOLD}  ⚡ HyperDNS Domain & SSL Setup${NC}"
-echo -e "  Server Public IP: ${GREEN}${PUBLIC_IP}${NC}"
-echo -e "  (Point an A record from your domain to this IP before proceeding)"
-echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
-read -rp "Enter Panel Domain (e.g. dns.example.com) [Press Enter to skip & use direct IP]: " USER_DOMAIN
-USER_DOMAIN=$(echo "$USER_DOMAIN" | tr -d '[:space:]')
-
-USER_EMAIL=""
-if [ -n "$USER_DOMAIN" ]; then
-    read -rp "Enter Admin Email for Let's Encrypt (e.g. admin@$USER_DOMAIN): " USER_EMAIL
-    USER_EMAIL=$(echo "$USER_EMAIL" | tr -d '[:space:]')
-fi
-
-# 8. Setup Systemd Service
+# Ensure systemd service configuration
 echo -e "\n${CYAN}[4/5] Configuring systemd background service...${NC}"
 cat <<EOF > /etc/systemd/system/hyperdns.service
 [Unit]
@@ -147,7 +138,56 @@ EOF
 
 systemctl daemon-reload
 
-# 9. Initial Bootstrap & Credentials Generation
+if [ "$IS_UPDATE" = true ]; then
+    echo -e "\n${CYAN}[5/5] Updating HyperDNS service with new Game Intelligence Engine (HGI)...${NC}"
+    systemctl enable "$SERVICE_NAME" >/dev/null 2>&1
+    systemctl restart "$SERVICE_NAME"
+    sleep 2
+
+    # Read Credentials and Dashboard Link from systemd journal
+    JOURNAL_LOG=$(journalctl -u "$SERVICE_NAME" -n 80 --no-pager 2>/dev/null || true)
+    DASH_URL=$(echo "$JOURNAL_LOG" | grep -i "HyperDNS Dashboard" | tail -1 | sed -e 's/.*HyperDNS Dashboard : //I' | tr -d '[:space:]' || true)
+    if [ -z "$DASH_URL" ]; then
+        DASH_URL=$(echo "$JOURNAL_LOG" | grep -oE "https?://[^ ]+/[a-f0-9]{16}/dash/login" | tail -1 || true)
+    fi
+
+    echo ""
+    echo -e "${GREEN}${BOLD}========================================================================${NC}"
+    echo -e "${GREEN}${BOLD}       🎉 HyperDNS Successfully Updated to v2.3.0 (HGI)!                ${NC}"
+    echo -e "${GREEN}${BOLD}========================================================================${NC}"
+    echo ""
+    echo -e "  ${BOLD}Status:${NC}        ${GREEN}● ONLINE (Active)${NC}"
+    if [ -n "$DASH_URL" ]; then
+        echo -e "  ${BOLD}Web Dashboard:${NC}  ${CYAN}${DASH_URL}${NC}"
+    fi
+    echo -e "  ${BOLD}DNS Server IP:${NC}  ${GREEN}${PUBLIC_IP}${NC}"
+    echo -e "  ${BOLD}Terminal Menu:${NC}  Type ${PURPLE}hyperdns${NC} or ${PURPLE}hdns${NC} anywhere in your terminal"
+    echo -e "  ${BOLD}Data Integrity:${NC} ${GREEN}All existing clients, policies, domains & certs preserved.${NC}"
+    echo -e "${GREEN}========================================================================${NC}"
+    echo ""
+    echo -e "${CYAN}📌 برای مدیریت سرور یا مشاهده اطلاعات داشبورد دستور زیر را وارد کنید:${NC}"
+    echo -e "   ${PURPLE}${BOLD}hyperdns${NC}"
+    echo ""
+    exit 0
+fi
+
+# 7. Interactive Domain & SSL Configuration (Fresh Install Only)
+echo ""
+echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
+echo -e "${YELLOW}${BOLD}  ⚡ HyperDNS Domain & SSL Setup${NC}"
+echo -e "  Server Public IP: ${GREEN}${PUBLIC_IP}${NC}"
+echo -e "  (Point an A record from your domain to this IP before proceeding)"
+echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
+read -rp "Enter Panel Domain (e.g. dns.example.com) [Press Enter to skip & use direct IP]: " USER_DOMAIN
+USER_DOMAIN=$(echo "$USER_DOMAIN" | tr -d '[:space:]')
+
+USER_EMAIL=""
+if [ -n "$USER_DOMAIN" ]; then
+    read -rp "Enter Admin Email for Let's Encrypt (e.g. admin@$USER_DOMAIN): " USER_EMAIL
+    USER_EMAIL=$(echo "$USER_EMAIL" | tr -d '[:space:]')
+fi
+
+# 8. Initial Bootstrap & Credentials Generation (Fresh Install Only)
 echo -e "\n${CYAN}[5/5] Initializing HyperDNS and generating security credentials...${NC}"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 
