@@ -25,6 +25,7 @@ import (
 	"hyperdns/internal/core/matcher"
 	"hyperdns/internal/core/upstream"
 	"hyperdns/internal/database"
+	"hyperdns/internal/game"
 	"hyperdns/internal/httpx"
 	"hyperdns/internal/service"
 	"hyperdns/internal/service/acme"
@@ -58,6 +59,7 @@ type WebServer struct {
 	subListenMu   sync.Mutex
 	stopServerCtx context.CancelFunc
 	api           *api.API
+	gameEngine    *game.Engine
 	loginLimiter  *service.LoginAttemptTracker
 	benchmark     *service.BenchmarkRunner
 	sseTickets    *sseTicketStore
@@ -209,6 +211,14 @@ func (ws *WebServer) SetControlState(benchmark *service.BenchmarkRunner, lockout
 // record; main passes it in through the same call.
 func (ws *WebServer) SetSubscriptionSettings(s *database.SubscriptionSettings) {
 	ws.subSettings = s
+}
+
+// SetGameEngine attaches the HGI Game Intelligence engine to WebServer and API.
+func (ws *WebServer) SetGameEngine(eng *game.Engine) {
+	ws.gameEngine = eng
+	if ws.api != nil {
+		ws.api.SetGameEngine(eng)
+	}
 }
 
 // serverSettingsView is the shape of ServerSettings that leaves the process.
@@ -612,7 +622,7 @@ func (ws *WebServer) panelCertificatePair() (string, string, error) {
 func (ws *WebServer) buildAdminMux() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// 1. Attach REST API v1
+	// 1. Attach REST API v1 & v2 (including HGI Gaming Intelligence)
 	ws.api.RegisterRoutes(mux)
 
 	// 2. DNS-over-HTTPS (DoH) endpoint
@@ -726,6 +736,7 @@ func (ws *WebServer) buildAdminMux() *http.ServeMux {
 			"/panel":     true,
 			"/home":      true,
 			"/clients":   true,
+			"/gaming":    true,
 			"/rules":     true,
 			"/policy":    true,
 			"/logs":      true,

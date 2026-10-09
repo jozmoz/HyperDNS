@@ -104,6 +104,9 @@ func (a *API) RegisterRoutesV2(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v2/policies", a.SecurityMiddleware(a.handleV2Policies))
 	mux.HandleFunc("/api/v2/cache/flush", a.SecurityMiddleware(a.handleV2FlushCache))
 	mux.HandleFunc("/api/v2/config/telegram", a.SecurityMiddleware(a.handleV2ConfigTelegram))
+
+	// Attach HGI Gaming Intelligence API v2 routes
+	a.RegisterHGIRoutes(mux)
 }
 
 // handleV2ConfigTelegram exposes the Telegram bot settings via the REST API

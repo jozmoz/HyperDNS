@@ -281,6 +281,7 @@ func TestDashboardInteractiveElementsAreWired(t *testing.T) {
 	// file the dashboard ships is part of the wiring surface, so the scan
 	// covers them all.
 	v21 := readAsset(t, "js/modules/twofa.js")
+	hgi := readAsset(t, "js/modules/gaming.js")
 	html := readAsset(t, "index.html")
 
 	ids := map[string]bool{}
@@ -294,7 +295,7 @@ func TestDashboardInteractiveElementsAreWired(t *testing.T) {
 
 	for _, id := range sortedKeys(ids) {
 		wired := false
-		for _, js := range []string{app, v21} {
+		for _, js := range []string{app, v21, hgi} {
 			if strings.Contains(js, "'"+id+"'") || strings.Contains(js, `"`+id+`"`) {
 				wired = true
 				break

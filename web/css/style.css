@@ -1012,3 +1012,14 @@ input:checked + .slider:before {
 .mobile-nav-item.active i {
   filter: drop-shadow(0 0 6px rgba(0, 240, 255, 0.6));
 }
+
+/* HGI Quick Prompt Button */
+.btn-ai-quick-prompt {
+  cursor: pointer;
+}
+
+.nav-tab {
+  cursor: pointer;
+}
+
+

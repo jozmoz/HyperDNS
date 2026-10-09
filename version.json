@@ -1,6 +1,6 @@
 {
-  "version": "2.2.0",
-  "channel": "beta",
-  "codename": "HyperSHIELD",
-  "homepage": "https://github.com/IzumiRain/hyperdns"
+  "version": "2.3.0",
+  "channel": "",
+  "codename": "HyperDNS Game Intelligence Engine (HGI)",
+  "homepage": "https://github.com/jozmoz/HyperDNS"
 }

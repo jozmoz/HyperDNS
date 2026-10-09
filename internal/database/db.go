@@ -19,19 +19,27 @@ var (
 	bucketLogs      = []byte("logs")
 	bucketSettings  = []byte("settings")
 	bucketUpstreams = []byte("upstreams")
+
+	// HGI (HyperDNS Game Intelligence) buckets
+	bucketGames       = []byte("game_profiles")
+	bucketDomains     = []byte("domain_intelligence")
+	bucketRoutes      = []byte("route_nodes")
+	bucketDiscoveries = []byte("discoveries")
+	bucketAuditLogs   = []byte("audit_logs")
 )
 
-// bucketsInUse is everything a v1.5.0 database actually holds.
-//
-// bucketsRetired is what every earlier build created and none of them ever wrote.
-// DNS telemetry lives in memory only — StatsService keeps the last 100 entries and
-// fans the rest out over SSE — and the upstream list is a field of the DNS settings
-// record. An empty bucket named `logs` inside a resolver's database invites the
-// assumption that query history is kept on disk, which is a privacy claim this
-// daemon does not make; they are dropped rather than carried forward and audited
-// again at every release.
+// bucketsInUse is all active storage buckets required by HyperDNS and HGI.
 var (
-	bucketsInUse   = [][]byte{bucketClients, bucketPolicies, bucketSettings}
+	bucketsInUse = [][]byte{
+		bucketClients,
+		bucketPolicies,
+		bucketSettings,
+		bucketGames,
+		bucketDomains,
+		bucketRoutes,
+		bucketDiscoveries,
+		bucketAuditLogs,
+	}
 	bucketsRetired = [][]byte{bucketLogs, bucketUpstreams}
 )
 
@@ -314,6 +322,14 @@ func (db *DB) Close() error {
 		return nil
 	}
 	return db.bolt.Close()
+}
+
+// Bolt returns the underlying bbolt.DB instance.
+func (db *DB) Bolt() *bolt.DB {
+	if db == nil {
+		return nil
+	}
+	return db.bolt
 }
 
 // Backup streams an atomic, point-in-time snapshot of the database to w.

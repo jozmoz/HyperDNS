@@ -378,6 +378,41 @@ func (c *Cache) Flush() {
 	}
 }
 
+// PurgeDomain removes cached entries matching domain or subdomains of domain.
+func (c *Cache) PurgeDomain(domain string) int {
+	norm := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(domain)), ".")
+	if norm == "" {
+		return 0
+	}
+	dotNorm := "." + norm
+	c.generation.Add(1)
+	purged := 0
+	for i := range c.shards {
+		shard := c.shards[i]
+		shard.mu.Lock()
+		for k := range shard.entries {
+			if len(k) > 4 {
+				name := strings.TrimSuffix(k[4:], ".")
+				if name == norm || strings.HasSuffix(name, dotNorm) {
+					delete(shard.entries, k)
+					purged++
+				}
+			}
+		}
+		shard.mu.Unlock()
+	}
+	return purged
+}
+
+// PurgeDomains removes cached entries matching any domain in domains.
+func (c *Cache) PurgeDomains(domains []string) int {
+	total := 0
+	for _, d := range domains {
+		total += c.PurgeDomain(d)
+	}
+	return total
+}
+
 func (c *Cache) Count() int {
 	total := 0
 	for i := range c.shards {

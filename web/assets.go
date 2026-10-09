@@ -57,6 +57,7 @@ import "embed"
 //go:embed js/app.js
 //go:embed js/i18n.js
 //go:embed js/modules/twofa.js
+//go:embed js/modules/gaming.js
 //go:embed swagger/swagger-ui.css
 //go:embed swagger/swagger-ui-bundle.js
 //go:embed js/portal.js

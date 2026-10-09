@@ -15,6 +15,7 @@ import (
 	"hyperdns/internal/core/upstream"
 	"hyperdns/internal/crypto"
 	"hyperdns/internal/database"
+	"hyperdns/internal/game"
 	"hyperdns/internal/httpx"
 	"hyperdns/internal/netutil"
 	"hyperdns/internal/service"
@@ -38,6 +39,19 @@ type API struct {
 	// as "2FA not in force", which is exactly what the dashboard's gate does
 	// when TOTP is off.
 	totpGate func(*http.Request) bool
+
+	// gameEngine coordinates HyperDNS Game Intelligence (HGI) capabilities.
+	gameEngine *game.Engine
+}
+
+// SetGameEngine attaches the HGI Game Intelligence engine to the API router.
+func (a *API) SetGameEngine(eng *game.Engine) {
+	a.gameEngine = eng
+}
+
+// GameEngine returns the attached HGI Game Intelligence engine.
+func (a *API) GameEngine() *game.Engine {
+	return a.gameEngine
 }
 
 // SetTOTPGate attaches the second-factor predicate for credential-changing

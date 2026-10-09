@@ -28,6 +28,12 @@ type Client struct {
 	// CustomDomains stores individual custom domain rules specific to this subscriber.
 	CustomDomains []ClientCustomDomain `json:"custom_domains"`
 
+	// GameProfiles lists the game profile IDs enabled for this subscriber (empty = all enabled games).
+	GameProfiles []string `json:"game_profiles,omitempty"`
+
+	// PreferredNodeID specifies a preferred routing VPS node for this subscriber.
+	PreferredNodeID string `json:"preferred_node_id,omitempty"`
+
 	// RegisterSecret is the second credential the subscriber's IP-registration
 	// API (/ip/<token>) demands on top of the token in the path (v2.1.0 Phase B,
 	// Mantis C-03). The token travels inside a link that gets pasted into group

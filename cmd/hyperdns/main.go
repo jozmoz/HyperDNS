@@ -27,6 +27,7 @@ import (
 	"hyperdns/internal/core/upstream"
 	"hyperdns/internal/crypto"
 	"hyperdns/internal/database"
+	"hyperdns/internal/game"
 	"hyperdns/internal/netutil"
 	"hyperdns/internal/service"
 	"hyperdns/internal/service/acme"
@@ -602,6 +603,17 @@ func main() {
 	// proxy is disabled and a domain is configured, the manager binds :80 for
 	// itself inside Issue (challenge-only).
 	sniServer.SetChallengeResponder(acmeManager)
+
+	// Initialize HyperDNS Game Intelligence Engine (HGI)
+	gameEngine, err := game.NewEngine(db, m)
+	if err != nil {
+		log.Printf("[Main] Warning: Failed to initialize Game Intelligence Engine: %v", err)
+	} else {
+		defer gameEngine.Close()
+		dnsHandler.SetQueryObserver(gameEngine.ObserveDNSQuery)
+		webServer.SetGameEngine(gameEngine)
+		log.Printf("[Main] HyperDNS Game Intelligence Engine (HGI) initialized successfully.")
+	}
 
 	// The web panel and local control protocol must operate on the same benchmark
 	// gate and login-attempt tracker. Separate copies would let the two management

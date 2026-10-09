@@ -2194,6 +2194,7 @@ function pushChartData(val) {
 const tabRoutes = {
   'dashboard': '/home',
   'clients': '/clients',
+  'gaming': '/gaming',
   'policy': '/rules',
   'stream': '/logs',
   'api': '/api',
@@ -2207,6 +2208,7 @@ const routeTabs = {
   '/panel': 'dashboard',
   '/login': 'dashboard',
   '/clients': 'clients',
+  '/gaming': 'gaming',
   '/rules': 'policy',
   '/policy': 'policy',
   '/logs': 'stream',
@@ -2243,6 +2245,11 @@ function switchTab(target, updateUrl = true) {
     targetEl.classList.remove('hidden');
     if (target === 'clients') {
       loadClients();
+    }
+    if (target === 'gaming') {
+      if (typeof window.renderGamingTab === 'function') {
+        window.renderGamingTab();
+      }
     }
     if (target === 'policy') {
       loadCustomPolicies();

@@ -82,6 +82,8 @@ type encClient struct {
 	CustomPolicies    []string  `json:"custom_policies"`
 	MaxDevices        int       `json:"max_devices,omitempty"`
 	CustomDomainsEnc  string    `json:"custom_domains_enc,omitempty"`
+	GameProfiles      []string  `json:"game_profiles,omitempty"`
+	PreferredNodeID   string    `json:"preferred_node_id,omitempty"`
 
 	// The recurring-quota fields are stored in the clear beside the limit they
 	// govern. A cycle name and two counters say nothing about who the subscriber is
@@ -227,6 +229,8 @@ func (db *DB) packClient(c Client) ([]byte, error) {
 		CustomPolicies:    c.CustomPolicies,
 		MaxDevices:        maxDev,
 		CustomDomainsEnc:  customDomainsEnc,
+		GameProfiles:      c.GameProfiles,
+		PreferredNodeID:   c.PreferredNodeID,
 
 		TrafficResetCycle:     c.TrafficResetCycle,
 		TrafficResetAnchor:    c.TrafficResetAnchor,
@@ -318,6 +322,8 @@ func (db *DB) unpackClient(data []byte) (*Client, error) {
 		Enabled:          enc.Enabled,
 		Note:             enc.Note,
 		CustomPolicies:   customPolicies,
+		GameProfiles:     enc.GameProfiles,
+		PreferredNodeID:  enc.PreferredNodeID,
 
 		TrafficResetCycle:     enc.TrafficResetCycle,
 		TrafficResetAnchor:    enc.TrafficResetAnchor,

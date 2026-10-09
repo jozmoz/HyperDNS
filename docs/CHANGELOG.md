@@ -4,6 +4,22 @@ All notable changes to the **HyperDNS** project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 🎮 [v2.3.0] — HyperDNS Game Intelligence Engine (HGI)
+
+### ✨ Added
+- **Game Intelligence Engine (HGI):** Complete game-aware intelligence subsystem converting HyperDNS into an enterprise gaming DNS platform. Supports profile management, domain categorization (Auth, Matchmaking, Game Services, CDN, Telemetry), policy enforcement (Direct, Proxy, Block), conflict detection, and history snapshots with rollback.
+- **Preloaded Game Profiles:** Out-of-the-box support for *FC 26* (EA Sports), *Counter-Strike 2* (Valve), and *War Thunder* (Gaijin Entertainment), with dynamic API and UI profile extension.
+- **Autonomous Game Discovery Agent:** Real-time DNS query observation, domain candidate discovery, confidence scoring heuristic (publisher/game keyword matching, query frequency, co-occurrence correlation), and safe validation workflows.
+- **3-Tier Learning Mode:** Supports `Observe` (silent monitoring), `Recommend` (actionable rule proposals), and `Auto-Apply` (safe low-risk rule adoption) without disrupting active production traffic.
+- **Domain Intelligence Database (DIDB):** Persistent metadata repository in BoltDB (`game_domain_intel`) tracking hostnames, publisher mappings, confidence scores, observation counters, TTL/IP shifts, and verification states.
+- **Route Quality Monitor & EA Connection Quality Index:** Real-time probing of edge nodes and gaming endpoints measuring RTT, jitter, and packet loss according to EA QoS benchmarks. Includes historical trend logging and node health classification.
+- **Multi-Node Routing & Smart Failover:** Multi-edge node orchestration with dynamic health checks, stability scoring, flap dampening (hysteresis), and manual/automatic fallback logic.
+- **Real-Time Gaming Traffic Timeline & Analytics:** Microsecond query auditing and category-based query breakdown graphs per game.
+- **Rule Simulator & "What-If" Analysis:** Dry-run DNS evaluation engine testing hypothetical routing scenarios and detecting conflicting proxy/block rules before applying to production.
+- **AI Gaming Assistant (Rule Optimizer):** Embedded heuristic/AI copilot providing natural-language policy guidance, latency optimization recommendations, and one-click fix actions.
+- **Gaming Web Dashboard & Full Persian/English Localization:** Modern, responsive gaming control center integrated into the admin portal with comprehensive i18n support.
+- **HGI REST API v2 Endpoints:** Complete API suite under `/api/v2/gaming/...` with strict validation and granular control.
+
 ---
 
 ## 🔐 [v2.2.0-beta.1] — Whitelist by Default, Built-In ACME, API v2, Google/AI Presets & a Real Console

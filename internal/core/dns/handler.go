@@ -49,6 +49,21 @@ type Handler struct {
 	// so the query path reads it without synchronisation.
 	limiter *rateLimiter
 	limited atomic.Uint64
+
+	// observer is an optional callback for HGI Game Intelligence and Discovery Agent telemetry.
+	observer atomic.Pointer[QueryObserver]
+}
+
+// QueryObserver receives observed DNS query details asynchronously.
+type QueryObserver func(hostname, clientIP string, resolvedIPs []string, ttl uint32, action, ruleMatched string, latencyMs float64)
+
+// SetQueryObserver installs or clears the query observation callback.
+func (h *Handler) SetQueryObserver(fn QueryObserver) {
+	if fn == nil {
+		h.observer.Store(nil)
+		return
+	}
+	h.observer.Store(&fn)
 }
 
 func NewHandler(
@@ -592,11 +607,37 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP string, protocol ...string) 
 		return m
 	}
 
+	var resolvedIPs []string
+	var ansTTL uint32
+	if resp != nil {
+		for _, ans := range resp.Answer {
+			if a, ok := ans.(*dns.A); ok {
+				resolvedIPs = append(resolvedIPs, a.A.String())
+				ansTTL = a.Hdr.Ttl
+			} else if aaaa, ok := ans.(*dns.AAAA); ok {
+				resolvedIPs = append(resolvedIPs, aaaa.AAAA.String())
+				ansTTL = aaaa.Hdr.Ttl
+			}
+		}
+	}
+	if obs := h.observer.Load(); obs != nil {
+		latencyMs := float64(time.Since(start).Microseconds()) / 1000.0
+		(*obs)(domain, clientIP, resolvedIPs, ansTTL, action.String(), ruleName, latencyMs)
+	}
+
 	h.logQuery(start, clientIP, accountName, proto, domain, ruleName, action.String(), false)
 	return resp
 }
 
 func (h *Handler) logQuery(start time.Time, ip, account, proto, domain, rule, action string, cached bool) {
+	latencyMs := float64(time.Since(start).Microseconds()) / 1000.0
+	// If not already observed via resolved upstream branch (e.g. cached, blocked, or custom):
+	if action != "DIRECT" || cached {
+		if obs := h.observer.Load(); obs != nil {
+			(*obs)(domain, ip, nil, 0, action, rule, latencyMs)
+		}
+	}
+
 	if h.telemetry == nil {
 		return
 	}
@@ -608,7 +649,7 @@ func (h *Handler) logQuery(start time.Time, ip, account, proto, domain, rule, ac
 		Domain:      domain,
 		RuleMatched: rule,
 		Action:      action,
-		LatencyMs:   float64(time.Since(start).Microseconds()) / 1000.0,
+		LatencyMs:   latencyMs,
 		Cached:      cached,
 	})
 }
