@@ -50,42 +50,128 @@ echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.co
 echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}\n"
 
 # 3. Detect & Configure DNS Server Public IP
-echo -e "${CYAN}[1/5] Detecting server environment and DNS Server IP...${NC}"
-DETECTED_IP=$(curl -4 -s --connect-timeout 4 https://api.ipify.org 2>/dev/null || \
-            curl -4 -s --connect-timeout 4 https://ifconfig.me 2>/dev/null || \
-            echo "127.0.0.1")
+echo -e "${CYAN}[1/5] Detecting server environment and all IP addresses...${NC}"
 
+# Detect existing IP in systemd service if available
 EXISTING_IP=""
 if [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
     EXISTING_IP=$(grep -oE -- '-public-ip\s+[^ ]+' "/etc/systemd/system/${SERVICE_NAME}.service" 2>/dev/null | awk '{print $2}' | tr -d '[:space:]' || true)
 fi
 
-DEFAULT_IP="${DNS_SERVER_IP:-${CUSTOM_IP:-${EXISTING_IP:-$DETECTED_IP}}}"
-USER_IP=""
+# Collect all available server IPs
+declare -a DETECTED_IPS=()
+declare -a IP_LABELS=()
 
-echo -e "  Detected Public IP: ${GREEN}${DETECTED_IP}${NC}"
+# 1. External Public WAN IPv4
+WAN_IP=$(curl -4 -s --connect-timeout 4 https://api.ipify.org 2>/dev/null || \
+         curl -4 -s --connect-timeout 4 https://ifconfig.me 2>/dev/null || true)
+WAN_IP=$(echo "$WAN_IP" | tr -d '[:space:]')
+if [[ "$WAN_IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && [ "$WAN_IP" != "127.0.0.1" ]; then
+    DETECTED_IPS+=("$WAN_IP")
+    IP_LABELS+=("Public WAN")
+fi
+
+# 2. Local interface IPs via 'ip -4 -o addr show'
+if command -v ip >/dev/null 2>&1; then
+    while IFS= read -r line; do
+        ip_cand=$(echo "$line" | awk '{print $4}' | cut -d/ -f1)
+        if_cand=$(echo "$line" | awk '{print $2}')
+        if [ -z "$ip_cand" ] || [[ "$ip_cand" =~ ^127\. ]]; then
+            continue
+        fi
+        is_dup=false
+        for cur in "${DETECTED_IPS[@]}"; do
+            if [ "$cur" = "$ip_cand" ]; then
+                is_dup=true
+                break
+            fi
+        done
+        if [ "$is_dup" = false ] && [[ "$ip_cand" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            DETECTED_IPS+=("$ip_cand")
+            IP_LABELS+=("Interface: $if_cand")
+        fi
+    done < <(ip -4 -o addr show scope global 2>/dev/null || true)
+fi
+
+# 3. Fallback via hostname -I if no IPs found yet
+if [ ${#DETECTED_IPS[@]} -eq 0 ] && command -v hostname >/dev/null 2>&1; then
+    for hip in $(hostname -I 2>/dev/null || true); do
+        if [[ "$hip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && [ "$hip" != "127.0.0.1" ]; then
+            DETECTED_IPS+=("$hip")
+            IP_LABELS+=("Local IP")
+        fi
+    done
+fi
+
+# 4. Fallback if still empty
+if [ ${#DETECTED_IPS[@]} -eq 0 ]; then
+    DETECTED_IPS+=("127.0.0.1")
+    IP_LABELS+=("Loopback")
+fi
+
+# Determine default choice
+DEFAULT_IDX=1
+if [ -n "$EXISTING_IP" ]; then
+    for idx in "${!DETECTED_IPS[@]}"; do
+        if [ "${DETECTED_IPS[$idx]}" = "$EXISTING_IP" ]; then
+            DEFAULT_IDX=$((idx + 1))
+            break
+        fi
+    done
+fi
+DEFAULT_IP="${DETECTED_IPS[$((DEFAULT_IDX - 1))]}"
 
 if [ -n "$DNS_SERVER_IP" ]; then
     PUBLIC_IP="$DNS_SERVER_IP"
+    echo -e "  Using DNS Server IP from environment: ${GREEN}${PUBLIC_IP}${NC}"
 elif [ -n "$CUSTOM_IP" ]; then
     PUBLIC_IP="$CUSTOM_IP"
+    echo -e "  Using DNS Server IP from environment: ${GREEN}${PUBLIC_IP}${NC}"
 else
+    echo -e "\n  ${BOLD}Detected Server IP Addresses:${NC}"
+    for idx in "${!DETECTED_IPS[@]}"; do
+        num=$((idx + 1))
+        ip_val="${DETECTED_IPS[$idx]}"
+        ip_lbl="${IP_LABELS[$idx]}"
+        if [ "$num" -eq "$DEFAULT_IDX" ]; then
+            echo -e "    ${CYAN}[$num]${NC} ${GREEN}${BOLD}${ip_val}${NC} (${ip_lbl} - ${YELLOW}Default${NC})"
+        else
+            echo -e "    ${CYAN}[$num]${NC} ${GREEN}${BOLD}${ip_val}${NC} (${ip_lbl})"
+        fi
+    done
+    echo -e "    ${CYAN}[c]${NC} ${YELLOW}Enter custom IP manually (ورود دستی)${NC}\n"
+
+    USER_CHOICE=""
     if [ -t 0 ]; then
-        echo -e "  ${YELLOW}💡 Press Enter to use default [${DEFAULT_IP}], or enter your DNS Server IP:${NC}"
-        read -rp "  Enter DNS Server IP [${DEFAULT_IP}]: " USER_IP
+        read -rp "  Select an IP [1-${#DETECTED_IPS[@]}, or 'c' for manual] (Default: [${DEFAULT_IDX}] ${DEFAULT_IP}): " USER_CHOICE
     elif [ -e /dev/tty ]; then
-        echo -e "  ${YELLOW}💡 Press Enter to use default [${DEFAULT_IP}], or enter your DNS Server IP:${NC}"
-        read -rp "  Enter DNS Server IP [${DEFAULT_IP}]: " USER_IP < /dev/tty || true
+        read -rp "  Select an IP [1-${#DETECTED_IPS[@]}, or 'c' for manual] (Default: [${DEFAULT_IDX}] ${DEFAULT_IP}): " USER_CHOICE < /dev/tty || true
     fi
-    USER_IP=$(echo "$USER_IP" | tr -d '[:space:]"'\''')
-    if [ -n "$USER_IP" ]; then
-        PUBLIC_IP="$USER_IP"
+
+    USER_CHOICE=$(echo "$USER_CHOICE" | tr -d '[:space:]"'\''')
+
+    if [ -z "$USER_CHOICE" ]; then
+        PUBLIC_IP="$DEFAULT_IP"
+    elif [[ "$USER_CHOICE" =~ ^[0-9]+$ ]] && [ "$USER_CHOICE" -ge 1 ] && [ "$USER_CHOICE" -le "${#DETECTED_IPS[@]}" ]; then
+        PUBLIC_IP="${DETECTED_IPS[$((USER_CHOICE - 1))]}"
+    elif [ "$USER_CHOICE" = "c" ] || [ "$USER_CHOICE" = "C" ] || [ "$USER_CHOICE" = "manual" ]; then
+        MANUAL_IP=""
+        if [ -t 0 ]; then
+            read -rp "  Enter custom DNS Server IP: " MANUAL_IP
+        elif [ -e /dev/tty ]; then
+            read -rp "  Enter custom DNS Server IP: " MANUAL_IP < /dev/tty || true
+        fi
+        MANUAL_IP=$(echo "$MANUAL_IP" | tr -d '[:space:]"'\''')
+        PUBLIC_IP="${MANUAL_IP:-$DEFAULT_IP}"
+    elif [[ "$USER_CHOICE" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        PUBLIC_IP="$USER_CHOICE"
     else
+        echo -e "  ${YELLOW}Invalid selection, using default:${NC} ${DEFAULT_IP}"
         PUBLIC_IP="$DEFAULT_IP"
     fi
 fi
 
-echo -e "  ${GREEN}✓ Confirmed DNS Server IP:${NC} ${CYAN}${BOLD}${PUBLIC_IP}${NC}"
+echo -e "\n  ${GREEN}✓ Confirmed DNS Server IP:${NC} ${CYAN}${BOLD}${PUBLIC_IP}${NC}"
 
 # 4. System dependencies
 echo -e "\n${CYAN}[2/5] Installing dependencies and freeing Port 53...${NC}"

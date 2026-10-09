@@ -531,17 +531,100 @@ change_dns_server_ip() {
     echo -e "\n${BOLD}${CYAN}=== HyperDNS Server IP Management ===${NC}"
     local current_ip
     current_ip=$(get_public_ip)
-    echo -e "  Current DNS Server IP: ${GREEN}${current_ip}${NC}"
-    echo ""
-    read -rp "Enter new DNS Server IP: " new_ip
-    new_ip=$(echo "$new_ip" | tr -d '[:space:]"'\''')
-    if [ -z "$new_ip" ]; then
+    echo -e "  Current Configured IP: ${YELLOW}${current_ip}${NC}\n"
+
+    # Collect all available server IPs
+    local detected_ips=()
+    local ip_labels=()
+
+    # 1. External Public WAN IPv4
+    local wan_ip
+    wan_ip=$(curl -4 -s --connect-timeout 3 https://api.ipify.org 2>/dev/null || \
+             curl -4 -s --connect-timeout 3 https://ifconfig.me 2>/dev/null || true)
+    wan_ip=$(echo "$wan_ip" | tr -d '[:space:]')
+    if [[ "$wan_ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && [ "$wan_ip" != "127.0.0.1" ]; then
+        detected_ips+=("$wan_ip")
+        ip_labels+=("Public WAN")
+    fi
+
+    # 2. Local interface IPs via 'ip -4 -o addr show'
+    if command -v ip >/dev/null 2>&1; then
+        while IFS= read -r line; do
+            local ip_cand if_cand
+            ip_cand=$(echo "$line" | awk '{print $4}' | cut -d/ -f1)
+            if_cand=$(echo "$line" | awk '{print $2}')
+            if [ -z "$ip_cand" ] || [[ "$ip_cand" =~ ^127\. ]]; then
+                continue
+            fi
+            local is_dup=false
+            for cur in "${detected_ips[@]}"; do
+                if [ "$cur" = "$ip_cand" ]; then
+                    is_dup=true
+                    break
+                fi
+            done
+            if [ "$is_dup" = false ] && [[ "$ip_cand" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+                detected_ips+=("$ip_cand")
+                ip_labels+=("Interface: $if_cand")
+            fi
+        done < <(ip -4 -o addr show scope global 2>/dev/null || true)
+    fi
+
+    # 3. Fallback hostname -I
+    if [ ${#detected_ips[@]} -eq 0 ] && command -v hostname >/dev/null 2>&1; then
+        for hip in $(hostname -I 2>/dev/null || true); do
+            if [[ "$hip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && [ "$hip" != "127.0.0.1" ]; then
+                detected_ips+=("$hip")
+                ip_labels+=("Local IP")
+            fi
+        done
+    fi
+
+    echo -e "  ${BOLD}Detected Server IP Addresses:${NC}"
+    for idx in "${!detected_ips[@]}"; do
+        local num=$((idx + 1))
+        local ip_val="${detected_ips[$idx]}"
+        local ip_lbl="${ip_labels[$idx]}"
+        if [ "$ip_val" = "$current_ip" ]; then
+            echo -e "    ${CYAN}[$num]${NC} ${GREEN}${BOLD}${ip_val}${NC} (${ip_lbl} - ${YELLOW}Current${NC})"
+        else
+            echo -e "    ${CYAN}[$num]${NC} ${GREEN}${BOLD}${ip_val}${NC} (${ip_lbl})"
+        fi
+    done
+    echo -e "    ${CYAN}[c]${NC} ${YELLOW}Enter custom IP manually (ورود دستی)${NC}"
+    echo -e "    ${YELLOW}[0]${NC} Cancel (انصراف)\n"
+
+    read -rp "  Select option or enter IP [Current: ${current_ip}]: " user_sel
+    user_sel=$(echo "$user_sel" | tr -d '[:space:]"'\''')
+
+    local new_ip=""
+    if [ -z "$user_sel" ]; then
         echo -e "${YELLOW}No changes made.${NC}"
+        sleep 1.5
+        return
+    elif [ "$user_sel" = "0" ]; then
+        return
+    elif [[ "$user_sel" =~ ^[0-9]+$ ]] && [ "$user_sel" -ge 1 ] && [ "$user_sel" -le "${#detected_ips[@]}" ]; then
+        new_ip="${detected_ips[$((user_sel - 1))]}"
+    elif [ "$user_sel" = "c" ] || [ "$user_sel" = "C" ]; then
+        read -rp "  Enter custom DNS Server IP: " manual_ip
+        manual_ip=$(echo "$manual_ip" | tr -d '[:space:]"'\''')
+        new_ip="$manual_ip"
+    elif [[ "$user_sel" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        new_ip="$user_sel"
+    else
+        echo -e "${RED}Invalid input.${NC}"
         sleep 1.5
         return
     fi
 
-    echo -e "\n${CYAN}Updating systemd service configuration...${NC}"
+    if [ -z "$new_ip" ] || [ "$new_ip" = "$current_ip" ]; then
+        echo -e "${YELLOW}IP unchanged.${NC}"
+        sleep 1.5
+        return
+    fi
+
+    echo -e "\n${CYAN}Updating systemd service configuration to ${new_ip}...${NC}"
     local svc_file="/etc/systemd/system/${SERVICE_NAME}.service"
     if [ -f "$svc_file" ]; then
         if grep -q -- "-public-ip" "$svc_file"; then
