@@ -34,7 +34,8 @@ func LoadOrGenerateTLSConfig(tlsCfg *database.TLSSettings) (*tls.Config, error) 
 	// there is no fallback — a missing trusted certificate is an error the
 	// caller reports, and the ACME paths (daemon startup, dashboard button
 	// startup, dashboard button) are how one arrives.
-	if tlsCfg.Domain != "" {
+	isDomain := tlsCfg.Domain != "" && net.ParseIP(tlsCfg.Domain) == nil
+	if isDomain {
 		certCandidates := []string{
 			fmt.Sprintf("/etc/letsencrypt/live/%s/fullchain.pem", tlsCfg.Domain),
 			tlsCfg.CertPath,
@@ -161,8 +162,13 @@ func generateSelfSignedCert(certPath, keyPath, customDomain string) error {
 	}
 
 	dnsNames := []string{"localhost", "hyperdns.local"}
+	ipAddresses := []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")}
 	if customDomain != "" {
-		dnsNames = append(dnsNames, customDomain)
+		if ip := net.ParseIP(customDomain); ip != nil {
+			ipAddresses = append(ipAddresses, ip)
+		} else {
+			dnsNames = append(dnsNames, customDomain)
+		}
 	}
 
 	template := x509.Certificate{
@@ -177,7 +183,7 @@ func generateSelfSignedCert(certPath, keyPath, customDomain string) error {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		DNSNames:              dnsNames,
-		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+		IPAddresses:           ipAddresses,
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)

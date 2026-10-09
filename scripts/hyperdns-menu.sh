@@ -70,6 +70,14 @@ show_banner() {
 
 show_credentials() {
     echo -e "\n${BOLD}${CYAN}=== HyperDNS Dashboard Information ===${NC}"
+
+    local saved_user="" saved_pass="" saved_url=""
+    if [ -f "$INSTALL_DIR/credentials.txt" ]; then
+        saved_user=$(grep -E "^username\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+        saved_pass=$(grep -E "^password\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+        saved_url=$(grep -E "^admin_url\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | sed -e 's/^admin_url\s*:\s*//' | tr -d '[:space:]' || true)
+    fi
+
     local journal_log
     journal_log=$(journalctl -u "$SERVICE_NAME" -n 250 --no-pager 2>/dev/null || true)
     
@@ -81,6 +89,8 @@ show_credentials() {
     dash_line=$(echo "$journal_log" | grep -i "HyperDNS Dashboard" | tail -1 || true)
     if [ -n "$dash_line" ]; then
         echo -e "  ${GREEN}$dash_line${NC}"
+    elif [ -n "$saved_url" ]; then
+        echo -e "  ${GREEN}Dashboard URL: $saved_url${NC}"
     else
         local admin_path
         admin_path=$(echo "$journal_log" | grep -oE "https://[^ ]+/[a-f0-9]{16}/dash/login" | tail -1 || true)
@@ -92,19 +102,25 @@ show_credentials() {
         fi
     fi
 
-    local user_line
-    user_line=$(echo "$journal_log" | grep -A 2 -i "first-run credentials" | tail -2 || true)
-    if [ -n "$user_line" ]; then
-        echo -e "\n${BOLD}Initial Credentials:${NC}"
-        echo "$user_line"
+    if [ -n "$saved_user" ] && [ -n "$saved_pass" ]; then
+        echo -e "\n${BOLD}Admin Credentials:${NC}"
+        echo -e "    ${BOLD}username :${NC} ${YELLOW}$saved_user${NC}"
+        echo -e "    ${BOLD}password :${NC} ${YELLOW}$saved_pass${NC}"
     else
-        local u_line p_line
-        u_line=$(echo "$journal_log" | grep -E "username\s*:" | tail -1 || true)
-        p_line=$(echo "$journal_log" | grep -E "password\s*:" | tail -1 || true)
-        if [ -n "$u_line" ] && [ -n "$p_line" ]; then
+        local user_line
+        user_line=$(echo "$journal_log" | grep -A 2 -i "first-run credentials" | tail -2 || true)
+        if [ -n "$user_line" ]; then
             echo -e "\n${BOLD}Initial Credentials:${NC}"
-            echo "    $u_line"
-            echo "    $p_line"
+            echo "$user_line"
+        else
+            local u_line p_line
+            u_line=$(echo "$journal_log" | grep -E "username\s*:" | tail -1 || true)
+            p_line=$(echo "$journal_log" | grep -E "password\s*:" | tail -1 || true)
+            if [ -n "$u_line" ] && [ -n "$p_line" ]; then
+                echo -e "\n${BOLD}Initial Credentials:${NC}"
+                echo "    $u_line"
+                echo "    $p_line"
+            fi
         fi
     fi
     echo ""
@@ -647,6 +663,42 @@ change_dns_server_ip() {
     sleep 2
 }
 
+change_admin_password() {
+    echo -e "\n${BOLD}${CYAN}=== HyperDNS Admin Password Management ===${NC}"
+    echo -e "You can set a new custom password for the Web Dashboard.\n"
+    read -rp "Enter new Admin Password (or press Enter to generate random): " new_pass
+    new_pass=$(echo "$new_pass" | tr -d '[:space:]')
+    if [ -z "$new_pass" ]; then
+        new_pass=$(openssl rand -hex 12 2>/dev/null || date +%s%N | sha256sum | head -c 24)
+        echo -e "Generated random password: ${YELLOW}${new_pass}${NC}"
+    fi
+
+    echo -e "\n${CYAN}Updating admin password in database...${NC}"
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    if [ -f "$BIN_PATH" ]; then
+        timeout 5 "$BIN_PATH" -password "$new_pass" >/dev/null 2>&1 || true
+    fi
+    systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
+
+    # Update credentials.txt
+    if [ -f "$INSTALL_DIR/credentials.txt" ]; then
+        if grep -q "^password\s*:" "$INSTALL_DIR/credentials.txt"; then
+            sed -i -E "s/^password\s*:.*/password: ${new_pass}/" "$INSTALL_DIR/credentials.txt"
+        else
+            echo "password: ${new_pass}" >> "$INSTALL_DIR/credentials.txt"
+        fi
+    else
+        cat <<CREDEOF > "$INSTALL_DIR/credentials.txt"
+username: admin
+password: ${new_pass}
+CREDEOF
+        chmod 600 "$INSTALL_DIR/credentials.txt"
+    fi
+
+    echo -e "\n${GREEN}${BOLD}✓ Admin password successfully updated to: ${YELLOW}${new_pass}${NC}\n"
+    read -rp "Press Enter to continue..."
+}
+
 main_menu() {
     while true; do
         show_banner
@@ -664,10 +716,11 @@ main_menu() {
         echo -e "  ${CYAN}[12]${NC} ♻️  بازیابی نسخه پشتیبان (Restore Database)"
         echo -e "  ${CYAN}[13]${NC} 🤖 مدیریت ربات تلگرام (Telegram Bot)"
         echo -e "  ${CYAN}[14]${NC} 🌐 تغییر IP عمومی سرور DNS (Change DNS Server IP)"
-        echo -e "  ${RED}[15]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
+        echo -e "  ${CYAN}[15]${NC} 🔑 تغییر / بازنشانی رمز عبور ادمین (Change Admin Password)"
+        echo -e "  ${RED}[16]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
         echo -e "  ${YELLOW}[0]${NC}  🚪 خروج (Exit)"
         echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}"
-        read -rp " عدد مورد نظر را وارد کنید [0-15]: " choice
+        read -rp " عدد مورد نظر را وارد کنید [0-16]: " choice
 
         case "$choice" in
             1)
@@ -726,6 +779,9 @@ main_menu() {
                 change_dns_server_ip
                 ;;
             15)
+                change_admin_password
+                ;;
+            16)
                 uninstall_hyperdns
                 ;;
             0|q|exit)

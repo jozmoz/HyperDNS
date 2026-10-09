@@ -58,6 +58,7 @@ func main() {
 	publicIP := flag.String("public-ip", "", "Override Server Public IP")
 	domainFlag := flag.String("domain", "", "Override Panel Domain (e.g. dns.example.com)")
 	emailFlag := flag.String("email", "", "Admin email for ACME / Let's Encrypt")
+	passwordFlag := flag.String("password", "", "Set or reset admin password (e.g. -password mysecret)")
 	daemonMode := flag.Bool("daemon", false, "Run as background server engine (for systemd)")
 	serverMode := flag.Bool("server", false, "Run as background server engine")
 	showVersion := flag.Bool("version", false, "Print version information")
@@ -319,6 +320,18 @@ func main() {
 	if *emailFlag != "" {
 		tlsSettings.Email = strings.TrimSpace(*emailFlag)
 		_ = db.SetSetting("tls", tlsSettings)
+	}
+	if *passwordFlag != "" {
+		serverSettings.AdminPassword = strings.TrimSpace(*passwordFlag)
+		settingsDirty = true
+		migrateAdminPassword(serverSettings)
+		if !*serverMode && !*daemonMode {
+			if err := db.SetSetting("server", serverSettings); err != nil {
+				log.Fatalf("[Main] Failed to update admin password: %v", err)
+			}
+			fmt.Printf("Admin password successfully updated to: %s\n", *passwordFlag)
+			return
+		}
 	}
 
 	// A missing master API key is not the same failure as a wrong one, and it used

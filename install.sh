@@ -173,6 +173,39 @@ fi
 
 echo -e "\n  ${GREEN}✓ Confirmed DNS Server IP:${NC} ${CYAN}${BOLD}${PUBLIC_IP}${NC}"
 
+# Interactive Domain & SSL Configuration
+echo ""
+echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
+echo -e "${YELLOW}${BOLD}  ⚡ HyperDNS Domain & SSL Configuration${NC}"
+echo -e "  Configured Server IP: ${GREEN}${PUBLIC_IP}${NC}"
+echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
+echo -e "  💡 You can enter a domain (with free Let's Encrypt SSL),"
+echo -e "     or press Enter to use the IP directly (Direct HTTPS on IP).\n"
+
+USER_DOMAIN=""
+if [ -t 0 ]; then
+    read -rp "  Enter Panel Domain (e.g. dns.example.com) [Press Enter for IP: ${PUBLIC_IP}]: " USER_DOMAIN
+elif [ -e /dev/tty ]; then
+    read -rp "  Enter Panel Domain (e.g. dns.example.com) [Press Enter for IP: ${PUBLIC_IP}]: " USER_DOMAIN < /dev/tty || true
+fi
+USER_DOMAIN=$(echo "$USER_DOMAIN" | tr -d '[:space:]')
+
+USER_EMAIL=""
+if [ -n "$USER_DOMAIN" ]; then
+    if [ -t 0 ]; then
+        read -rp "  Enter Admin Email for Let's Encrypt [admin@${USER_DOMAIN}]: " USER_EMAIL
+    elif [ -e /dev/tty ]; then
+        read -rp "  Enter Admin Email for Let's Encrypt [admin@${USER_DOMAIN}]: " USER_EMAIL < /dev/tty || true
+    fi
+    USER_EMAIL=$(echo "$USER_EMAIL" | tr -d '[:space:]')
+    if [ -z "$USER_EMAIL" ]; then
+        USER_EMAIL="admin@${USER_DOMAIN}"
+    fi
+    echo -e "  ${GREEN}✓ Domain configured:${NC} ${CYAN}${USER_DOMAIN}${NC} (${USER_EMAIL})"
+else
+    echo -e "  ${GREEN}✓ Direct IP Mode selected:${NC} ${CYAN}${PUBLIC_IP}${NC}"
+fi
+
 # 4. System dependencies
 echo -e "\n${CYAN}[2/5] Installing dependencies and freeing Port 53...${NC}"
 if command -v apt-get >/dev/null 2>&1; then
@@ -226,8 +259,51 @@ curl -fsSL -o "/usr/local/bin/hyperdns" "${REPO_RAW}/scripts/hyperdns-menu.sh?t=
 chmod +x "/usr/local/bin/hyperdns"
 ln -sf "/usr/local/bin/hyperdns" "/usr/local/bin/hdns"
 
+# 7. Generate dedicated SSL Certificate (covering IP and localhost)
+echo -e "\n${CYAN}[4/5] Configuring SSL Certificate and systemd service...${NC}"
+OPENSSL_CNF="/tmp/openssl_hyperdns_$$.cnf"
+cat <<EOF > "$OPENSSL_CNF"
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+x509_extensions = v3_req
+
+[dn]
+C = US
+O = HyperDNS
+CN = ${USER_DOMAIN:-$PUBLIC_IP}
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = ${PUBLIC_IP}
+IP.2 = 127.0.0.1
+DNS.1 = localhost
+EOF
+
+if [ -n "$USER_DOMAIN" ]; then
+    echo "DNS.2 = ${USER_DOMAIN}" >> "$OPENSSL_CNF"
+fi
+
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -keyout "$INSTALL_DIR/certs/key.pem" \
+    -out "$INSTALL_DIR/certs/cert.pem" \
+    -config "$OPENSSL_CNF" 2>/dev/null || \
+openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+    -keyout "$INSTALL_DIR/certs/key.pem" \
+    -out "$INSTALL_DIR/certs/cert.pem" \
+    -subj "/CN=${USER_DOMAIN:-$PUBLIC_IP}/O=HyperDNS" 2>/dev/null || true
+
+rm -f "$OPENSSL_CNF"
+chmod 600 "$INSTALL_DIR/certs/key.pem" "$INSTALL_DIR/certs/cert.pem" 2>/dev/null || true
+echo -e "  ${GREEN}✓ Dedicated SSL certificate generated for IP ${PUBLIC_IP}!${NC}"
+
 # Ensure systemd service configuration
-echo -e "\n${CYAN}[4/5] Configuring systemd background service...${NC}"
 cat <<EOF > /etc/systemd/system/hyperdns.service
 [Unit]
 Description=HyperDNS Standalone SmartDNS & Gaming Gateway
@@ -249,67 +325,18 @@ EOF
 
 systemctl daemon-reload
 
-if [ "$IS_UPDATE" = true ]; then
-    echo -e "\n${CYAN}[5/5] Updating HyperDNS service with new Game Intelligence Engine (HGI)...${NC}"
-    systemctl enable "$SERVICE_NAME" >/dev/null 2>&1
-    systemctl restart "$SERVICE_NAME"
-    sleep 2
-
-    # Read Credentials and Dashboard Link from systemd journal
-    JOURNAL_LOG=$(journalctl -u "$SERVICE_NAME" -n 80 --no-pager 2>/dev/null || true)
-    DASH_URL=$(echo "$JOURNAL_LOG" | grep -i "HyperDNS Dashboard" | tail -1 | sed -e 's/.*HyperDNS Dashboard : //I' | tr -d '[:space:]' || true)
-    if [ -z "$DASH_URL" ]; then
-        DASH_URL=$(echo "$JOURNAL_LOG" | grep -oE "https?://[^ ]+/[a-f0-9]{16}/dash/login" | tail -1 || true)
-    fi
-
-    echo ""
-    echo -e "${GREEN}${BOLD}========================================================================${NC}"
-    echo -e "${GREEN}${BOLD}       🎉 HyperDNS Successfully Updated to v2.3.0 (HGI)!                ${NC}"
-    echo -e "${GREEN}${BOLD}========================================================================${NC}"
-    echo ""
-    echo -e "  ${BOLD}Status:${NC}        ${GREEN}● ONLINE (Active)${NC}"
-    if [ -n "$DASH_URL" ]; then
-        echo -e "  ${BOLD}Web Dashboard:${NC}  ${CYAN}${DASH_URL}${NC}"
-    fi
-    echo -e "  ${BOLD}DNS Server IP:${NC}  ${GREEN}${PUBLIC_IP}${NC}"
-    echo -e "  ${BOLD}Terminal Menu:${NC}  Type ${PURPLE}hyperdns${NC} or ${PURPLE}hdns${NC} anywhere in your terminal"
-    echo -e "  ${BOLD}Data Integrity:${NC} ${GREEN}All existing clients, policies, domains & certs preserved.${NC}"
-    echo -e "${GREEN}========================================================================${NC}"
-    echo ""
-    echo -e "${CYAN}📌 برای مدیریت سرور یا مشاهده اطلاعات داشبورد دستور زیر را وارد کنید:${NC}"
-    echo -e "   ${PURPLE}${BOLD}hyperdns${NC}"
-    echo ""
-    exit 0
-fi
-
-# 7. Interactive Domain & SSL Configuration (Fresh Install Only)
-echo ""
-echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
-echo -e "${YELLOW}${BOLD}  ⚡ HyperDNS Domain & SSL Setup${NC}"
-echo -e "  Server Public IP: ${GREEN}${PUBLIC_IP}${NC}"
-echo -e "  (Point an A record from your domain to this IP before proceeding)"
-echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
-read -rp "Enter Panel Domain (e.g. dns.example.com) [Press Enter to skip & use direct IP]: " USER_DOMAIN
-USER_DOMAIN=$(echo "$USER_DOMAIN" | tr -d '[:space:]')
-
-USER_EMAIL=""
-if [ -n "$USER_DOMAIN" ]; then
-    read -rp "Enter Admin Email for Let's Encrypt (e.g. admin@$USER_DOMAIN): " USER_EMAIL
-    USER_EMAIL=$(echo "$USER_EMAIL" | tr -d '[:space:]')
-fi
-
-# 8. Initial Bootstrap & Credentials Generation (Fresh Install Only)
-echo -e "\n${CYAN}[5/5] Initializing HyperDNS and generating security credentials...${NC}"
+# 8. Initial Bootstrap & Service Startup
+echo -e "\n${CYAN}[5/5] Initializing HyperDNS and starting background engine...${NC}"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 
 BOOTSTRAP_LOG="$INSTALL_DIR/install.log"
 rm -f "$BOOTSTRAP_LOG"
 
 if [ -n "$USER_DOMAIN" ]; then
-    echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and generating SSL certificate..."
+    echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and setting up Let's Encrypt SSL..."
     timeout 15 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
 else
-    echo -e "  Configuring direct IP mode..."
+    echo -e "  Configuring direct IP mode with dedicated SSL..."
     timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
 fi
 
@@ -320,31 +347,67 @@ sleep 2
 
 # Read Credentials and Dashboard Link
 LOG_CONTENT=$(cat "$BOOTSTRAP_LOG" 2>/dev/null || true)
-SYSTEMD_LOG=$(journalctl -u "$SERVICE_NAME" -n 60 --no-pager 2>/dev/null || true)
+SYSTEMD_LOG=$(journalctl -u "$SERVICE_NAME" -n 80 --no-pager 2>/dev/null || true)
 FULL_LOG="${LOG_CONTENT}
 ${SYSTEMD_LOG}"
+
+# Check previously saved credentials if any
+SAVED_USER=""
+SAVED_PASS=""
+SAVED_URL=""
+if [ -f "$INSTALL_DIR/credentials.txt" ]; then
+    SAVED_USER=$(grep -E "^username\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+    SAVED_PASS=$(grep -E "^password\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+    SAVED_URL=$(grep -E "^admin_url\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | sed -e 's/^admin_url\s*:\s*//' | tr -d '[:space:]' || true)
+fi
 
 DASH_URL=$(echo "$FULL_LOG" | grep -i "HyperDNS Dashboard" | tail -1 | sed -e 's/.*HyperDNS Dashboard : //I' | tr -d '[:space:]' || true)
 if [ -z "$DASH_URL" ]; then
     ADMIN_PATH=$(echo "$FULL_LOG" | grep -oE "https?://[^ ]+/[a-f0-9]{16}/dash/login" | tail -1 || true)
     if [ -n "$ADMIN_PATH" ]; then
         DASH_URL="$ADMIN_PATH"
+    elif [ -n "$SAVED_URL" ]; then
+        DASH_URL="$SAVED_URL"
     fi
 fi
 
 USERNAME=$(echo "$FULL_LOG" | grep -E "username\s*:" | tail -1 | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
 if [ -z "$USERNAME" ]; then
-    USERNAME="admin"
+    USERNAME="${SAVED_USER:-admin}"
 fi
 
 PASSWORD=$(echo "$FULL_LOG" | grep -E "password\s*:" | tail -1 | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+if [ -z "$PASSWORD" ]; then
+    PASSWORD="$SAVED_PASS"
+fi
+
+# If password is still unknown (e.g. legacy upgrade where logs rotated), generate and apply a secure password
+if [ -z "$PASSWORD" ]; then
+    PASSWORD=$(openssl rand -hex 12 2>/dev/null || date +%s%N | sha256sum | head -c 24)
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    "$INSTALL_DIR/hyperdns" -password "$PASSWORD" >/dev/null 2>&1 || true
+    systemctl start "$SERVICE_NAME" 2>/dev/null || true
+fi
+
+# Persist credentials securely
+cat <<CREDEOF > "$INSTALL_DIR/credentials.txt"
+username: ${USERNAME}
+password: ${PASSWORD}
+admin_url: ${DASH_URL}
+CREDEOF
+chmod 600 "$INSTALL_DIR/credentials.txt"
 
 # 10. Installation Success Banner
 echo ""
 echo -e "${GREEN}${BOLD}========================================================================${NC}"
-echo -e "${GREEN}${BOLD}          🎉 HyperDNS Successfully Installed and Running!              ${NC}"
+if [ "$IS_UPDATE" = true ]; then
+    echo -e "${GREEN}${BOLD}       🎉 HyperDNS Successfully Updated & Configured!                   ${NC}"
+else
+    echo -e "${GREEN}${BOLD}          🎉 HyperDNS Successfully Installed and Running!              ${NC}"
+fi
 echo -e "${GREEN}${BOLD}========================================================================${NC}"
 echo ""
+echo -e "  ${BOLD}Status:${NC}        ${GREEN}● ONLINE (Active)${NC}"
 if [ -n "$DASH_URL" ]; then
     echo -e "  ${BOLD}Web Dashboard:${NC}  ${CYAN}${DASH_URL}${NC}"
 else
@@ -352,14 +415,14 @@ else
 fi
 
 echo -e "  ${BOLD}Admin Username:${NC} ${YELLOW}${USERNAME}${NC}"
-if [ -n "$PASSWORD" ]; then
-    echo -e "  ${BOLD}Admin Password:${NC} ${YELLOW}${PASSWORD}${NC}"
-else
-    echo -e "  ${BOLD}Admin Password:${NC} ${YELLOW}(Already configured in previous installation)${NC}"
-fi
-
+echo -e "  ${BOLD}Admin Password:${NC} ${YELLOW}${BOLD}${PASSWORD}${NC}"
 echo ""
 echo -e "  ${BOLD}DNS Server IP:${NC}  ${GREEN}${PUBLIC_IP}${NC}"
+if [ -n "$USER_DOMAIN" ]; then
+    echo -e "  ${BOLD}Domain & SSL:${NC}   ${CYAN}${USER_DOMAIN}${NC} (Let's Encrypt)"
+else
+    echo -e "  ${BOLD}Domain & SSL:${NC}   ${CYAN}${PUBLIC_IP}${NC} (Dedicated IP SSL Certificate)"
+fi
 echo -e "  ${BOLD}Terminal Menu:${NC}  Type ${PURPLE}hyperdns${NC} or ${PURPLE}hdns${NC} anywhere in your terminal"
 echo -e "${GREEN}========================================================================${NC}"
 echo ""
