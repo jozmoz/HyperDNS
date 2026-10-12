@@ -179,6 +179,141 @@ get_port_80_process() {
     echo "${proc:-unknown}"
 }
 
+# Helper: Check if Port 53 is occupied
+is_port_53_busy() {
+    if command -v ss >/dev/null 2>&1; then
+        if ss -tuln 2>/dev/null | grep -qE ':(53)[[:space:]]'; then
+            return 0
+        fi
+    fi
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -i :53 >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    if command -v netstat >/dev/null 2>&1; then
+        if netstat -tuln 2>/dev/null | grep -qE ':(53)[[:space:]]'; then
+            return 0
+        fi
+    fi
+    if command -v fuser >/dev/null 2>&1; then
+        if fuser 53/udp >/dev/null 2>&1 || fuser 53/tcp >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Helper: Identify process listening on Port 53
+get_port_53_process() {
+    local proc=""
+    if command -v ss >/dev/null 2>&1; then
+        proc=$(ss -tulpn 2>/dev/null | grep -E ':(53)[[:space:]]' | grep -oP 'users:\(\("\K[^"]+' | head -n1)
+    fi
+    if [ -z "$proc" ] && command -v lsof >/dev/null 2>&1; then
+        proc=$(lsof -i :53 -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
+    fi
+    if [ -z "$proc" ] && command -v fuser >/dev/null 2>&1; then
+        local pid
+        pid=$(fuser 53/udp 2>/dev/null | tr -d ' ' | head -n1)
+        [ -z "$pid" ] && pid=$(fuser 53/tcp 2>/dev/null | tr -d ' ' | head -n1)
+        if [ -n "$pid" ]; then
+            proc=$(ps -o comm= -p "$pid" 2>/dev/null)
+        fi
+    fi
+    echo "${proc:-unknown}"
+}
+
+# Helper: Safely release Port 53 and preserve upstream DNS resolution
+free_port_53() {
+    echo -e "  ${CYAN}Freeing DNS Port 53 (disabling conflicting stub listeners & services)...${NC}"
+
+    # 1. Back up and replace /etc/resolv.conf so host resolution stays working
+    if [ ! -f "${INSTALL_DIR}/.resolv-backup" ] && [ -d "${INSTALL_DIR}" ]; then
+        if [ -L /etc/resolv.conf ]; then
+            printf 'symlink\n%s\n' "$(readlink /etc/resolv.conf)" > "${INSTALL_DIR}/.resolv-backup" 2>/dev/null || true
+        elif [ -f /etc/resolv.conf ]; then
+            { printf 'file\n'; cat /etc/resolv.conf; } > "${INSTALL_DIR}/.resolv-backup" 2>/dev/null || true
+        else
+            printf 'absent\n' > "${INSTALL_DIR}/.resolv-backup" 2>/dev/null || true
+        fi
+        chmod 600 "${INSTALL_DIR}/.resolv-backup" 2>/dev/null || true
+    fi
+
+    rm -f /etc/resolv.conf 2>/dev/null || true
+    cat <<EOF > /etc/resolv.conf
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+nameserver 9.9.9.9
+options timeout:2 attempts:2
+EOF
+    chmod 644 /etc/resolv.conf 2>/dev/null || true
+
+    # 2. Disable systemd-resolved stub listener
+    if [ -f /etc/systemd/resolved.conf ]; then
+        sed -i -E 's/^#?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf 2>/dev/null || true
+        sed -i -E 's/^#?DNS=.*/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf 2>/dev/null || true
+    fi
+    mkdir -p /etc/systemd/resolved.conf.d/
+    cat <<EOF > /etc/systemd/resolved.conf.d/hyperdns.conf
+[Resolve]
+DNS=1.1.1.1 8.8.8.8
+DNSStubListener=no
+EOF
+    chmod 755 /etc/systemd/resolved.conf.d 2>/dev/null || true
+    chmod 644 /etc/systemd/resolved.conf.d/hyperdns.conf 2>/dev/null || true
+
+    if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+        systemctl restart systemd-resolved 2>/dev/null || true
+        sleep 1
+    fi
+
+    # 3. Stop and disable competing standalone DNS services
+    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor knot-resolver; do
+        if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
+            echo -e "    ${YELLOW}Stopping competing DNS service: ${d_svc}...${NC}"
+            systemctl stop "$d_svc" 2>/dev/null || true
+            systemctl disable "$d_svc" 2>/dev/null || true
+        fi
+    done
+
+    # 4. If Port 53 is still held, kill the occupying process
+    if is_port_53_busy; then
+        local p53_owner
+        p53_owner=$(get_port_53_process)
+        echo -e "    ${YELLOW}Port 53 is still held by '${p53_owner}'. Terminating listener...${NC}"
+
+        if [ "$p53_owner" = "systemd-resolve" ] || [ "$p53_owner" = "systemd-resolved" ]; then
+            systemctl stop systemd-resolved 2>/dev/null || true
+            systemctl disable systemd-resolved 2>/dev/null || true
+        fi
+
+        if command -v fuser >/dev/null 2>&1; then
+            fuser -k 53/udp 2>/dev/null || true
+            fuser -k 53/tcp 2>/dev/null || true
+        fi
+        if command -v lsof >/dev/null 2>&1; then
+            lsof -i :53 -t 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+        fi
+        sleep 1
+    fi
+
+    # 5. Guarantee /etc/resolv.conf is still valid
+    if ! grep -q "nameserver" /etc/resolv.conf 2>/dev/null; then
+        cat <<EOF > /etc/resolv.conf
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+options timeout:2 attempts:2
+EOF
+    fi
+
+    if is_port_53_busy; then
+        echo -e "    ${YELLOW}⚠️  Warning: Port 53 is still occupied by $(get_port_53_process).${NC}"
+    else
+        echo -e "    ${GREEN}✓ Port 53 successfully freed!${NC}"
+    fi
+}
+
 # Helper: Install verified certificate files into HyperDNS directories
 install_cert_files() {
     local cert_src="$1"
@@ -212,7 +347,7 @@ is_valid_domain_cert() {
     [ ! -s "$k_path" ] && return 1
 
     # Check validity dates (at least 1 day left)
-    if ! openssl x509 -in "$c_path" -noout -checkend 86400 2>/dev/null; then
+    if ! openssl x509 -in "$c_path" -noout -checkend 86400 >/dev/null 2>&1; then
         return 1
     fi
 
@@ -497,6 +632,7 @@ change_domain_ssl() {
             fi
 
             pkill -9 -f "$BIN_PATH" 2>/dev/null || true
+            free_port_53
             systemctl daemon-reload || true
             echo -e "${GREEN}Restarting HyperDNS service...${NC}"
             systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME" 2>/dev/null || true
@@ -504,7 +640,14 @@ change_domain_ssl() {
             if ! systemctl is-active --quiet "$SERVICE_NAME"; then
                 echo -e "\n${RED}⚠️  HyperDNS service failed to start! Checking logs...${NC}"
                 journalctl -u "$SERVICE_NAME" -n 25 --no-pager 2>/dev/null || true
-            else
+                if is_port_53_busy; then
+                    echo -e "\n${YELLOW}Port 53 was occupied. Freeing and retrying...${NC}"
+                    free_port_53
+                    systemctl restart "$SERVICE_NAME" 2>/dev/null || true
+                    sleep 2
+                fi
+            fi
+            if systemctl is-active --quiet "$SERVICE_NAME"; then
                 echo -e "${GREEN}✓ Domain and SSL configured!${NC}"
             fi
             sleep 2
@@ -670,6 +813,7 @@ update_hyperdns() {
         ln -sf /usr/local/bin/hyperdns /usr/local/bin/hdns 2>/dev/null || true
 
         echo -e "${CYAN}Restarting HyperDNS service...${NC}"
+        free_port_53
         systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
         echo -e "\n${GREEN}${BOLD}✓ HyperDNS and Management Menu updated to the latest version successfully!${NC}"
     else
@@ -703,6 +847,19 @@ run_diagnostics() {
             echo -e "  Port ${port}: ${RED}CLOSED / NOT LISTENING${NC}"
         fi
     done
+
+    if is_port_53_busy; then
+        local p53_p
+        p53_p=$(get_port_53_process)
+        if [ "$p53_p" != "hyperdns" ] && [ "$p53_p" != "unknown" ]; then
+            echo -e "\n  ${YELLOW}⚠️  Port 53 is occupied by external process: ${BOLD}${p53_p}${NC}"
+            read -rp "  Do you want to free Port 53 now? [y/N]: " fix_p53
+            if [[ "$fix_p53" =~ ^[yY] ]]; then
+                free_port_53
+                systemctl restart "$SERVICE_NAME" 2>/dev/null || true
+            fi
+        fi
+    fi
     echo ""
     read -rp "Press Enter to continue..."
 }
@@ -1107,6 +1264,7 @@ change_dns_server_ip() {
     fi
 
     echo -e "${GREEN}Restarting HyperDNS service...${NC}"
+    free_port_53
     systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
     echo -e "\n${GREEN}${BOLD}✓ DNS Server IP updated to ${new_ip}!${NC}"
     sleep 2
@@ -1179,8 +1337,15 @@ main_menu() {
                 ;;
             2)
                 echo -e "\n${CYAN}Restarting HyperDNS...${NC}"
+                free_port_53
                 systemctl restart "$SERVICE_NAME"
-                echo -e "${GREEN}✓ Service restarted!${NC}"
+                sleep 2
+                if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+                    echo -e "\n${RED}⚠️  Service failed to start! Recent logs:${NC}"
+                    journalctl -u "$SERVICE_NAME" -n 20 --no-pager || true
+                else
+                    echo -e "${GREEN}✓ Service restarted!${NC}"
+                fi
                 sleep 1.5
                 ;;
             3)
@@ -1191,8 +1356,15 @@ main_menu() {
                 ;;
             4)
                 echo -e "\n${CYAN}Starting HyperDNS...${NC}"
+                free_port_53
                 systemctl start "$SERVICE_NAME"
-                echo -e "${GREEN}✓ Service started!${NC}"
+                sleep 2
+                if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+                    echo -e "\n${RED}⚠️  Service failed to start! Recent logs:${NC}"
+                    journalctl -u "$SERVICE_NAME" -n 20 --no-pager || true
+                else
+                    echo -e "${GREEN}✓ Service started!${NC}"
+                fi
                 sleep 1.5
                 ;;
             5)

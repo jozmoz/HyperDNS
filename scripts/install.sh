@@ -443,9 +443,33 @@ EOF
     fi
     rm -f /etc/resolv.conf
     printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\noptions timeout:2 attempts:2\n' > /etc/resolv.conf
+
+    # Stop any conflicting standalone DNS services
+    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor; do
+        if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
+            systemctl stop "$d_svc" 2>/dev/null || true
+            systemctl disable "$d_svc" 2>/dev/null || true
+        fi
+    done
+    if command -v fuser >/dev/null 2>&1; then
+        fuser -k 53/udp 2>/dev/null || true
+        fuser -k 53/tcp 2>/dev/null || true
+    fi
+
     echo -e "  ${GREEN}✓ Port 53 released successfully!${NC}"
     echo -e "  ${CYAN}  Previous resolver configuration recorded for uninstall.${NC}"
 else
+    # Even if systemd-resolved was inactive, stop any competing DNS services
+    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor; do
+        if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
+            systemctl stop "$d_svc" 2>/dev/null || true
+            systemctl disable "$d_svc" 2>/dev/null || true
+        fi
+    done
+    if command -v fuser >/dev/null 2>&1; then
+        fuser -k 53/udp 2>/dev/null || true
+        fuser -k 53/tcp 2>/dev/null || true
+    fi
     echo -e "  ${GREEN}✓ Port 53 is clear.${NC}"
 fi
 
