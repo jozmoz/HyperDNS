@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# HyperDNS — Interactive Terminal Management Console
-# Usage: hyperdns or hdns
+# JozmozDNS — Interactive Terminal Management Console
+# Usage: jdns or jozmozdns (alias: hdns, hyperdns)
 # GitHub: https://github.com/jozmoz/HyperDNS
 # ==============================================================================
 
@@ -20,8 +20,12 @@ SERVICE_NAME="hyperdns"
 REPO_RAW_URL="https://raw.githubusercontent.com/jozmoz/HyperDNS/main"
 
 # Detect binary location
-if [ -f "$INSTALL_DIR/hyperdns" ]; then
+if [ -f "$INSTALL_DIR/jozmozdns" ]; then
+    BIN_PATH="$INSTALL_DIR/jozmozdns"
+elif [ -f "$INSTALL_DIR/hyperdns" ]; then
     BIN_PATH="$INSTALL_DIR/hyperdns"
+elif [ -f "/opt/jozmozdns/jozmozdns" ]; then
+    BIN_PATH="/opt/jozmozdns/jozmozdns"
 elif [ -f "/root/HyperDNS-main/hyperdns" ]; then
     BIN_PATH="/root/HyperDNS-main/hyperdns"
 elif [ -f "/root/hyperdns" ]; then
@@ -55,12 +59,12 @@ get_service_status() {
 show_banner() {
     clear 2>/dev/null || true
     echo -e "${CYAN}${BOLD}"
-    echo "  ██╗  ██╗██╗   ██╗██████╗ ███████╗██████╗ ██████╗ ███╗   ██╗███████╗"
-    echo "  ██║  ██║╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔══██╗████╗  ██║██╔════╝"
-    echo "  ███████║ ╚████╔╝ ██████╔╝█████╗  ██████╔╝██║  ██║██╔██╗ ██║███████╗"
-    echo "  ██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══╝  ██╔══██╗██║  ██║██║╚██╗██║╚════██║"
-    echo "  ██║  ██║   ██║   ██║     ███████╗██║  ██║██████╔╝██║ ╚████║███████║"
-    echo "  ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
+    echo "  ██╗ ██████╗ ███████╗███╗   ███╗ ██████╗ ███████╗██████╗ ███╗   ██╗███████╗"
+    echo "  ██║██╔═══██╗╚══███╔╝████╗ ████║██╔═══██╗╚══███╔╝██╔══██╗████╗  ██║██╔════╝"
+    echo "  ██║██║   ██║  ███╔╝ ██╔████╔██║██║   ██║  ███╔╝ ██║  ██║██╔██╗ ██║███████╗"
+    echo "  ██║██║   ██║ ███╔╝  ██║╚██╔╝██║██║   ██║ ███╔╝  ██║  ██║██║╚██╗██║╚════██║"
+    echo "  ██║╚██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║ ╚████║███████║"
+    echo "  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
     echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
     echo -e "       ${YELLOW}Management Console · GitHub: github.com/jozmoz/HyperDNS${NC}"
     echo ""
@@ -69,7 +73,7 @@ show_banner() {
 }
 
 show_credentials() {
-    echo -e "\n${BOLD}${CYAN}=== HyperDNS Dashboard Information ===${NC}"
+    echo -e "\n${BOLD}${CYAN}=== JozmozDNS Dashboard Information ===${NC}"
 
     local saved_user="" saved_pass="" saved_url=""
     if [ -f "$INSTALL_DIR/credentials.txt" ]; then

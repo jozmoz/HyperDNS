@@ -245,7 +245,7 @@ func TestPortalBrandLineIsTheOperatorsTitle(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), `<h1 class="title">HyperDNS</h1>`) {
+	if !strings.Contains(w.Body.String(), `<h1 class="title">JozmozDNS</h1>`) {
 		t.Error("the default brand line is not rendered as the portal heading")
 	}
 }

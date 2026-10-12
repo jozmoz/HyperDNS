@@ -8,7 +8,7 @@
 // 'hdns_session_admin' here and wrote it to localStorage, which the server has
 // never accepted — it only produced a guaranteed 401 on first load and made a
 // logged-out browser look logged in.
-let authToken = localStorage.getItem('hyperdns_token') || '';
+let authToken = localStorage.getItem('jozmozdns_token') || localStorage.getItem('hyperdns_token') || '';
 
 // The admin namespace. Since v2.1 the panel is not at the root of the host: the
 // SPA lives at /<admin-path>/dash/... and every dashboard API at
@@ -220,6 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const data = await res.json();
         authToken = data.token;
+        localStorage.setItem('jozmozdns_token', authToken);
         localStorage.setItem('hyperdns_token', authToken);
         hideLoginModal();
         bootDashboard();
@@ -298,6 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // token — overwriting the stored one with undefined would log us out.
         if (data.token) {
           authToken = data.token;
+          localStorage.setItem('jozmozdns_token', authToken);
           localStorage.setItem('hyperdns_token', authToken);
         }
         // Keep the local copy in step so the Settings card and the next open of
@@ -356,6 +358,7 @@ async function signOut() {
     // Nothing to surface: the operator asked to leave, and the only thing left
     // to do either way is drop the local session.
   } finally {
+    localStorage.removeItem('jozmozdns_token');
     localStorage.removeItem('hyperdns_token');
     authToken = '';
     showLoginModal();
@@ -2694,7 +2697,7 @@ function initBackupRestoreControls() {
         a.href = url;
         const now = new Date();
         const stamp = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0') + '_' + String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0');
-        a.download = `hyperdns-backup-${stamp}.db`;
+        a.download = `jozmozdns-backup-${stamp}.db`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -2798,6 +2801,7 @@ function initAdminPathControls() {
         const newPath = (data && data.admin_path) || '';
         // The old token died with the session wipe; carry nothing into the new
         // namespace but the browser itself.
+        localStorage.removeItem('jozmozdns_token');
         localStorage.removeItem('hyperdns_token');
         authToken = '';
         if (newPath) {

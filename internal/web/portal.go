@@ -407,7 +407,7 @@ func (ws *WebServer) handleIPPage(w http.ResponseWriter, r *http.Request) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="robots" content="noindex, nofollow">
-  <title>HyperDNS — IP registration API</title>
+  <title>JozmozDNS — IP registration API</title>
   <link rel="stylesheet" href="/css/portal.css">
 </head>
 <body class="portal center">
@@ -426,7 +426,7 @@ func (ws *WebServer) handleIPPage(w http.ResponseWriter, r *http.Request) {
         <div class="label">FA</div>
         <div class="value-lg mono" style="font-size:.9rem">این آدرس برای ثبت برنامه‌ای آی‌پی است و با «رمز ثبت» کار می‌کند.<br>برای مدیریت آی‌پی، لینک پورتال <b>/sub/…</b> خود را باز کنید.</div>
       </div>
-      <div class="footer">HyperDNS Secure Portal</div>
+      <div class="footer">JozmozDNS Secure Portal</div>
     </div>
   </div>
 </body>
@@ -858,7 +858,7 @@ const portalErrorHTML = `<!DOCTYPE html>
         {{- end}}
       </div>
 
-      <div class="footer">HyperDNS {{.Version}}</div>
+      <div class="footer">JozmozDNS {{.Version}}</div>
     </div>
   </div>
 </body>
@@ -1317,7 +1317,7 @@ const portalPageHTML = `<!DOCTYPE html>
          data-msg-reason-conflict="{{.T.MsgRegisterConflict}}"></div>
 
     <div class="footer">
-      HyperDNS Smart Controller • UDP/TCP SmartDNS &amp; Transparent SNI Proxy Engine
+      JozmozDNS Smart Controller • UDP/TCP SmartDNS &amp; Transparent SNI Proxy Engine
     </div>
 
   </div>

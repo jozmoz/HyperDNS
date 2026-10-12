@@ -120,15 +120,15 @@ func dispatchPreDBCommand(args []string, cfgPath string, out, errOut io.Writer) 
 
 	switch strings.ToLower(args[0]) {
 	case "help", "-h", "--help":
-		fmt.Fprintln(out, "HyperDNS - Standalone Next-Gen SmartDNS Controller")
-		fmt.Fprintln(out, "Usage: hyperdns [flags] [subcommand]")
+		fmt.Fprintln(out, "JozmozDNS - Standalone Next-Gen SmartDNS Controller")
+		fmt.Fprintln(out, "Usage: jozmozdns [flags] [subcommand] (alias: hyperdns)")
 		fmt.Fprintln(out, "Subcommands:")
 		fmt.Fprintln(out, "  status      live service report (no database needed; works beside the daemon)")
 		fmt.Fprintln(out, "  flush       ask the running daemon to flush its DNS cache")
 		fmt.Fprintln(out, "  uninstall   interactive uninstaller")
 		return true, nil
 	case "version", "-version", "-v", "--version":
-		fmt.Fprintln(out, "HyperDNS "+version.Short())
+		fmt.Fprintln(out, "JozmozDNS "+version.Short())
 		return true, nil
 	case "status":
 		return true, preDBStatusCommand(cfgPath, out)

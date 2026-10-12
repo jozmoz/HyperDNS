@@ -175,6 +175,9 @@ func DefaultSeedProfiles() []GameProfile {
 	addDomain(cs2Domains, "steamdeck.com", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
 	addDomain(cs2Domains, "faceit.com", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
 	addDomain(cs2Domains, "faceitcdn.net", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
+	addDomain(cs2Domains, "faceit-cdn.net", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
+	addDomain(cs2Domains, "faceit.net", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
+	addDomain(cs2Domains, "faceitstatic.com", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
 
 	addDomain(cs2Domains, "steamcontent.com", CategoryCDN, PolicyDirect, "cs2", "Valve Corporation")
 	addDomain(cs2Domains, "content1.steampowered.com", CategoryCDN, PolicyDirect, "cs2", "Valve Corporation")

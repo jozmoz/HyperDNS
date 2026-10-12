@@ -247,6 +247,9 @@ func (ws *WebServer) acmeDir() string {
 	if ws.acmeManager != nil && ws.acmeManager.CertDir != "" {
 		return ws.acmeManager.CertDir
 	}
+	if _, err := os.Stat("/opt/jozmozdns"); err == nil {
+		return "/opt/jozmozdns/certs/acme"
+	}
 	if _, err := os.Stat("/opt/hyperdns"); err == nil {
 		return "/opt/hyperdns/certs/acme"
 	}
@@ -263,7 +266,7 @@ func (ws *WebServer) sanitizeSubscriptionSnapshot(in SubscriptionSettingsInput) 
 
 	out.Title = strings.TrimSpace(out.Title)
 	if out.Title == "" {
-		out.Title = "HyperDNS"
+		out.Title = "JozmozDNS"
 	}
 	if len(out.Title) > 64 {
 		return in, "the title must be at most 64 characters"

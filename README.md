@@ -1,8 +1,8 @@
-# ⚡ HyperDNS — HyperRAIN Standalone SmartDNS & Gaming Gateway
+# ⚡ JozmozDNS — Standalone SmartDNS & Anti-Sanction Gaming Gateway
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v2.2.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
-  <img src="https://img.shields.io/badge/Status-Production--Ready%20Beta-amber?style=for-the-badge" alt="Status">
+  <img src="https://img.shields.io/badge/Release-v2.3.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
+  <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary%20(Zero%20CGO)-a855f7?style=for-the-badge" alt="Single Binary">
   <img src="https://img.shields.io/badge/Protocols-UDP%20%7C%20DoH%20%7C%20DoT-10b981?style=for-the-badge" alt="Protocols">
@@ -11,12 +11,15 @@
 </p>
 
 <p align="center">
-  <img src="docs/hyperdns-dashboard.png" alt="HyperDNS dashboard — live telemetry, QPS graph and policy presets" width="880">
+  <img src="docs/hyperdns-dashboard.png" alt="JozmozDNS dashboard — live telemetry, QPS graph and policy presets" width="880">
 </p>
 
 > [!NOTE]
-> ### v2.2.0 — Built-In ACME, Whitelist by Default, API v2 & a Real Console
-> Certificates are now **issued by the daemon itself**: an in-process ACME client (RFC 8555) replaces certbot/acme.sh entirely — issuance and daily renewal happen while the service runs, and renewed certificates hot-swap into the live listeners without a restart. **Client access whitelist is on by default**: an unknown source is refused by DNS (with an RFC 8914 Extended DNS Error so the client learns *why*) instead of being served for free. A new versioned **REST API v2** joins v1 (which carries `Deprecation`/`Sunset` headers), and the console can stop, start and uninstall the service. See [CHANGELOG.md](docs/CHANGELOG.md) for the full list.
+> ### v2.3.0 — JozmozDNS Rebrand, PC Desktop Client with Full System DNS Tunneling & Extended Gaming Presets
+> - **Desktop PC App with Full System Tunneling**: Windows client enforces DNS resolution via Windows NRPT (Name Resolution Policy Table), neutralizes multi-homed / IPv6 DNS leaks, and blocks rogue UDP 53 bypasses — making competitive games and anti-cheats (like **FACEIT Anti-Cheat**) 100% stable without kernel-driver interference.
+> - **Extended Gaming Intelligence**: Added presets for EA FC 26, EA Services, Nintendo Switch Online, CS2, Valve CDN, War Thunder, and FACEIT.
+> - **Built-In ACME & Hot-Swap TLS**: In-process ACME client (RFC 8555) issues and automatically renews SSL certificates without restarting.
+> - **Client Access Whitelist**: Unknown sources are rejected with RFC 8914 Extended DNS Errors. Dual-compatible CLI (`jdns` / `jozmozdns` & legacy `hdns`).
 
 <p align="center">
   <a href="#-quick-installation--deployment">🚀 Install</a> •
@@ -46,11 +49,12 @@
 
 ## 📖 Overview
 
-**HyperDNS** is an ultra-fast, single-binary SmartDNS server and transparent SNI Proxy engine with an embedded cyberpunk/gaming web dashboard, developer REST API, and interactive terminal interface (`hdns`).
+**JozmozDNS** is an ultra-fast, single-binary SmartDNS server and transparent SNI Proxy engine with an embedded cyberpunk/gaming web dashboard, developer REST API, dedicated Windows desktop application with full system DNS tunneling, and interactive terminal interface (`jdns` / `jozmozdns`).
 
 It transforms any single cloud VPS (even a \$3/month 1-Core CPU / 1GB RAM instance) into a private **Anti-Sanction (403 Bypass)** and **Low-Latency Gaming Gateway** for **PC, PlayStation 4/5, Xbox Series X/S, Nintendo Switch, Android, iOS, and Routers** with:
-- **0 Client Software Required:** Users only set their DNS IP address on their console or router.
-- **0 VPN Overhead:** Game UDP traffic (voice, physics, tick rate) connects directly to official servers without double encryption or MTU packet fragmentation.
+- **Zero Client Software Required:** Console and router users simply set the DNS IP.
+- **Dedicated Windows Client:** Gamers playing competitive games with strict anti-cheats (such as FACEIT) can connect via the JozmozDNS Windows app for full system-wide DNS tunneling.
+- **Zero VPN Overhead:** Game UDP traffic (voice, physics, tick rate) connects directly to official servers without double encryption or MTU packet fragmentation.
 - **1-Click Self-Healing Registration:** Dynamic mobile & residential IPs update automatically via private one-click slugs (`/ip/{token}`).
 
 ---
@@ -94,38 +98,38 @@ Run as `root` on Ubuntu, Debian, or AlmaLinux/Rocky/CentOS:
 bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
 ```
 
-> **Interactive Terminal Console (`hyperdns` or `hdns`):**
-> Anytime after installation, simply run `hyperdns` or `hdns` in your shell to open the terminal management menu (service status, restart, view credentials, change domain & SSL, update from GitHub, or uninstall).
+> **Interactive Terminal Console (`jdns`, `jozmozdns`, `hdns` or `hyperdns`):**
+> Anytime after installation, simply run `jdns` or `jozmozdns` (or `hdns`) in your shell to open the terminal management menu (service status, restart, view credentials, change domain & SSL, update from GitHub, or uninstall).
 
 
 > [!IMPORTANT]
-> **The installer never upgrades in place.** An existing install is archived to `/root/hyperdns-preinstall-<date>.tar.gz` (its sha256 printed — the only copy of the old data), then **replaced**: fresh config, fresh credentials, fresh certificates. An interactive run types `FRESH` to confirm the wipe; a piped `curl | bash` run refuses unless `HYPERDNS_FRESH=1` is set. Coming from **HyperDNS 1.x**, run `bash migrate-from-v1.sh` from the offline bundle first.
+> **The installer never upgrades in place.** An existing install is archived to `/root/jozmozdns-preinstall-<date>.tar.gz` (its sha256 printed — the only copy of the old data), then **replaced**: fresh config, fresh credentials, fresh certificates. An interactive run types `FRESH` to confirm the wipe; a piped `curl | bash` run refuses unless `HYPERDNS_FRESH=1` or `JOZMOZDNS_FRESH=1` is set.
 >
-> **A panel domain is mandatory** — its A record must point at the server. The daemon issues the Let's Encrypt certificate **itself** over its own port-80 listener: no certbot, no acme.sh, nothing to stop the service for. Non-interactive: `HYPERDNS_DOMAIN=dns.example.com HYPERDNS_EMAIL=you@example.com bash install.sh`. If issuance fails the installer states the cause and exits rather than printing success. Renewal is daily and automatic.
+> **A panel domain is mandatory** — its A record must point at the server. The daemon issues the Let's Encrypt certificate **itself** over its own port-80 listener: no certbot, no acme.sh, nothing to stop the service for. Non-interactive: `JOZMOZDNS_DOMAIN=dns.example.com JOZMOZDNS_EMAIL=you@example.com bash install.sh`. If issuance fails the installer states the cause and exits rather than printing success. Renewal is daily and automatic.
 >
 > **Subscribers self-serve IP changes** through a secret: `/sub/<token>` is a read-only portal, and moving the binding is `POST /ip/<token>` with the account's registration secret. A leaked portal link alone cannot steal the binding.
 
 ### Option 2: Pre-Compiled Standalone Binary
 ```bash
 # On Linux:
-chmod +x ./bin/hyperdns_linux_amd64
-sudo ./bin/hyperdns_linux_amd64 -server -web-port 8080
+chmod +x ./bin/jozmozdns_linux_amd64
+sudo ./bin/jozmozdns_linux_amd64 -server -web-port 8080
 
 # On Windows (PowerShell or cmd, from the folder you extracted):
-.\bin\hyperdns.exe -server -web-port 8080
+.\bin\jozmozdns.exe -server -web-port 8080
 ```
 
 ### Option 3: Compile from Source
 ```bash
-git clone https://github.com/IzumiRain/HyperDNS.git
+git clone https://github.com/jozmoz/HyperDNS.git
 cd "HyperDNS"
-go build -ldflags="-s -w" -o bin/hyperdns ./cmd/hyperdns
-./bin/hyperdns -server
+go build -ldflags="-s -w" -o bin/jozmozdns ./cmd/hyperdns
+./bin/jozmozdns -server
 ```
 
 ### Option 4: Docker / Docker Compose
 ```bash
-git clone https://github.com/IzumiRain/HyperDNS.git
+git clone https://github.com/jozmoz/HyperDNS.git
 cd "HyperDNS"
 mkdir -p data certs
 docker compose up -d

@@ -38,19 +38,18 @@ import (
 )
 
 const banner = `
-   _    _                           _____  _   _  _____ 
-  | |  | |                         |  __ \| \ | |/ ____|
-  | |__| |_   _ _ __   ___ _ __    | |  | |  \| | (___  
-  |  __  | | | | '_ \ / _ \ '__|   | |  | | . ' |\___ \ 
-  | |  | | |_| | |_) |  __/ |      | |__| | |\  |____) |
-  |_|  |_|\__, | .__/ \___|_|      |_____/|_| \_|_____/ 
-           __/ | |                                      
-          |___/|_|      Next-Gen Standalone SmartDNS
+  ██╗ ██████╗ ███████╗███╗   ███╗ ██████╗ ███████╗██████╗ ███╗   ██╗███████╗
+  ██║██╔═══██╗╚══███╔╝████╗ ████║██╔═══██╗╚══███╔╝██╔══██╗████╗  ██║██╔════╝
+  ██║██║   ██║  ███╔╝ ██╔████╔██║██║   ██║  ███╔╝ ██║  ██║██╔██╗ ██║███████╗
+  ██║██║   ██║ ███╔╝  ██║╚██╔╝██║██║   ██║ ███╔╝  ██║  ██║██║╚██╗██║╚════██║
+████║╚██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║ ╚████║███████║
+╚═══╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═══╝╚══════╝
+             JozmozDNS - Next-Gen Standalone SmartDNS
 `
 
 func main() {
-	dbPath := flag.String("db", "", "Path to database file (e.g. /opt/hyperdns/data.db)")
-	keyPath := flag.String("key", "", "Path to master encryption key (e.g. /opt/hyperdns/master.key)")
+	dbPath := flag.String("db", "", "Path to database file (e.g. /opt/jozmozdns/data.db)")
+	keyPath := flag.String("key", "", "Path to master encryption key (e.g. /opt/jozmozdns/master.key)")
 	configPath := flag.String("config", "", "Path to config.json (default settings used when DB has no value)")
 	bindHost := flag.String("host", "", "Override bind host IP (e.g. 0.0.0.0)")
 	bindFlag := flag.String("bind", "", "Override bind host IP (alias for -host)")
@@ -85,7 +84,9 @@ func main() {
 	// 1. Resolve DB and Key paths
 	dPath := *dbPath
 	if dPath == "" {
-		if _, err := os.Stat("/opt/hyperdns"); err == nil {
+		if _, err := os.Stat("/opt/jozmozdns"); err == nil {
+			dPath = "/opt/jozmozdns/data.db"
+		} else if _, err := os.Stat("/opt/hyperdns"); err == nil {
 			dPath = "/opt/hyperdns/data.db"
 		} else {
 			dPath = "data.db"
@@ -94,7 +95,9 @@ func main() {
 
 	kPath := *keyPath
 	if kPath == "" {
-		if _, err := os.Stat("/opt/hyperdns"); err == nil {
+		if _, err := os.Stat("/opt/jozmozdns"); err == nil {
+			kPath = "/opt/jozmozdns/master.key"
+		} else if _, err := os.Stat("/opt/hyperdns"); err == nil {
 			kPath = "/opt/hyperdns/master.key"
 		} else {
 			kPath = "master.key"
@@ -850,7 +853,7 @@ func main() {
 	// The dashboard URL carries the hidden admin namespace: the panel has not
 	// lived at /dashboard since v2.1, and a banner that printed the retired
 	// route would send the operator to a 404.
-	log.Printf(" HyperDNS Dashboard : %s://%s/%s/dash/", dashboardScheme, net.JoinHostPort(dashboardHost, strconv.Itoa(serverSettings.WebPort)), serverSettings.AdminPath)
+	log.Printf(" JozmozDNS Dashboard : %s://%s/%s/dash/", dashboardScheme, net.JoinHostPort(dashboardHost, strconv.Itoa(serverSettings.WebPort)), serverSettings.AdminPath)
 	log.Printf(" Standard DNS       : %s (UDP/TCP)", net.JoinHostPort(listenHost, strconv.Itoa(dnsSettings.Port)))
 	log.Printf(" DNS-over-TLS (DoT) : %s (TCP/TLS)", net.JoinHostPort(listenHost, strconv.Itoa(dnsSettings.DoTPort)))
 	log.Printf(" DNS-over-HTTPS     : https://%s/dns-query", net.JoinHostPort(listenHost, strconv.Itoa(dnsSettings.DoHPort)))

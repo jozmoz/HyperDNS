@@ -31,8 +31,10 @@
      only the trimmed core is looked up — so an entry never needs padding. */
   var FA = {
     /* --- shell, auth, login --- */
+    'JozmozDNS — Next-Gen Gaming & Anti-Sanction SmartDNS Controller':
+      'JozmozDNS — کنترلر هوشمند DNS برای گیم و دور زدن تحریم',
     'HyperDNS — Next-Gen Gaming & Anti-Sanction SmartDNS Controller':
-      'HyperDNS — کنترلر هوشمند DNS برای گیم و دور زدن تحریم',
+      'JozmozDNS — کنترلر هوشمند DNS برای گیم و دور زدن تحریم',
     'STANDALONE CONTROLLER': 'کنترلر مستقل',
     'ADMIN USERNAME': 'نام کاربری مدیر',
     'PASSWORD': 'رمز عبور',
@@ -41,8 +43,10 @@
     'Enter your admin password': 'رمز عبور مدیر را وارد کنید',
     'Sign Out': 'خروج',
     'ONLINE · SMARTDNS': 'آنلاین · SMARTDNS',
+    'JozmozDNS Smart Controller — Low-Latency SmartDNS Engine ·':
+      'کنترلر هوشمند JozmozDNS — موتور SmartDNS با تأخیر پایین ·',
     'HyperDNS Smart Controller — Low-Latency SmartDNS Engine ·':
-      'کنترلر هوشمند HyperDNS — موتور SmartDNS با تأخیر پایین ·',
+      'کنترلر هوشمند JozmozDNS — موتور SmartDNS با تأخیر پایین ·',
 
     /* --- security setup modal --- */
     'Security Setup': 'تنظیم امنیتی',
@@ -99,7 +103,8 @@
     'Guide': 'راهنما',
     'Game Intelligence': 'هوشمندی بازی‌ها',
     'HGI': 'هوشمندی بازی',
-    'HyperDNS Game Intelligence Engine': 'موتور هوشمندی بازی‌های HyperDNS',
+    'JozmozDNS Game Intelligence Engine': 'موتور هوشمندی بازی‌های JozmozDNS',
+    'HyperDNS Game Intelligence Engine': 'موتور هوشمندی بازی‌های JozmozDNS',
     'Gaming Intelligence & Route Controller': 'هوشمندی بازی‌ها و کنترلر مسیر',
     'Detect Active Game': 'تشخیص بازی فعال',
     'Probe All Routes': 'آزمایش تمام مسیرها',
@@ -615,7 +620,8 @@
     "Use the panel's certificate": 'از گواهی پنل استفاده شود',
     'Subscription domain (empty = panel domain)': 'دامنه اشتراک (خالی = دامنه پنل)',
     'Advertised port': 'پورت اعلام‌شده',
-    'Portal title (default HyperDNS)': 'عنوان پورتال (پیش‌فرض HyperDNS)',
+    'Portal title (default JozmozDNS)': 'عنوان پورتال (پیش‌فرض JozmozDNS)',
+    'Portal title (default HyperDNS)': 'عنوان پورتال (پیش‌فرض JozmozDNS)',
     'Certificate path (separate domain only)': 'مسیر گواهی (فقط برای دامنه مجزا)',
     'Key path (separate domain only)': 'مسیر کلید (فقط برای دامنه مجزا)',
     'Save Subscription Settings': 'ذخیره تنظیمات اشتراک',

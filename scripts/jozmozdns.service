@@ -1,0 +1,29 @@
+# JozmozDNS systemd unit.
+[Unit]
+Description=JozmozDNS — Standalone SmartDNS & Gaming Gateway
+Documentation=https://github.com/jozmoz/HyperDNS
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/hyperdns
+RuntimeDirectory=hyperdns
+RuntimeDirectoryMode=0700
+
+ExecStart=/opt/hyperdns/hyperdns -daemon \
+    -config /opt/hyperdns/config.json \
+    -db /opt/hyperdns/data.db \
+    -key /opt/hyperdns/master.key
+
+Restart=always
+RestartSec=3s
+TimeoutStopSec=15s
+SyslogIdentifier=jozmozdns
+LimitNOFILE=65535
+OOMPolicy=continue
+
+[Install]
+WantedBy=multi-user.target
+Alias=hyperdns.service

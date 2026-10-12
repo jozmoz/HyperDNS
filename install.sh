@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# HyperDNS — 1-Line Quick Installer for Linux (Ubuntu, Debian, CentOS, AlmaLinux, Rocky)
+# JozmozDNS — 1-Line Quick Installer for Linux (Ubuntu, Debian, CentOS, AlmaLinux, Rocky)
 # Next-Gen Standalone SmartDNS & Anti-Sanction Gaming Gateway
 # GitHub: https://github.com/jozmoz/HyperDNS
 #
@@ -31,7 +31,7 @@ fi
 # 2. Architecture Check
 ARCH=$(uname -m)
 if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "amd64" ]; then
-    echo -e "${RED}[ERROR] Currently pre-built HyperDNS supports x86_64 (amd64) architecture.${NC}"
+    echo -e "${RED}[ERROR] Currently pre-built JozmozDNS supports x86_64 (amd64) architecture.${NC}"
     echo -e "Detected architecture: $ARCH"
     exit 1
 fi
@@ -39,12 +39,12 @@ fi
 # Banner
 clear 2>/dev/null || true
 echo -e "${CYAN}${BOLD}"
-echo "  ██╗  ██╗██╗   ██╗██████╗ ███████╗██████╗ ██████╗ ███╗   ██╗███████╗"
-echo "  ██║  ██║╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔══██╗████╗  ██║██╔════╝"
-echo "  ███████║ ╚████╔╝ ██████╔╝█████╗  ██████╔╝██║  ██║██╔██╗ ██║███████╗"
-echo "  ██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══╝  ██╔══██╗██║  ██║██║╚██╗██║╚════██║"
-echo "  ██║  ██║   ██║   ██║     ███████╗██║  ██║██████╔╝██║ ╚████║███████║"
-echo "  ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
+echo "  ██╗ ██████╗ ███████╗███╗   ███╗ ██████╗ ███████╗██████╗ ███╗   ██╗███████╗"
+echo "  ██║██╔═══██╗╚══███╔╝████╗ ████║██╔═══██╗╚══███╔╝██╔══██╗████╗  ██║██╔════╝"
+echo "  ██║██║   ██║  ███╔╝ ██╔████╔██║██║   ██║  ███╔╝ ██║  ██║██╔██╗ ██║███████╗"
+echo "  ██║██║   ██║ ███╔╝  ██║╚██╔╝██║██║   ██║ ███╔╝  ██║  ██║██║╚██╗██║╚════██║"
+echo "  ██║╚██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║ ╚████║███████║"
+echo "  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
 echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
 echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/HyperDNS${NC}"
 echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}\n"
@@ -787,20 +787,27 @@ if [ -f "$INSTALL_DIR/hyperdns" ] || [ -f "$INSTALL_DIR/data.db" ]; then
     IS_UPDATE=true
 fi
 
-# 6. Install HyperDNS Binary and Terminal Console
-echo -e "\n${CYAN}[3/5] Installing HyperDNS binary and Terminal Console...${NC}"
+# 6. Install JozmozDNS Binary and Terminal Console
+echo -e "\n${CYAN}[3/5] Installing JozmozDNS binary and Terminal Console...${NC}"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/jozmozdns" 2>/dev/null || true
 pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 
 CACHE_BUSTER=$(date +%s)
-echo -e "  Downloading latest HyperDNS binary from GitHub..."
-curl -fsSL --progress-bar -o "$INSTALL_DIR/hyperdns" "${REPO_RAW}/hyperdns-linux?t=${CACHE_BUSTER}"
-chmod +x "$INSTALL_DIR/hyperdns"
+echo -e "  Downloading latest JozmozDNS binary from GitHub..."
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/jozmozdns-linux?t=${CACHE_BUSTER}" || \
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/hyperdns-linux?t=${CACHE_BUSTER}"
+chmod +x "$INSTALL_DIR/jozmozdns"
+ln -sf "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/hyperdns" 2>/dev/null || true
+ln -sf "$INSTALL_DIR" "/opt/jozmozdns" 2>/dev/null || true
 
 # Install management CLI menu
-curl -fsSL -o "/usr/local/bin/hyperdns" "${REPO_RAW}/scripts/hyperdns-menu.sh?t=${CACHE_BUSTER}"
-chmod +x "/usr/local/bin/hyperdns"
-ln -sf "/usr/local/bin/hyperdns" "/usr/local/bin/hdns"
+curl -fsSL -o "/usr/local/bin/jozmozdns" "${REPO_RAW}/scripts/jozmozdns-menu.sh?t=${CACHE_BUSTER}" || \
+curl -fsSL -o "/usr/local/bin/jozmozdns" "${REPO_RAW}/scripts/hyperdns-menu.sh?t=${CACHE_BUSTER}"
+chmod +x "/usr/local/bin/jozmozdns"
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/jdns" 2>/dev/null || true
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/hyperdns" 2>/dev/null || true
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/hdns" 2>/dev/null || true
 
 # 7. Generate dedicated SSL Certificate (covering IP and localhost)
 echo -e "\n${CYAN}[4/5] Configuring SSL Certificate and systemd service...${NC}"
@@ -1001,7 +1008,7 @@ if [ -f "$INSTALL_DIR/credentials.txt" ]; then
     SAVED_URL=$(grep -E "^admin_url\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | sed -e 's/^admin_url\s*:\s*//' | tr -d '[:space:]' || true)
 fi
 
-DASH_URL=$(echo "$FULL_LOG" | grep -i "HyperDNS Dashboard" | tail -1 | sed -e 's/.*HyperDNS Dashboard : //I' | tr -d '[:space:]' || true)
+DASH_URL=$(echo "$FULL_LOG" | grep -iE "(JozmozDNS|HyperDNS) Dashboard" | tail -1 | sed -e 's/.*Dashboard : //I' | tr -d '[:space:]' || true)
 if [ -z "$DASH_URL" ]; then
     ADMIN_PATH=$(echo "$FULL_LOG" | grep -oE "https?://[^ ]+/[a-f0-9]{16}/dash/login" | tail -1 || true)
     if [ -n "$ADMIN_PATH" ]; then
@@ -1041,9 +1048,9 @@ chmod 600 "$INSTALL_DIR/credentials.txt"
 echo ""
 echo -e "${GREEN}${BOLD}========================================================================${NC}"
 if [ "$IS_UPDATE" = true ]; then
-    echo -e "${GREEN}${BOLD}       🎉 HyperDNS Successfully Updated & Configured!                   ${NC}"
+    echo -e "${GREEN}${BOLD}       🎉 JozmozDNS Successfully Updated & Configured!                  ${NC}"
 else
-    echo -e "${GREEN}${BOLD}          🎉 HyperDNS Successfully Installed and Running!              ${NC}"
+    echo -e "${GREEN}${BOLD}          🎉 JozmozDNS Successfully Installed and Running!             ${NC}"
 fi
 echo -e "${GREEN}${BOLD}========================================================================${NC}"
 echo ""
@@ -1063,9 +1070,9 @@ if [ -n "$USER_DOMAIN" ]; then
 else
     echo -e "  ${BOLD}Domain & SSL:${NC}   ${CYAN}${PUBLIC_IP}${NC} (Dedicated IP SSL Certificate)"
 fi
-echo -e "  ${BOLD}Terminal Menu:${NC}  Type ${PURPLE}hyperdns${NC} or ${PURPLE}hdns${NC} anywhere in your terminal"
+echo -e "  ${BOLD}Terminal Menu:${NC}  Type ${PURPLE}jdns${NC} or ${PURPLE}jozmozdns${NC} (or ${PURPLE}hdns${NC}) anywhere in your terminal"
 echo -e "${GREEN}========================================================================${NC}"
 echo ""
 echo -e "${CYAN}📌 برای مدیریت سرور، تغییر دامنه، مشاهده مشخصات یا آپدیت دستور زیر را وارد کنید:${NC}"
-echo -e "   ${PURPLE}${BOLD}hyperdns${NC}"
+echo -e "   ${PURPLE}${BOLD}jdns${NC}   ${NC}(یا ${PURPLE}jozmozdns${NC} / ${PURPLE}hdns${NC})"
 echo ""

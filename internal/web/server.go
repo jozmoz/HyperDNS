@@ -2505,7 +2505,7 @@ func (ws *WebServer) handleSystemBackup(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	timestamp := time.Now().Format("2006-01-02_150405")
-	filename := fmt.Sprintf("hyperdns-backup-%s.db", timestamp)
+	filename := fmt.Sprintf("jozmozdns-backup-%s.db", timestamp)
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 

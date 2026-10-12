@@ -228,8 +228,8 @@ func TestPreDBCommandsRunWhileDatabaseIsLockedAndKeyIsAbsent(t *testing.T) {
 		want string
 	}{
 		{name: "help", args: []string{"help"}, want: "Usage:"},
-		{name: "version", args: []string{"version"}, want: "HyperDNS "},
-		{name: "version flag alias", args: []string{"-version"}, want: "HyperDNS "},
+		{name: "version", args: []string{"version"}, want: "JozmozDNS "},
+		{name: "version flag alias", args: []string{"-version"}, want: "JozmozDNS "},
 		{name: "status", args: []string{"status"}, want: "status-without-database"},
 	}
 
@@ -312,7 +312,7 @@ func TestRunPreDBCommandReturnsTruthfulExitCodes(t *testing.T) {
 		if !handled || exitCode != 0 {
 			t.Fatalf("handled=%v exitCode=%d, want true/0", handled, exitCode)
 		}
-		if !strings.Contains(out.String(), "HyperDNS ") {
+		if !strings.Contains(out.String(), "JozmozDNS ") {
 			t.Fatalf("stdout = %q", out.String())
 		}
 		if errOut.Len() != 0 {
