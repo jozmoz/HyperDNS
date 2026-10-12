@@ -5,7 +5,7 @@
 # GitHub: https://github.com/jozmoz/HyperDNS
 # ==============================================================================
 
-set -e
+set +e
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -269,7 +269,7 @@ EOF
     fi
 
     # 3. Stop and disable competing standalone DNS services
-    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor knot-resolver; do
+    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor knot-resolver cottenrouter xray v2ray; do
         if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
             echo -e "    ${YELLOW}Stopping competing DNS service: ${d_svc}...${NC}"
             systemctl stop "$d_svc" 2>/dev/null || true
@@ -289,11 +289,11 @@ EOF
         fi
 
         if command -v fuser >/dev/null 2>&1; then
-            fuser -k 53/udp 2>/dev/null || true
-            fuser -k 53/tcp 2>/dev/null || true
+            fuser -k 53/udp >/dev/null 2>&1 || true
+            fuser -k 53/tcp >/dev/null 2>&1 || true
         fi
         if command -v lsof >/dev/null 2>&1; then
-            lsof -i :53 -t 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+            lsof -i :53 -t 2>/dev/null | xargs -r kill -9 >/dev/null 2>&1 || true
         fi
         sleep 1
     fi

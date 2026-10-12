@@ -8,7 +8,7 @@
 #   bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
 # ==============================================================================
 
-set -e
+set +e
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -191,7 +191,7 @@ EOF
     fi
 
     # 3. Stop and disable competing standalone DNS services
-    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor knot-resolver; do
+    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor knot-resolver cottenrouter xray v2ray; do
         if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
             echo -e "    ${YELLOW}Stopping competing DNS service: ${d_svc}...${NC}"
             systemctl stop "$d_svc" 2>/dev/null || true
@@ -211,11 +211,11 @@ EOF
         fi
 
         if command -v fuser >/dev/null 2>&1; then
-            fuser -k 53/udp 2>/dev/null || true
-            fuser -k 53/tcp 2>/dev/null || true
+            fuser -k 53/udp >/dev/null 2>&1 || true
+            fuser -k 53/tcp >/dev/null 2>&1 || true
         fi
         if command -v lsof >/dev/null 2>&1; then
-            lsof -i :53 -t 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+            lsof -i :53 -t 2>/dev/null | xargs -r kill -9 >/dev/null 2>&1 || true
         fi
         sleep 1
     fi
@@ -879,17 +879,22 @@ pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 free_port_53
 systemctl daemon-reload || true
 systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
+echo -e "  Starting HyperDNS background service via systemd..."
 systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME" 2>/dev/null || true
 
 # Wait for service to become active
 SVC_ACTIVE=false
-for i in {1..7}; do
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
+for i in 1 2 3 4 5 6 7; do
+    if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
         SVC_ACTIVE=true
         break
     fi
     sleep 1
 done
+
+if [ "$SVC_ACTIVE" = true ]; then
+    echo -e "  ${GREEN}✓ HyperDNS service is active and running!${NC}"
+fi
 
 # Verify service is running, handle potential startup failure
 if [ "$SVC_ACTIVE" = false ]; then
@@ -900,8 +905,8 @@ if [ "$SVC_ACTIVE" = false ]; then
         echo -e "\n${YELLOW}⚠️  تشخیص: پورت ۵۳ هنوز آزاد نشده بود. در حال آزادسازی اجباری و راه‌اندازی مجدد...${NC}"
         free_port_53
         systemctl restart "$SERVICE_NAME" 2>/dev/null || true
-        for i in {1..5}; do
-            if systemctl is-active --quiet "$SERVICE_NAME"; then
+        for i in 1 2 3 4 5; do
+            if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
                 SVC_ACTIVE=true
                 echo -e "  ${GREEN}✓ سرویس HyperDNS با موفقیت شروع به کار کرد!${NC}"
                 break
@@ -937,6 +942,7 @@ fi
 sleep 1
 
 # Read Credentials and Dashboard Link
+echo -e "  Reading credentials and dashboard access information..."
 LOG_CONTENT=$(cat "$BOOTSTRAP_LOG" 2>/dev/null || true)
 SYSTEMD_LOG=$(journalctl -u "$SERVICE_NAME" -n 80 --no-pager 2>/dev/null || true)
 FULL_LOG="${LOG_CONTENT}
