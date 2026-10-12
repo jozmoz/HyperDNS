@@ -195,6 +195,43 @@ install_cert_files() {
     chmod 600 "${INSTALL_DIR}/certs/"*.pem "${INSTALL_DIR}/certs/acme/"* 2>/dev/null || true
 }
 
+# Helper: Verify if a domain has a valid, CA-signed certificate (not self-signed)
+is_valid_domain_cert() {
+    local domain="$1"
+    [ -z "$domain" ] && return 1
+
+    local c_path="${INSTALL_DIR}/certs/acme/${domain}.crt"
+    local k_path="${INSTALL_DIR}/certs/acme/${domain}.key"
+
+    if [ ! -s "$c_path" ] || [ ! -s "$k_path" ]; then
+        c_path="${INSTALL_DIR}/certs/cert.pem"
+        k_path="${INSTALL_DIR}/certs/key.pem"
+    fi
+
+    [ ! -s "$c_path" ] && return 1
+    [ ! -s "$k_path" ] && return 1
+
+    # Check validity dates (at least 1 day left)
+    if ! openssl x509 -in "$c_path" -noout -checkend 86400 2>/dev/null; then
+        return 1
+    fi
+
+    # Check hostname covers domain in SAN or CN
+    if ! openssl x509 -in "$c_path" -noout -text 2>/dev/null | grep -E "DNS:${domain}([ ,]|$)|CN\s*=\s*${domain}([ ,]|$)" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    # Check NOT self-signed (issuer != subject)
+    local subj iss
+    subj=$(openssl x509 -in "$c_path" -noout -subject 2>/dev/null | sed -e 's/^[[:space:]]*//' -e 's/subject= *//')
+    iss=$(openssl x509 -in "$c_path" -noout -issuer 2>/dev/null | sed -e 's/^[[:space:]]*//' -e 's/issuer= *//')
+    if [ -n "$subj" ] && [ "$subj" = "$iss" ]; then
+        return 1
+    fi
+
+    return 0
+}
+
 # Helper: Interactive Guided Wizard for manual SSL when Port 80 is occupied
 manual_ssl_wizard() {
     local domain="$1"
@@ -452,15 +489,24 @@ change_domain_ssl() {
                     timeout 15 "$BIN_PATH" -server -domain "$new_domain" -email "$new_email" >/dev/null 2>&1 || true
                 fi
 
-                if [ ! -f "$INSTALL_DIR/certs/acme/${new_domain}.crt" ]; then
+                pkill -9 -f "$BIN_PATH" 2>/dev/null || true
+                if ! is_valid_domain_cert "$new_domain"; then
                     echo -e "\n${YELLOW}⚠️  Automated issuance failed on port 80. Launching manual wizard...${NC}"
                     manual_ssl_wizard "$new_domain" "$new_email" "$s_ip" "Automated ACME verification failed on Port 80"
                 fi
             fi
 
+            pkill -9 -f "$BIN_PATH" 2>/dev/null || true
+            systemctl daemon-reload || true
             echo -e "${GREEN}Restarting HyperDNS service...${NC}"
-            systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
-            echo -e "${GREEN}✓ Domain and SSL configured!${NC}"
+            systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME" 2>/dev/null || true
+            sleep 2
+            if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+                echo -e "\n${RED}⚠️  HyperDNS service failed to start! Checking logs...${NC}"
+                journalctl -u "$SERVICE_NAME" -n 25 --no-pager 2>/dev/null || true
+            else
+                echo -e "${GREEN}✓ Domain and SSL configured!${NC}"
+            fi
             sleep 2
             ;;
         2)

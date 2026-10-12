@@ -117,6 +117,43 @@ install_cert_files() {
     chmod 600 "${INSTALL_DIR}/certs/"*.pem "${INSTALL_DIR}/certs/acme/"* 2>/dev/null || true
 }
 
+# Helper: Verify if a domain has a valid, CA-signed certificate (not self-signed)
+is_valid_domain_cert() {
+    local domain="$1"
+    [ -z "$domain" ] && return 1
+
+    local c_path="${INSTALL_DIR}/certs/acme/${domain}.crt"
+    local k_path="${INSTALL_DIR}/certs/acme/${domain}.key"
+
+    if [ ! -s "$c_path" ] || [ ! -s "$k_path" ]; then
+        c_path="${INSTALL_DIR}/certs/cert.pem"
+        k_path="${INSTALL_DIR}/certs/key.pem"
+    fi
+
+    [ ! -s "$c_path" ] && return 1
+    [ ! -s "$k_path" ] && return 1
+
+    # Check validity dates (at least 1 day left)
+    if ! openssl x509 -in "$c_path" -noout -checkend 86400 2>/dev/null; then
+        return 1
+    fi
+
+    # Check hostname covers domain in SAN or CN
+    if ! openssl x509 -in "$c_path" -noout -text 2>/dev/null | grep -E "DNS:${domain}([ ,]|$)|CN\s*=\s*${domain}([ ,]|$)" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    # Check NOT self-signed (issuer != subject)
+    local subj iss
+    subj=$(openssl x509 -in "$c_path" -noout -subject 2>/dev/null | sed -e 's/^[[:space:]]*//' -e 's/subject= *//')
+    iss=$(openssl x509 -in "$c_path" -noout -issuer 2>/dev/null | sed -e 's/^[[:space:]]*//' -e 's/issuer= *//')
+    if [ -n "$subj" ] && [ "$subj" = "$iss" ]; then
+        return 1
+    fi
+
+    return 0
+}
+
 # Helper: Interactive Guided Wizard for manual SSL when Port 80 is occupied
 manual_ssl_wizard() {
     local domain="$1"
@@ -607,8 +644,13 @@ ln -sf "/usr/local/bin/hyperdns" "/usr/local/bin/hdns"
 
 # 7. Generate dedicated SSL Certificate (covering IP and localhost)
 echo -e "\n${CYAN}[4/5] Configuring SSL Certificate and systemd service...${NC}"
-if [ -n "$USER_DOMAIN" ] && [ -f "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.crt" ]; then
-    echo -e "  ${GREEN}✓ Active domain certificate found for ${USER_DOMAIN}!${NC}"
+# Clean up any stale self-signed or invalid certs for domain so they don't block fresh ACME
+if [ -n "$USER_DOMAIN" ] && ! is_valid_domain_cert "$USER_DOMAIN"; then
+    rm -f "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.crt" "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.key" 2>/dev/null || true
+fi
+
+if [ -n "$USER_DOMAIN" ] && is_valid_domain_cert "$USER_DOMAIN"; then
+    echo -e "  ${GREEN}✓ Valid CA-signed certificate found for ${USER_DOMAIN}!${NC}"
 else
     OPENSSL_CNF="/tmp/openssl_hyperdns_$$.cnf"
     cat <<EOF > "$OPENSSL_CNF"
@@ -678,33 +720,66 @@ systemctl daemon-reload
 # 8. Initial Bootstrap & Service Startup
 echo -e "\n${CYAN}[5/5] Initializing HyperDNS and starting background engine...${NC}"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 
 BOOTSTRAP_LOG="$INSTALL_DIR/install.log"
 rm -f "$BOOTSTRAP_LOG"
 
 if [ -n "$USER_DOMAIN" ]; then
-    if [ -f "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.crt" ]; then
+    if is_valid_domain_cert "$USER_DOMAIN"; then
         echo -e "  Starting HyperDNS engine with verified certificate for ${GREEN}${USER_DOMAIN}${NC}..."
         timeout 10 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+        pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
     else
         echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and setting up Let's Encrypt SSL..."
-        timeout 15 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+        timeout 20 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+        pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 
         # If automated issuance failed or timed out:
-        if [ ! -f "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.crt" ]; then
-            echo -e "\n  ${YELLOW}⚠️  صدور خودکار سرتیفیکیت روی پورت ۸۰ کامل نشد!${NC}"
-            echo -e "    احتمالاً پورت ۸۰ توسط فایروال مسدود است یا رکورد دامنه هنوز اعمال نشده است."
+        if ! is_valid_domain_cert "$USER_DOMAIN"; then
+            echo ""
+            echo -e "${YELLOW}────────────────────────────────────────────────────────────────────────${NC}"
+            echo -e "${YELLOW}⚠️  صدور خودکار سرتیفیکیت روی پورت ۸۰ کامل نشد!${NC}"
+            echo -e "    (احتمالاً پورت ۸۰ توسط فایروال مسدود است یا رکورد دامنه هنوز اعمال نشده است)"
+            echo -e "${YELLOW}────────────────────────────────────────────────────────────────────────${NC}"
             manual_ssl_wizard "$USER_DOMAIN" "$USER_EMAIL" "$PUBLIC_IP" "Automated ACME verification failed on Port 80"
         fi
     fi
 else
     echo -e "  Configuring direct IP mode with dedicated SSL..."
     timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+    pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 fi
 
-# Enable and start the permanent background service
-systemctl enable "$SERVICE_NAME" >/dev/null 2>&1
-systemctl restart "$SERVICE_NAME"
+# Enable and start the permanent background service safely
+pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+systemctl daemon-reload || true
+systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
+systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME" 2>/dev/null || true
+sleep 2
+
+# Verify service is running, handle potential startup failure
+if ! systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo -e "\n${RED}⚠️  سرویس HyperDNS فعال نشد! در حال بررسی لاگ‌های سیستم...${NC}"
+    journalctl -u "$SERVICE_NAME" -n 25 --no-pager 2>/dev/null || true
+    echo ""
+    if [ -n "$USER_DOMAIN" ] && [ -t 0 -o -e /dev/tty ]; then
+        echo -e "${YELLOW}به دلیل عدم تایید سرتیفیکیت دامنه، مایلید موقتاً با IP مستقیم (${PUBLIC_IP}) و SSL اختصاصی IP راه‌اندازی شود؟ [Y/n]: ${NC}"
+        fb_mode="Y"
+        if [ -t 0 ]; then
+            read -rp "  انتخاب [Y/n]: " fb_mode
+        elif [ -e /dev/tty ]; then
+            read -rp "  انتخاب [Y/n]: " fb_mode < /dev/tty || true
+        fi
+        if [[ ! "$fb_mode" =~ ^[nN] ]]; then
+            USER_DOMAIN=""
+            "$INSTALL_DIR/hyperdns" -domain "none" -public-ip "$PUBLIC_IP" >/dev/null 2>&1 || true
+            pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+            systemctl restart "$SERVICE_NAME" 2>/dev/null || true
+            sleep 2
+        fi
+    fi
+fi
 sleep 2
 
 # Read Credentials and Dashboard Link
