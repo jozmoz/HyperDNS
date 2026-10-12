@@ -299,6 +299,11 @@ func main() {
 	if *bindHost != "" && serverSettings.BindHost != *bindHost {
 		serverSettings.BindHost = *bindHost
 		settingsDirty = true
+	} else if *bindHost == "" && *publicIP != "" && (serverSettings.BindHost == "" || serverSettings.BindHost == "0.0.0.0") {
+		// When an explicit public IP is configured and no specific bind host was given,
+		// bind strictly to that IP instead of wildcard 0.0.0.0 to prevent port collisions.
+		serverSettings.BindHost = *publicIP
+		settingsDirty = true
 	}
 	if *dnsPort > 0 && dnsSettings.Port != *dnsPort {
 		dnsSettings.Port = *dnsPort
@@ -745,7 +750,7 @@ func main() {
 	// Only explicit service modes reach runtime ownership. A bare invocation was
 	// already dispatched to the storage-free control client above.
 	fmt.Print(banner)
-	log.Printf("[Main] Starting HyperDNS Engine (Public IP: %s)...", serverSettings.PublicIP)
+	log.Printf("[Main] Starting HyperDNS Engine (Public IP: %s, Bind: %s)...", serverSettings.PublicIP, serverSettings.BindHost)
 
 	// The daemon owns the only control socket. Start it after all shared services
 	// exist and before public listeners are announced ready. Bare `hdns` is a

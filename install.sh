@@ -49,106 +49,130 @@ echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway 
 echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/HyperDNS${NC}"
 echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}\n"
 
-# Helper: Detect if Port 80 is occupied
-is_port_80_busy() {
-    if command -v ss >/dev/null 2>&1; then
-        if ss -tuln 2>/dev/null | grep -qE ':(80)[[:space:]]'; then
-            return 0
+# Helper: Detect if Port is occupied on a specific IP or wildcard
+# Usage: is_port_busy <port> [ip]
+is_port_busy() {
+    local port="$1"
+    local ip="${2:-}"
+
+    if [ -n "$ip" ] && [ "$ip" != "0.0.0.0" ] && [ "$ip" != "::" ]; then
+        local esc_ip
+        esc_ip=$(echo "$ip" | sed 's/\./\\./g')
+        local pattern="(0\.0\.0\.0|\[::\]|:::?|\*|${esc_ip}):${port}([[:space:]]|$)"
+        if command -v ss >/dev/null 2>&1; then
+            if ss -tuln 2>/dev/null | grep -E "$pattern" >/dev/null 2>&1; then
+                return 0
+            fi
+            return 1
         fi
-    fi
-    if command -v lsof >/dev/null 2>&1; then
-        if lsof -i :80 -sTCP:LISTEN >/dev/null 2>&1; then
-            return 0
+        if command -v netstat >/dev/null 2>&1; then
+            if netstat -tuln 2>/dev/null | grep -E "$pattern" >/dev/null 2>&1; then
+                return 0
+            fi
+            return 1
         fi
-    fi
-    if command -v netstat >/dev/null 2>&1; then
-        if netstat -tuln 2>/dev/null | grep -qE ':(80)[[:space:]]'; then
-            return 0
+        if command -v lsof >/dev/null 2>&1; then
+            if lsof -i "TCP@${ip}:${port}" >/dev/null 2>&1 || lsof -i "UDP@${ip}:${port}" >/dev/null 2>&1 || \
+               lsof -i "TCP@0.0.0.0:${port}" >/dev/null 2>&1 || lsof -i "UDP@0.0.0.0:${port}" >/dev/null 2>&1; then
+                return 0
+            fi
+            return 1
         fi
-    fi
-    if command -v fuser >/dev/null 2>&1; then
-        if fuser 80/tcp >/dev/null 2>&1; then
-            return 0
+    else
+        if command -v ss >/dev/null 2>&1; then
+            if ss -tuln 2>/dev/null | grep -qE ":(${port})[[:space:]]"; then
+                return 0
+            fi
+        fi
+        if command -v lsof >/dev/null 2>&1; then
+            if lsof -i ":${port}" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        if command -v netstat >/dev/null 2>&1; then
+            if netstat -tuln 2>/dev/null | grep -qE ":(${port})[[:space:]]"; then
+                return 0
+            fi
+        fi
+        if command -v fuser >/dev/null 2>&1; then
+            if fuser "${port}/tcp" >/dev/null 2>&1 || fuser "${port}/udp" >/dev/null 2>&1; then
+                return 0
+            fi
         fi
     fi
     return 1
 }
 
-# Helper: Find the process occupying Port 80
-get_port_80_process() {
+# Helper: Identify process occupying a port on a specific IP or wildcard
+get_port_process() {
+    local port="$1"
+    local ip="${2:-}"
     local proc=""
-    if command -v ss >/dev/null 2>&1; then
-        proc=$(ss -tulpn 2>/dev/null | grep -E ':(80)[[:space:]]' | grep -oP 'users:\(\("\K[^"]+' | head -n1)
-    fi
-    if [ -z "$proc" ] && command -v lsof >/dev/null 2>&1; then
-        proc=$(lsof -i :80 -sTCP:LISTEN -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
-    fi
-    if [ -z "$proc" ] && command -v fuser >/dev/null 2>&1; then
-        local pid
-        pid=$(fuser 80/tcp 2>/dev/null | tr -d ' ' | head -n1)
-        if [ -n "$pid" ]; then
-            proc=$(ps -o comm= -p "$pid" 2>/dev/null)
+
+    if [ -n "$ip" ] && [ "$ip" != "0.0.0.0" ] && [ "$ip" != "::" ]; then
+        local esc_ip
+        esc_ip=$(echo "$ip" | sed 's/\./\\./g')
+        local pattern="(0\.0\.0\.0|\[::\]|:::?|\*|${esc_ip}):${port}([[:space:]]|$)"
+        if command -v ss >/dev/null 2>&1; then
+            proc=$(ss -tulpn 2>/dev/null | grep -E "$pattern" | grep -oP 'users:\(\("\K[^"]+' | head -n1)
+        fi
+        if [ -z "$proc" ] && command -v lsof >/dev/null 2>&1; then
+            proc=$(lsof -i "TCP@${ip}:${port}" -sTCP:LISTEN -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
+            [ -z "$proc" ] && proc=$(lsof -i "TCP@0.0.0.0:${port}" -sTCP:LISTEN -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
+        fi
+    else
+        if command -v ss >/dev/null 2>&1; then
+            proc=$(ss -tulpn 2>/dev/null | grep -E ":(${port})[[:space:]]" | grep -oP 'users:\(\("\K[^"]+' | head -n1)
+        fi
+        if [ -z "$proc" ] && command -v lsof >/dev/null 2>&1; then
+            proc=$(lsof -i ":${port}" -sTCP:LISTEN -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
+        fi
+        if [ -z "$proc" ] && command -v fuser >/dev/null 2>&1; then
+            local pid
+            pid=$(fuser "${port}/tcp" 2>/dev/null | tr -d ' ' | head -n1)
+            [ -z "$pid" ] && pid=$(fuser "${port}/udp" 2>/dev/null | tr -d ' ' | head -n1)
+            [ -n "$pid" ] && proc=$(ps -o comm= -p "$pid" 2>/dev/null)
         fi
     fi
     if [ -z "$proc" ]; then
-        if systemctl is-active --quiet nginx 2>/dev/null; then proc="nginx"; fi
-        if systemctl is-active --quiet apache2 2>/dev/null; then proc="apache2"; fi
-        if systemctl is-active --quiet httpd 2>/dev/null; then proc="httpd"; fi
-        if systemctl is-active --quiet caddy 2>/dev/null; then proc="caddy"; fi
-        if systemctl is-active --quiet xray 2>/dev/null; then proc="xray"; fi
-        if systemctl is-active --quiet v2ray 2>/dev/null; then proc="v2ray"; fi
+        if [ "$port" -eq 80 ]; then
+            if systemctl is-active --quiet nginx 2>/dev/null; then proc="nginx"; fi
+            if systemctl is-active --quiet apache2 2>/dev/null; then proc="apache2"; fi
+            if systemctl is-active --quiet httpd 2>/dev/null; then proc="httpd"; fi
+            if systemctl is-active --quiet caddy 2>/dev/null; then proc="caddy"; fi
+        fi
     fi
     echo "${proc:-unknown}"
 }
 
-# Helper: Check if Port 53 is occupied
+# Helper: Detect if Port 80 is occupied (optionally on target IP)
+is_port_80_busy() {
+    is_port_busy 80 "${1:-$PUBLIC_IP}"
+}
+
+# Helper: Find the process occupying Port 80 (optionally on target IP)
+get_port_80_process() {
+    get_port_process 80 "${1:-$PUBLIC_IP}"
+}
+
+# Helper: Check if Port 53 is occupied (optionally on target IP)
 is_port_53_busy() {
-    if command -v ss >/dev/null 2>&1; then
-        if ss -tuln 2>/dev/null | grep -qE ':(53)[[:space:]]'; then
-            return 0
-        fi
-    fi
-    if command -v lsof >/dev/null 2>&1; then
-        if lsof -i :53 >/dev/null 2>&1; then
-            return 0
-        fi
-    fi
-    if command -v netstat >/dev/null 2>&1; then
-        if netstat -tuln 2>/dev/null | grep -qE ':(53)[[:space:]]'; then
-            return 0
-        fi
-    fi
-    if command -v fuser >/dev/null 2>&1; then
-        if fuser 53/udp >/dev/null 2>&1 || fuser 53/tcp >/dev/null 2>&1; then
-            return 0
-        fi
-    fi
-    return 1
+    is_port_busy 53 "${1:-$PUBLIC_IP}"
 }
 
-# Helper: Identify process listening on Port 53
+# Helper: Identify process listening on Port 53 (optionally on target IP)
 get_port_53_process() {
-    local proc=""
-    if command -v ss >/dev/null 2>&1; then
-        proc=$(ss -tulpn 2>/dev/null | grep -E ':(53)[[:space:]]' | grep -oP 'users:\(\("\K[^"]+' | head -n1)
-    fi
-    if [ -z "$proc" ] && command -v lsof >/dev/null 2>&1; then
-        proc=$(lsof -i :53 -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
-    fi
-    if [ -z "$proc" ] && command -v fuser >/dev/null 2>&1; then
-        local pid
-        pid=$(fuser 53/udp 2>/dev/null | tr -d ' ' | head -n1)
-        [ -z "$pid" ] && pid=$(fuser 53/tcp 2>/dev/null | tr -d ' ' | head -n1)
-        if [ -n "$pid" ]; then
-            proc=$(ps -o comm= -p "$pid" 2>/dev/null)
-        fi
-    fi
-    echo "${proc:-unknown}"
+    get_port_process 53 "${1:-$PUBLIC_IP}"
 }
 
 # Helper: Safely release Port 53 and preserve upstream DNS resolution
 free_port_53() {
-    echo -e "  ${CYAN}Freeing DNS Port 53 (disabling conflicting stub listeners & services)...${NC}"
+    local target_ip="${1:-$PUBLIC_IP}"
+    if [ -n "$target_ip" ] && [ "$target_ip" != "0.0.0.0" ]; then
+        echo -e "  ${CYAN}Verifying and freeing DNS Port 53 for IP ${target_ip}...${NC}"
+    else
+        echo -e "  ${CYAN}Freeing DNS Port 53 (disabling conflicting stub listeners & services)...${NC}"
+    fi
 
     # 1. Back up and replace /etc/resolv.conf so host resolution stays working
     if [ ! -f "${INSTALL_DIR}/.resolv-backup" ] && [ -d "${INSTALL_DIR}" ]; then
@@ -171,39 +195,43 @@ options timeout:2 attempts:2
 EOF
     chmod 644 /etc/resolv.conf 2>/dev/null || true
 
-    # 2. Disable systemd-resolved stub listener
-    if [ -f /etc/systemd/resolved.conf ]; then
-        sed -i -E 's/^#?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf 2>/dev/null || true
-        sed -i -E 's/^#?DNS=.*/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf 2>/dev/null || true
-    fi
-    mkdir -p /etc/systemd/resolved.conf.d/
-    cat <<EOF > /etc/systemd/resolved.conf.d/hyperdns.conf
+    # 2. Disable systemd-resolved stub listener if conflict exists on target_ip
+    if is_port_53_busy "$target_ip"; then
+        if [ -f /etc/systemd/resolved.conf ]; then
+            sed -i -E 's/^#?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf 2>/dev/null || true
+            sed -i -E 's/^#?DNS=.*/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf 2>/dev/null || true
+        fi
+        mkdir -p /etc/systemd/resolved.conf.d/
+        cat <<EOF > /etc/systemd/resolved.conf.d/hyperdns.conf
 [Resolve]
 DNS=1.1.1.1 8.8.8.8
 DNSStubListener=no
 EOF
-    chmod 755 /etc/systemd/resolved.conf.d 2>/dev/null || true
-    chmod 644 /etc/systemd/resolved.conf.d/hyperdns.conf 2>/dev/null || true
+        chmod 755 /etc/systemd/resolved.conf.d 2>/dev/null || true
+        chmod 644 /etc/systemd/resolved.conf.d/hyperdns.conf 2>/dev/null || true
 
-    if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
-        systemctl restart systemd-resolved 2>/dev/null || true
-        sleep 1
+        if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+            systemctl restart systemd-resolved 2>/dev/null || true
+            sleep 1
+        fi
     fi
 
-    # 3. Stop and disable competing standalone DNS services
-    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor knot-resolver cottenrouter xray v2ray; do
-        if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
-            echo -e "    ${YELLOW}Stopping competing DNS service: ${d_svc}...${NC}"
-            systemctl stop "$d_svc" 2>/dev/null || true
-            systemctl disable "$d_svc" 2>/dev/null || true
-        fi
-    done
+    # 3. Stop traditional competing DNS services ONLY if Port 53 on target_ip is occupied
+    if is_port_53_busy "$target_ip"; then
+        for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor knot-resolver; do
+            if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
+                echo -e "    ${YELLOW}Stopping competing DNS service: ${d_svc}...${NC}"
+                systemctl stop "$d_svc" 2>/dev/null || true
+                systemctl disable "$d_svc" 2>/dev/null || true
+            fi
+        done
+    fi
 
-    # 4. If Port 53 is still held, kill the occupying process
-    if is_port_53_busy; then
+    # 4. If Port 53 is still held on target_ip, terminate the specific occupying process
+    if is_port_53_busy "$target_ip"; then
         local p53_owner
-        p53_owner=$(get_port_53_process)
-        echo -e "    ${YELLOW}Port 53 is still held by '${p53_owner}'. Terminating listener...${NC}"
+        p53_owner=$(get_port_53_process "$target_ip")
+        echo -e "    ${YELLOW}Port 53 on ${target_ip:-system} is still held by '${p53_owner}'. Terminating listener...${NC}"
 
         if [ "$p53_owner" = "systemd-resolve" ] || [ "$p53_owner" = "systemd-resolved" ]; then
             systemctl stop systemd-resolved 2>/dev/null || true
@@ -229,10 +257,10 @@ options timeout:2 attempts:2
 EOF
     fi
 
-    if is_port_53_busy; then
-        echo -e "    ${YELLOW}⚠️  Warning: Port 53 is still occupied by $(get_port_53_process).${NC}"
+    if is_port_53_busy "$target_ip"; then
+        echo -e "    ${YELLOW}⚠️  Warning: Port 53 is still occupied by $(get_port_53_process "$target_ip").${NC}"
     else
-        echo -e "    ${GREEN}✓ Port 53 successfully freed!${NC}"
+        echo -e "    ${GREEN}✓ Port 53 successfully freed for ${target_ip:-all}!${NC}"
     fi
 }
 
@@ -414,16 +442,16 @@ manual_ssl_wizard() {
                 if [[ "$stop_ok" =~ ^[yY] ]]; then
                     systemctl stop "$occ_proc" 2>/dev/null || pkill -15 "$occ_proc" 2>/dev/null || true
                     sleep 1
-                    if is_port_80_busy; then
-                        echo -e "  ${RED}پورت ۸۰ هنوز اشغال است! توقف سرویس انجام نشد.${NC}"
+                    if is_port_80_busy "$public_ip"; then
+                        echo -e "  ${RED}پورت ۸۰ روی ${public_ip} هنوز اشغال است! توقف سرویس انجام نشد.${NC}"
                     else
-                        echo -e "  ${GREEN}✓ پورت ۸۰ آزاد شد.${NC}"
+                        echo -e "  ${GREEN}✓ پورت ۸۰ روی ${public_ip} آزاد شد.${NC}"
                         echo -e "  در حال صدور سرتیفیکیت Standalone..."
 
                         if command -v certbot >/dev/null 2>&1; then
                             local cb_mail="--register-unsafely-without-email"
                             [ -n "$email" ] && cb_mail="--email ${email} --no-eff-email"
-                            certbot certonly --standalone -d "${domain}" ${cb_mail} --agree-tos --non-interactive 2>/dev/null || true
+                            certbot certonly --standalone --http-01-address "${public_ip}" -d "${domain}" ${cb_mail} --agree-tos --non-interactive 2>/dev/null || true
                         fi
 
                         local cb_live_cert="/etc/letsencrypt/live/${domain}/fullchain.pem"
@@ -433,7 +461,7 @@ manual_ssl_wizard() {
                             echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت دریافت و نصب شد!${NC}"
                         elif [ -f "${INSTALL_DIR}/hyperdns" ]; then
                             echo -e "  تلاش صدور از طریق موتور داخلی HyperDNS..."
-                            timeout 20 "${INSTALL_DIR}/hyperdns" -server -domain "${domain}" -email "${email}" -public-ip "${public_ip}" >/dev/null 2>&1 || true
+                            timeout 20 "${INSTALL_DIR}/hyperdns" -server -domain "${domain}" -email "${email}" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
                             if [ -f "${INSTALL_DIR}/certs/acme/${domain}.crt" ]; then
                                 install_cert_files "${INSTALL_DIR}/certs/acme/${domain}.crt" "${INSTALL_DIR}/certs/acme/${domain}.key" "$domain"
                                 echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت صادر و ذخیره شد!${NC}"
@@ -526,17 +554,17 @@ manual_ssl_wizard() {
                 USER_DOMAIN=""
                 USER_EMAIL=""
                 if [ -f "${INSTALL_DIR}/hyperdns" ]; then
-                    "${INSTALL_DIR}/hyperdns" -domain "none" >/dev/null 2>&1 || true
+                    "${INSTALL_DIR}/hyperdns" -domain "none" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
                 fi
                 return 0
                 ;;
             6)
-                echo -e "\n  در حال بررسی مجدد پورت ۸۰..."
-                if ! is_port_80_busy; then
-                    echo -e "  ${GREEN}✓ پورت ۸۰ آزاد است!${NC}"
+                echo -e "\n  در حال بررسی مجدد پورت ۸۰ روی ${public_ip}..."
+                if ! is_port_80_busy "$public_ip"; then
+                    echo -e "  ${GREEN}✓ پورت ۸۰ روی ${public_ip} آزاد است!${NC}"
                     return 0
                 else
-                    echo -e "  ${RED}پورت ۸۰ هنوز اشغال است.${NC}"
+                    echo -e "  ${RED}پورت ۸۰ روی ${public_ip} هنوز اشغال است.${NC}"
                 fi
                 ;;
             *)
@@ -721,22 +749,22 @@ fi
 
 # Check if Port 80 is occupied when a domain was selected
 if [ -n "$USER_DOMAIN" ]; then
-    if is_port_80_busy; then
-        OCC_PROC=$(get_port_80_process)
+    if is_port_80_busy "$PUBLIC_IP"; then
+        OCC_PROC=$(get_port_80_process "$PUBLIC_IP")
         echo ""
         echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
-        echo -e "${RED}${BOLD}  ⚠️  اخطار: پورت ۸۰ سرور اشغال است! / Warning: Port 80 is occupied!${NC}"
+        echo -e "${RED}${BOLD}  ⚠️  اخطار: پورت ۸۰ روی ${PUBLIC_IP} اشغال است! / Warning: Port 80 on ${PUBLIC_IP} is occupied!${NC}"
         echo -e "${YELLOW}      پروسه در حال استفاده / Occupying Process: ${CYAN}${BOLD}${OCC_PROC}${NC}"
         echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
-        echo -e "  پروتکل Let's Encrypt برای صدور خودکار SSL به پورت ۸۰ آزاد نیاز دارد."
+        echo -e "  پروتکل Let's Encrypt برای صدور خودکار SSL به پورت ۸۰ آزاد روی ${PUBLIC_IP} نیاز دارد."
         echo -e "  چون این پورت اشغال است، لطفاً روش دریافت یا تنظیم دستی سرتیفیکیت را مشخص کنید.\n"
 
-        manual_ssl_wizard "$USER_DOMAIN" "$USER_EMAIL" "$PUBLIC_IP" "Port 80 is occupied by ${OCC_PROC}"
+        manual_ssl_wizard "$USER_DOMAIN" "$USER_EMAIL" "$PUBLIC_IP" "Port 80 on ${PUBLIC_IP} is occupied by ${OCC_PROC}"
     fi
 fi
 
-# Free Port 53 from systemd-resolved and any competing DNS servers
-free_port_53
+# Free Port 53 for chosen IP
+free_port_53 "$PUBLIC_IP"
 
 # 5. Setup Installation Directories
 mkdir -p "$INSTALL_DIR"
@@ -817,7 +845,12 @@ EOF
     echo -e "  ${GREEN}✓ Dedicated SSL certificate generated for IP ${PUBLIC_IP}!${NC}"
 fi
 
-# Ensure systemd service configuration
+# Enable nonlocal bind in kernel so HyperDNS can bind to any designated IP address cleanly
+sysctl -w net.ipv4.ip_nonlocal_bind=1 >/dev/null 2>&1 || true
+mkdir -p /etc/sysctl.d 2>/dev/null || true
+echo "net.ipv4.ip_nonlocal_bind=1" > /etc/sysctl.d/99-hyperdns.conf 2>/dev/null || true
+
+# Ensure systemd service configuration (strictly bound to selected PUBLIC_IP)
 cat <<EOF > /etc/systemd/system/hyperdns.service
 [Unit]
 Description=HyperDNS Standalone SmartDNS & Gaming Gateway
@@ -826,7 +859,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/hyperdns -server -public-ip ${PUBLIC_IP}
+ExecStart=${INSTALL_DIR}/hyperdns -server -public-ip ${PUBLIC_IP} -bind ${PUBLIC_IP}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -843,7 +876,7 @@ systemctl daemon-reload
 echo -e "\n${CYAN}[5/5] Initializing HyperDNS and starting background engine...${NC}"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
-free_port_53
+free_port_53 "$PUBLIC_IP"
 
 BOOTSTRAP_LOG="$INSTALL_DIR/install.log"
 rm -f "$BOOTSTRAP_LOG"
@@ -851,11 +884,11 @@ rm -f "$BOOTSTRAP_LOG"
 if [ -n "$USER_DOMAIN" ]; then
     if is_valid_domain_cert "$USER_DOMAIN"; then
         echo -e "  Starting HyperDNS engine with verified certificate for ${GREEN}${USER_DOMAIN}${NC}..."
-        timeout 10 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+        timeout 10 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
         pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
     else
         echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and setting up Let's Encrypt SSL..."
-        timeout 20 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+        timeout 20 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
         pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 
         # If automated issuance failed or timed out:
@@ -870,13 +903,13 @@ if [ -n "$USER_DOMAIN" ]; then
     fi
 else
     echo -e "  Configuring direct IP mode with dedicated SSL..."
-    timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+    timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
     pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 fi
 
 # Enable and start the permanent background service safely
 pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
-free_port_53
+free_port_53 "$PUBLIC_IP"
 systemctl daemon-reload || true
 systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
 echo -e "  Starting HyperDNS background service via systemd..."
@@ -903,7 +936,7 @@ if [ "$SVC_ACTIVE" = false ]; then
     # Check if the failure was caused by Port 53 collision
     if echo "$SVC_ERR_LOG" | grep -iqE "bind: address already in use|bind DNS UDP.*:53|bind DNS TCP.*:53"; then
         echo -e "\n${YELLOW}⚠️  تشخیص: پورت ۵۳ هنوز آزاد نشده بود. در حال آزادسازی اجباری و راه‌اندازی مجدد...${NC}"
-        free_port_53
+        free_port_53 "$PUBLIC_IP"
         systemctl restart "$SERVICE_NAME" 2>/dev/null || true
         for i in 1 2 3 4 5; do
             if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
@@ -930,9 +963,9 @@ if [ "$SVC_ACTIVE" = false ]; then
             fi
             if [[ "$fb_mode" =~ ^[yY] ]]; then
                 USER_DOMAIN=""
-                "$INSTALL_DIR/hyperdns" -domain "none" -public-ip "$PUBLIC_IP" >/dev/null 2>&1 || true
+                "$INSTALL_DIR/hyperdns" -domain "none" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" >/dev/null 2>&1 || true
                 pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
-                free_port_53
+                free_port_53 "$PUBLIC_IP"
                 systemctl restart "$SERVICE_NAME" 2>/dev/null || true
                 sleep 2
             fi
