@@ -53,6 +53,7 @@ func main() {
 	keyPath := flag.String("key", "", "Path to master encryption key (e.g. /opt/hyperdns/master.key)")
 	configPath := flag.String("config", "", "Path to config.json (default settings used when DB has no value)")
 	bindHost := flag.String("host", "", "Override bind host IP (e.g. 0.0.0.0)")
+	bindFlag := flag.String("bind", "", "Override bind host IP (alias for -host)")
 	dnsPort := flag.Int("dns-port", 0, "Override DNS Port (e.g. 53)")
 	webPort := flag.Int("web-port", 0, "Override Web Dashboard Port (e.g. 8080)")
 	publicIP := flag.String("public-ip", "", "Override Server Public IP")
@@ -296,10 +297,14 @@ func main() {
 	settingsDirty := !serverWasPersisted
 
 	// Explicit CLI flags are the highest precedence override
-	if *bindHost != "" && serverSettings.BindHost != *bindHost {
-		serverSettings.BindHost = *bindHost
+	effectiveBind := *bindHost
+	if effectiveBind == "" {
+		effectiveBind = *bindFlag
+	}
+	if effectiveBind != "" && serverSettings.BindHost != effectiveBind {
+		serverSettings.BindHost = effectiveBind
 		settingsDirty = true
-	} else if *bindHost == "" && *publicIP != "" && (serverSettings.BindHost == "" || serverSettings.BindHost == "0.0.0.0") {
+	} else if effectiveBind == "" && *publicIP != "" && (serverSettings.BindHost == "" || serverSettings.BindHost == "0.0.0.0") {
 		// When an explicit public IP is configured and no specific bind host was given,
 		// bind strictly to that IP instead of wildcard 0.0.0.0 to prevent port collisions.
 		serverSettings.BindHost = *publicIP

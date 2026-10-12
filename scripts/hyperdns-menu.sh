@@ -367,8 +367,14 @@ is_valid_domain_cert() {
     local k_path="${INSTALL_DIR}/certs/acme/${domain}.key"
 
     if [ ! -s "$c_path" ] || [ ! -s "$k_path" ]; then
-        c_path="${INSTALL_DIR}/certs/cert.pem"
-        k_path="${INSTALL_DIR}/certs/key.pem"
+        if [ -s "/etc/letsencrypt/live/${domain}/fullchain.pem" ] && [ -s "/etc/letsencrypt/live/${domain}/privkey.pem" ]; then
+            install_cert_files "/etc/letsencrypt/live/${domain}/fullchain.pem" "/etc/letsencrypt/live/${domain}/privkey.pem" "$domain"
+            c_path="${INSTALL_DIR}/certs/acme/${domain}.crt"
+            k_path="${INSTALL_DIR}/certs/acme/${domain}.key"
+        else
+            c_path="${INSTALL_DIR}/certs/cert.pem"
+            k_path="${INSTALL_DIR}/certs/key.pem"
+        fi
     fi
 
     [ ! -s "$c_path" ] && return 1
@@ -631,7 +637,11 @@ change_domain_ssl() {
             new_email=$(echo "$new_email" | tr -d '[:space:]')
             [ -z "$new_email" ] && new_email="admin@${new_domain}"
 
-            if is_port_80_busy "$s_ip"; then
+            echo -e "\n${CYAN}Stopping service temporarily...${NC}"
+            systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+            pkill -9 -f "$BIN_PATH" 2>/dev/null || true
+
+            if ! is_valid_domain_cert "$new_domain" && is_port_80_busy "$s_ip"; then
                 local occ_proc
                 occ_proc=$(get_port_80_process "$s_ip")
                 echo ""
@@ -644,9 +654,6 @@ change_domain_ssl() {
 
                 manual_ssl_wizard "$new_domain" "$new_email" "$s_ip" "Port 80 on ${s_ip} is occupied by ${occ_proc}"
             else
-                echo -e "\n${CYAN}Stopping service temporarily...${NC}"
-                systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-
                 echo -e "${CYAN}Requesting SSL & updating domain to '${new_domain}'...${NC}"
                 if [ -f "$BIN_PATH" ]; then
                     timeout 15 "$BIN_PATH" -server -domain "$new_domain" -email "$new_email" -public-ip "$s_ip" -bind "$s_ip" >/dev/null 2>&1 || true

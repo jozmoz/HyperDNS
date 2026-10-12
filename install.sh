@@ -289,8 +289,14 @@ is_valid_domain_cert() {
     local k_path="${INSTALL_DIR}/certs/acme/${domain}.key"
 
     if [ ! -s "$c_path" ] || [ ! -s "$k_path" ]; then
-        c_path="${INSTALL_DIR}/certs/cert.pem"
-        k_path="${INSTALL_DIR}/certs/key.pem"
+        if [ -s "/etc/letsencrypt/live/${domain}/fullchain.pem" ] && [ -s "/etc/letsencrypt/live/${domain}/privkey.pem" ]; then
+            install_cert_files "/etc/letsencrypt/live/${domain}/fullchain.pem" "/etc/letsencrypt/live/${domain}/privkey.pem" "$domain"
+            c_path="${INSTALL_DIR}/certs/acme/${domain}.crt"
+            k_path="${INSTALL_DIR}/certs/acme/${domain}.key"
+        else
+            c_path="${INSTALL_DIR}/certs/cert.pem"
+            k_path="${INSTALL_DIR}/certs/key.pem"
+        fi
     fi
 
     [ ! -s "$c_path" ] && return 1
@@ -747,8 +753,12 @@ elif command -v yum >/dev/null 2>&1; then
     yum install -y -q curl openssl lsof systemd iptables net-tools psmisc || true
 fi
 
-# Check if Port 80 is occupied when a domain was selected
-if [ -n "$USER_DOMAIN" ]; then
+# Stop existing HyperDNS instance so it does not falsely occupy ports or trigger conflicts
+systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+
+# Check if Port 80 is occupied only when a domain was selected AND we don't already have a valid certificate
+if [ -n "$USER_DOMAIN" ] && ! is_valid_domain_cert "$USER_DOMAIN"; then
     if is_port_80_busy "$PUBLIC_IP"; then
         OCC_PROC=$(get_port_80_process "$PUBLIC_IP")
         echo ""
