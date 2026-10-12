@@ -871,6 +871,7 @@ function renderConfig(cfg) {
   setSwitch('preset-rockstar', cfg.rules.enable_rockstar);
   setSwitch('preset-xbox', cfg.rules.enable_xbox);
   setSwitch('preset-playstation', cfg.rules.enable_playstation);
+  setSwitch('preset-nintendo', cfg.rules.enable_nintendo);
   setSwitch('preset-roblox', cfg.rules.enable_roblox);
   setSwitch('preset-shooters-extra', cfg.rules.enable_shooters_extra);
   setSwitch('preset-anime-gacha', cfg.rules.enable_anime_gacha);
@@ -981,6 +982,7 @@ async function saveRules() {
     enable_rockstar: getSwitch('preset-rockstar'),
     enable_xbox: getSwitch('preset-xbox'),
     enable_playstation: getSwitch('preset-playstation'),
+    enable_nintendo: getSwitch('preset-nintendo'),
     enable_roblox: getSwitch('preset-roblox'),
     enable_shooters_extra: getSwitch('preset-shooters-extra'),
     enable_anime_gacha: getSwitch('preset-anime-gacha'),
@@ -3023,12 +3025,12 @@ function initEventListeners() {
   // Quick Action Profiles
   document.getElementById('profile-gaming-btn')?.addEventListener('click', () => {
     ['preset-riot', 'preset-epic', 'preset-steam', 'preset-pubg', 'preset-cod', 'preset-supercell',
-     'preset-ea', 'preset-blizzard', 'preset-ubisoft', 'preset-rockstar', 'preset-xbox', 'preset-playstation', 'preset-roblox',
+     'preset-ea', 'preset-blizzard', 'preset-ubisoft', 'preset-rockstar', 'preset-xbox', 'preset-playstation', 'preset-nintendo', 'preset-roblox',
      'preset-shooters-extra', 'preset-anime-gacha', 'preset-sports-racing', 'preset-coop-survival', 'preset-platforms-extra'].forEach(id => {
       setSwitch(id, true);
     });
     saveRules();
-    showToast('Pro Gamer Profile (All 171 Games) Activated!', 'success');
+    showToast('Pro Gamer Profile (All 172 Games) Activated!', 'success');
   });
 
   document.getElementById('profile-streamer-btn')?.addEventListener('click', () => {
@@ -3056,7 +3058,7 @@ function initEventListeners() {
   const switches = [
     'preset-riot', 'preset-epic', 'preset-steam', 'preset-pubg', 'preset-cod', 'preset-supercell',
     'preset-discord', 'preset-ea', 'preset-blizzard', 'preset-ubisoft', 'preset-rockstar', 
-    'preset-xbox', 'preset-playstation', 'preset-roblox',
+    'preset-xbox', 'preset-playstation', 'preset-nintendo', 'preset-roblox',
     'preset-shooters-extra', 'preset-anime-gacha', 'preset-sports-racing', 'preset-coop-survival', 'preset-platforms-extra',
     'preset-spotify', 'preset-twitch', 'preset-kick', 
     'preset-dev403', 'preset-adblock', 'preset-familysafe',

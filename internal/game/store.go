@@ -59,23 +59,46 @@ func (s *Store) InitSeeds() error {
 		_, _ = tx.CreateBucketIfNotExists(bucketDiscoveries)
 		_, _ = tx.CreateBucketIfNotExists(bucketAuditLogs)
 
-		// Seed games if bucket is empty
-		if bGames.Stats().KeyN == 0 {
-			seeds := DefaultSeedProfiles()
-			for _, profile := range seeds {
-				data, err := json.Marshal(profile)
-				if err != nil {
-					return err
+		// Seed games and ensure all default seed profiles exist
+		seeds := DefaultSeedProfiles()
+		for _, seed := range seeds {
+			existingData := bGames.Get([]byte(seed.ID))
+			if existingData == nil {
+				data, err := json.Marshal(seed)
+				if err == nil {
+					_ = bGames.Put([]byte(seed.ID), data)
 				}
-				if err := bGames.Put([]byte(profile.ID), data); err != nil {
-					return err
-				}
-
-				// Also populate domain intelligence table
-				for _, dom := range profile.Domains {
+				for _, dom := range seed.Domains {
 					domData, err := json.Marshal(dom)
 					if err == nil {
 						_ = bDomains.Put([]byte(normalizeDomain(dom.Hostname)), domData)
+					}
+				}
+			} else {
+				// Merge new seed domains into existing profile so upgrades get all endpoints
+				var existing GameProfile
+				if err := json.Unmarshal(existingData, &existing); err == nil {
+					changed := false
+					if existing.Domains == nil {
+						existing.Domains = make(map[string]DomainRecord)
+					}
+					for host, dom := range seed.Domains {
+						if _, ok := existing.Domains[host]; !ok {
+							existing.Domains[host] = dom
+							changed = true
+						}
+						norm := normalizeDomain(host)
+						if bDomains.Get([]byte(norm)) == nil {
+							domData, err := json.Marshal(dom)
+							if err == nil {
+								_ = bDomains.Put([]byte(norm), domData)
+							}
+						}
+					}
+					if changed {
+						if data, err := json.Marshal(existing); err == nil {
+							_ = bGames.Put([]byte(existing.ID), data)
+						}
 					}
 				}
 			}

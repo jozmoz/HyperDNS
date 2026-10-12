@@ -459,6 +459,10 @@
     'PSN · PS5 / PS4 Store': 'PSN · استور PS5 / PS4',
     'Unblocks PlayStation Network login and store connection.':
       'ورود به PlayStation Network و اتصال به استور را باز می‌کند.',
+    'Nintendo Switch': 'Nintendo Switch',
+    'Switch Online · eShop': 'Switch Online · استور eShop',
+    'Unblocks Nintendo Switch Online, eShop connection and game lobbies.':
+      'سرویس Nintendo Switch Online، اتصال به فروشگاه eShop و لابی بازی‌ها را باز می‌کند.',
     'Client · Assets CDN': 'کلاینت · CDN دارایی‌ها',
     'Bypasses Roblox client connection blocks and asset download errors.':
       'مسدودی اتصال کلاینت Roblox و خطاهای دانلود دارایی را دور می‌زند.',

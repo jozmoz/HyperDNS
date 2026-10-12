@@ -930,6 +930,7 @@ input:checked + .slider:before {
 .card-rockstar    { --accent: 245 158 11; }
 .card-xbox        { --accent: 16 185 129; }
 .card-playstation { --accent: 59 130 246; }
+.card-nintendo    { --accent: 239 68 68; }
 .card-spotify     { --accent: 29 185 84; }
 .card-pubg        { --accent: 251 191 36; }
 .card-codm        { --accent: 52 211 153; }

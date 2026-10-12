@@ -51,6 +51,7 @@
     "enable_rockstar": true,
     "enable_xbox": true,
     "enable_playstation": true,
+    "enable_nintendo": true,
     "enable_roblox": true,
     "enable_shooters_extra": true,
     "enable_anime_gacha": true,

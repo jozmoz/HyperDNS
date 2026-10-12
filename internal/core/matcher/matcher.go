@@ -694,6 +694,7 @@ var PresetRuleKeys = map[string]string{
 	"enable_rockstar":        "Rockstar Games & GTA V",
 	"enable_xbox":            "Xbox Live & Game Pass",
 	"enable_playstation":     "PlayStation Network (PSN)",
+	"enable_nintendo":        "Nintendo Switch & Network",
 	"enable_roblox":          "Roblox Gaming Platform",
 	"enable_shooters_extra":  "Tactical & Shooters Extra (Escape from Tarkov, Rust)",
 	"enable_anime_gacha":     "Anime, Gacha & Eastern RPGs (Genshin, Honkai)",
@@ -754,6 +755,7 @@ var policyCatalogOrder = []string{
 
 	"enable_xbox",
 	"enable_playstation",
+	"enable_nintendo",
 	"enable_platforms_extra",
 
 	"enable_discord",
