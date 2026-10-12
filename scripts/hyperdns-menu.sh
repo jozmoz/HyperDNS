@@ -1321,7 +1321,7 @@ change_admin_password() {
     echo -e "\n${CYAN}Updating admin password in database...${NC}"
     systemctl stop "$SERVICE_NAME" 2>/dev/null || true
     if [ -f "$BIN_PATH" ]; then
-        timeout 5 "$BIN_PATH" -password "$new_pass" >/dev/null 2>&1 || true
+        timeout 5 "$BIN_PATH" -password "$new_pass" < /dev/null >/dev/null 2>&1 || true
     fi
     systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
 

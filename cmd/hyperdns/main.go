@@ -73,11 +73,13 @@ func main() {
 		return
 	}
 
-	if handled, exitCode := runPreDBCommand(preDBArgs(flag.Args(), *daemonMode, *serverMode), *configPath, os.Stdout, os.Stderr); handled {
-		if exitCode != 0 {
-			os.Exit(exitCode)
+	if *passwordFlag == "" {
+		if handled, exitCode := runPreDBCommand(preDBArgs(flag.Args(), *daemonMode, *serverMode), *configPath, os.Stdout, os.Stderr); handled {
+			if exitCode != 0 {
+				os.Exit(exitCode)
+			}
+			return
 		}
-		return
 	}
 
 	// 1. Resolve DB and Key paths

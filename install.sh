@@ -894,11 +894,11 @@ rm -f "$BOOTSTRAP_LOG"
 if [ -n "$USER_DOMAIN" ]; then
     if is_valid_domain_cert "$USER_DOMAIN"; then
         echo -e "  Starting HyperDNS engine with verified certificate for ${GREEN}${USER_DOMAIN}${NC}..."
-        timeout 10 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+        timeout 10 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
         pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
     else
         echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and setting up Let's Encrypt SSL..."
-        timeout 20 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+        timeout 20 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
         pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 
         # If automated issuance failed or timed out:
@@ -913,7 +913,7 @@ if [ -n "$USER_DOMAIN" ]; then
     fi
 else
     echo -e "  Configuring direct IP mode with dedicated SSL..."
-    timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+    timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
     pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
 fi
 
@@ -973,7 +973,7 @@ if [ "$SVC_ACTIVE" = false ]; then
             fi
             if [[ "$fb_mode" =~ ^[yY] ]]; then
                 USER_DOMAIN=""
-                "$INSTALL_DIR/hyperdns" -domain "none" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" >/dev/null 2>&1 || true
+                "$INSTALL_DIR/hyperdns" -domain "none" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null >/dev/null 2>&1 || true
                 pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
                 free_port_53 "$PUBLIC_IP"
                 systemctl restart "$SERVICE_NAME" 2>/dev/null || true
@@ -1025,7 +1025,7 @@ fi
 if [ -z "$PASSWORD" ]; then
     PASSWORD=$(openssl rand -hex 12 2>/dev/null || date +%s%N | sha256sum | head -c 24)
     systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-    "$INSTALL_DIR/hyperdns" -password "$PASSWORD" >/dev/null 2>&1 || true
+    "$INSTALL_DIR/hyperdns" -password "$PASSWORD" < /dev/null >/dev/null 2>&1 || true
     systemctl start "$SERVICE_NAME" 2>/dev/null || true
 fi
 
