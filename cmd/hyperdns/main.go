@@ -313,9 +313,17 @@ func main() {
 		settingsDirty = true
 	}
 	if *domainFlag != "" {
-		tlsSettings.Domain = strings.TrimSpace(*domainFlag)
-		tlsSettings.AutoRenewACME = true
-		_ = db.SetSetting("tls", tlsSettings)
+		cleanDomain := strings.TrimSpace(*domainFlag)
+		if strings.EqualFold(cleanDomain, "none") || strings.EqualFold(cleanDomain, "clear") || strings.EqualFold(cleanDomain, "ip") {
+			tlsSettings.Domain = ""
+			tlsSettings.AutoRenewACME = false
+			_ = db.SetSetting("tls", tlsSettings)
+			log.Printf("[Main] Cleared panel domain — switched to direct IP mode.")
+		} else {
+			tlsSettings.Domain = cleanDomain
+			tlsSettings.AutoRenewACME = true
+			_ = db.SetSetting("tls", tlsSettings)
+		}
 	}
 	if *emailFlag != "" {
 		tlsSettings.Email = strings.TrimSpace(*emailFlag)

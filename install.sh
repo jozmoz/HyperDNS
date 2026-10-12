@@ -49,6 +49,331 @@ echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway 
 echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/HyperDNS${NC}"
 echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}\n"
 
+# Helper: Detect if Port 80 is occupied
+is_port_80_busy() {
+    if command -v ss >/dev/null 2>&1; then
+        if ss -tuln 2>/dev/null | grep -qE ':(80)[[:space:]]'; then
+            return 0
+        fi
+    fi
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -i :80 -sTCP:LISTEN >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    if command -v netstat >/dev/null 2>&1; then
+        if netstat -tuln 2>/dev/null | grep -qE ':(80)[[:space:]]'; then
+            return 0
+        fi
+    fi
+    if command -v fuser >/dev/null 2>&1; then
+        if fuser 80/tcp >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Helper: Find the process occupying Port 80
+get_port_80_process() {
+    local proc=""
+    if command -v ss >/dev/null 2>&1; then
+        proc=$(ss -tulpn 2>/dev/null | grep -E ':(80)[[:space:]]' | grep -oP 'users:\(\("\K[^"]+' | head -n1)
+    fi
+    if [ -z "$proc" ] && command -v lsof >/dev/null 2>&1; then
+        proc=$(lsof -i :80 -sTCP:LISTEN -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
+    fi
+    if [ -z "$proc" ] && command -v fuser >/dev/null 2>&1; then
+        local pid
+        pid=$(fuser 80/tcp 2>/dev/null | tr -d ' ' | head -n1)
+        if [ -n "$pid" ]; then
+            proc=$(ps -o comm= -p "$pid" 2>/dev/null)
+        fi
+    fi
+    if [ -z "$proc" ]; then
+        if systemctl is-active --quiet nginx 2>/dev/null; then proc="nginx"; fi
+        if systemctl is-active --quiet apache2 2>/dev/null; then proc="apache2"; fi
+        if systemctl is-active --quiet httpd 2>/dev/null; then proc="httpd"; fi
+        if systemctl is-active --quiet caddy 2>/dev/null; then proc="caddy"; fi
+        if systemctl is-active --quiet xray 2>/dev/null; then proc="xray"; fi
+        if systemctl is-active --quiet v2ray 2>/dev/null; then proc="v2ray"; fi
+    fi
+    echo "${proc:-unknown}"
+}
+
+# Helper: Install verified certificate files into HyperDNS directories
+install_cert_files() {
+    local cert_src="$1"
+    local key_src="$2"
+    local domain="$3"
+
+    mkdir -p "${INSTALL_DIR}/certs/acme"
+    cp -L "$cert_src" "${INSTALL_DIR}/certs/cert.pem" 2>/dev/null || true
+    cp -L "$key_src" "${INSTALL_DIR}/certs/key.pem" 2>/dev/null || true
+    if [ -n "$domain" ]; then
+        cp -L "$cert_src" "${INSTALL_DIR}/certs/acme/${domain}.crt" 2>/dev/null || true
+        cp -L "$key_src" "${INSTALL_DIR}/certs/acme/${domain}.key" 2>/dev/null || true
+    fi
+    chmod 600 "${INSTALL_DIR}/certs/"*.pem "${INSTALL_DIR}/certs/acme/"* 2>/dev/null || true
+}
+
+# Helper: Interactive Guided Wizard for manual SSL when Port 80 is occupied
+manual_ssl_wizard() {
+    local domain="$1"
+    local email="$2"
+    local public_ip="$3"
+    local reason="${4:-Port 80 is occupied}"
+
+    local TTY_DEV=""
+    if [ -t 0 ]; then
+        TTY_DEV=""
+    elif [ -e /dev/tty ]; then
+        TTY_DEV="/dev/tty"
+    else
+        echo -e "${YELLOW}  [!] Non-interactive session: Switching to Direct IP mode...${NC}"
+        USER_DOMAIN=""
+        USER_EMAIL=""
+        return 0
+    fi
+
+    while true; do
+        local occ_proc
+        occ_proc=$(get_port_80_process)
+        [ -z "$occ_proc" ] && occ_proc="unknown"
+
+        echo ""
+        echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
+        echo -e "${RED}${BOLD}  ⚠️  اخطار: صدور خودکار SSL روی پورت ۸۰ امکان‌پذیر نیست!${NC}"
+        echo -e "${YELLOW}      دلیل / Reason: ${reason}${NC}"
+        if [ "$occ_proc" != "unknown" ]; then
+            echo -e "${YELLOW}      پروسه اشغال‌کننده پورت ۸۰: ${CYAN}${BOLD}${occ_proc}${NC}"
+        fi
+        echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
+        echo -e "  دامنه: ${CYAN}${domain}${NC}"
+        echo -e "  پروتکل Let's Encrypt برای صدور خودکار (HTTP-01) به پورت 80 آزاد نیاز دارد."
+        echo -e "  لطفاً یکی از روش‌های زیر را برای دریافت یا تنظیم دستی سرتیفیکیت انتخاب کنید:\n"
+        echo -e "  ${CYAN}[1]${NC} ${GREEN}${BOLD}دریافت دستی با چالش DNS در Certbot (بدون نیاز به پورت ۸۰)${NC} ${YELLOW}★ توصیه می‌شود${NC}"
+        echo -e "      Certbot DNS-01 Challenge (با افزودن یک رکورد TXT در پنل کلودفلر/DNS دامنه)"
+        echo -e "  ${CYAN}[2]${NC} ${BOLD}توقف موقت پروسه اشغال‌کننده (${occ_proc}) و صدور خودکار SSL${NC}"
+        echo -e "      Temporarily stop '${occ_proc}', issue certificate, and restart it"
+        echo -e "  ${CYAN}[3]${NC} ${BOLD}معرفی مسیر فایل‌های سرتیفیکیت موجود روی سرور (.crt/.pem و .key)${NC}"
+        echo -e "      Specify paths to existing certificate and private key files on disk"
+        echo -e "  ${CYAN}[4]${NC} ${BOLD}پیست کردن مستقیم محتوای سرتیفیکیت و کلید در ترمینال${NC}"
+        echo -e "      Paste Certificate & Private Key PEM text directly into terminal"
+        echo -e "  ${CYAN}[5]${NC} ${YELLOW}${BOLD}انصراف از دامنه و استفاده از حالت IP مستقیم (Direct IP Mode)${NC}"
+        echo -e "      Switch to Direct IP mode with dedicated SSL certificate"
+        echo -e "  ${CYAN}[6]${NC} ${BOLD}بررسی مجدد وضعیت پورت ۸۰ (Retry)${NC}\n"
+
+        local wiz_choice=""
+        if [ -n "$TTY_DEV" ]; then
+            read -rp "  شماره گزینه مورد نظر را انتخاب کنید [1-6] (پیش‌فرض: 1): " wiz_choice < "$TTY_DEV" || true
+        else
+            read -rp "  شماره گزینه مورد نظر را انتخاب کنید [1-6] (پیش‌فرض: 1): " wiz_choice
+        fi
+        wiz_choice=$(echo "$wiz_choice" | tr -d '[:space:]')
+        [ -z "$wiz_choice" ] && wiz_choice="1"
+
+        case "$wiz_choice" in
+            1)
+                echo -e "\n${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}${BOLD}  دریافت سرتیفیکیت از طریق چالش DNS (Certbot DNS-01)${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "  راهنمای گام به گام:"
+                echo -e "  ۱. ابزار Certbot اجرا شده و یک نام و مقدار رکورد ${YELLOW}TXT${NC} تولید می‌کند."
+                echo -e "  ۲. وارد پنل مدیریت دامنه خود (مثلاً Cloudflare یا Arvan) شوید."
+                echo -e "  ۳. یک رکورد از نوع ${GREEN}TXT${NC} بسازید:"
+                echo -e "     - Name / Host:  ${GREEN}_acme-challenge.${domain}${NC} (یا فقط _acme-challenge)"
+                echo -e "     - Value / Text: (مقداری که Certbot در ادامه روی صفحه می‌نویسد)"
+                echo -e "     - TTL:          Auto یا 1 minute"
+                echo -e "  ۴. بعد از ذخیره رکورد در پنل، در همین ترمینال دکمه ${YELLOW}Enter${NC} را بزنید.\n"
+
+                # Ensure certbot is installed
+                if ! command -v certbot >/dev/null 2>&1; then
+                    echo -e "  ${YELLOW}در حال نصب ابزار Certbot...${NC}"
+                    if command -v apt-get >/dev/null 2>&1; then
+                        apt-get update -y -q || true
+                        apt-get install -y -q certbot || true
+                    elif command -v dnf >/dev/null 2>&1; then
+                        dnf install -y -q epel-release 2>/dev/null || true
+                        dnf install -y -q certbot || true
+                    elif command -v yum >/dev/null 2>&1; then
+                        yum install -y -q epel-release 2>/dev/null || true
+                        yum install -y -q certbot || true
+                    fi
+                fi
+
+                if ! command -v certbot >/dev/null 2>&1; then
+                    echo -e "  ${RED}خطا: امکان نصب خودکار Certbot فراهم نشد. لطفاً گزینه دیگری را انتخاب کنید.${NC}"
+                    continue
+                fi
+
+                local cb_mail="--register-unsafely-without-email"
+                if [ -n "$email" ]; then
+                    cb_mail="--email ${email} --no-eff-email"
+                fi
+
+                echo -e "  ${GREEN}در حال اجرای Certbot... لطفاً مراحل روی صفحه را دنبال کنید:${NC}\n"
+                if [ -n "$TTY_DEV" ]; then
+                    certbot certonly --manual --preferred-challenges dns -d "${domain}" ${cb_mail} --agree-tos < "$TTY_DEV" || true
+                else
+                    certbot certonly --manual --preferred-challenges dns -d "${domain}" ${cb_mail} --agree-tos || true
+                fi
+
+                local cb_live_cert="/etc/letsencrypt/live/${domain}/fullchain.pem"
+                local cb_live_key="/etc/letsencrypt/live/${domain}/privkey.pem"
+                if [ -f "$cb_live_cert" ] && [ -f "$cb_live_key" ]; then
+                    install_cert_files "$cb_live_cert" "$cb_live_key" "$domain"
+                    echo -e "\n  ${GREEN}✓ سرتیفیکیت Let's Encrypt با موفقیت صادر و نصب گردید!${NC}"
+                    return 0
+                else
+                    echo -e "\n  ${RED}سرتیفیکیت صادر نشد یا فرآیند توسط کاربر لغو گردید.${NC}"
+                fi
+                ;;
+            2)
+                echo -e "\n${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}${BOLD}  توقف موقت پروسه اشغال‌کننده (${occ_proc})${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                local stop_ok=""
+                if [ -n "$TTY_DEV" ]; then
+                    read -rp "  آیا اجازه می‌دهید پروسه '${occ_proc}' موقتاً متوقف شود؟ [y/N]: " stop_ok < "$TTY_DEV" || true
+                else
+                    read -rp "  آیا اجازه می‌دهید پروسه '${occ_proc}' موقتاً متوقف شود؟ [y/N]: " stop_ok
+                fi
+                if [[ "$stop_ok" =~ ^[yY] ]]; then
+                    systemctl stop "$occ_proc" 2>/dev/null || pkill -15 "$occ_proc" 2>/dev/null || true
+                    sleep 1
+                    if is_port_80_busy; then
+                        echo -e "  ${RED}پورت ۸۰ هنوز اشغال است! توقف سرویس انجام نشد.${NC}"
+                    else
+                        echo -e "  ${GREEN}✓ پورت ۸۰ آزاد شد.${NC}"
+                        echo -e "  در حال صدور سرتیفیکیت Standalone..."
+
+                        if command -v certbot >/dev/null 2>&1; then
+                            local cb_mail="--register-unsafely-without-email"
+                            [ -n "$email" ] && cb_mail="--email ${email} --no-eff-email"
+                            certbot certonly --standalone -d "${domain}" ${cb_mail} --agree-tos --non-interactive 2>/dev/null || true
+                        fi
+
+                        local cb_live_cert="/etc/letsencrypt/live/${domain}/fullchain.pem"
+                        local cb_live_key="/etc/letsencrypt/live/${domain}/privkey.pem"
+                        if [ -f "$cb_live_cert" ] && [ -f "$cb_live_key" ]; then
+                            install_cert_files "$cb_live_cert" "$cb_live_key" "$domain"
+                            echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت دریافت و نصب شد!${NC}"
+                        elif [ -f "${INSTALL_DIR}/hyperdns" ]; then
+                            echo -e "  تلاش صدور از طریق موتور داخلی HyperDNS..."
+                            timeout 20 "${INSTALL_DIR}/hyperdns" -server -domain "${domain}" -email "${email}" -public-ip "${public_ip}" >/dev/null 2>&1 || true
+                            if [ -f "${INSTALL_DIR}/certs/acme/${domain}.crt" ]; then
+                                install_cert_files "${INSTALL_DIR}/certs/acme/${domain}.crt" "${INSTALL_DIR}/certs/acme/${domain}.key" "$domain"
+                                echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت صادر و ذخیره شد!${NC}"
+                            fi
+                        fi
+
+                        echo -e "  در حال راه‌اندازی مجدد پروسه ${occ_proc}..."
+                        systemctl start "$occ_proc" 2>/dev/null || true
+
+                        if [ -f "${INSTALL_DIR}/certs/acme/${domain}.crt" ] || [ -f "${INSTALL_DIR}/certs/cert.pem" ]; then
+                            return 0
+                        else
+                            echo -e "  ${RED}صدور خودکار ناموفق بود.${NC}"
+                        fi
+                    fi
+                fi
+                ;;
+            3)
+                echo -e "\n${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}${BOLD}  معرفی مسیر فایل‌های سرتیفیکیت موجود روی سرور${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                local in_cert="" in_key=""
+                if [ -n "$TTY_DEV" ]; then
+                    read -rp "  مسیر فایل Certificate (.crt یا .pem یا fullchain.pem): " in_cert < "$TTY_DEV" || true
+                    read -rp "  مسیر فایل Private Key (.key یا privkey.pem): " in_key < "$TTY_DEV" || true
+                else
+                    read -rp "  مسیر فایل Certificate (.crt یا .pem یا fullchain.pem): " in_cert
+                    read -rp "  مسیر فایل Private Key (.key یا privkey.pem): " in_key
+                fi
+                in_cert=$(echo "$in_cert" | tr -d '[:space:]"'\''')
+                in_key=$(echo "$in_key" | tr -d '[:space:]"'\''')
+
+                if [ ! -f "$in_cert" ] || [ ! -f "$in_key" ]; then
+                    echo -e "  ${RED}خطا: فایل‌های مشخص‌شده یافت نشدند!${NC}"
+                else
+                    install_cert_files "$in_cert" "$in_key" "$domain"
+                    echo -e "  ${GREEN}✓ سرتیفیکیت و کلید اختصاصی با موفقیت اعمال شدند!${NC}"
+                    return 0
+                fi
+                ;;
+            4)
+                echo -e "\n${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}${BOLD}  پیست کردن مستقیم سرتیفیکیت و کلید در ترمینال${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "  متن کامل Certificate خود را پیست کنید (از -----BEGIN CERTIFICATE----- تا -----END CERTIFICATE-----)."
+                echo -e "  پس از پیست کردن، در خط جدید کلمه ${YELLOW}EOF${NC} را تایپ کرده و Enter بزنید:\n"
+                local cert_content=""
+                if [ -n "$TTY_DEV" ]; then
+                    while IFS= read -r line < "$TTY_DEV"; do
+                        [ "$line" = "EOF" ] && break
+                        cert_content="${cert_content}${line}"$'\n'
+                    done
+                else
+                    while IFS= read -r line; do
+                        [ "$line" = "EOF" ] && break
+                        cert_content="${cert_content}${line}"$'\n'
+                    done
+                fi
+
+                echo -e "\n  متن کامل Private Key خود را پیست کنید (از -----BEGIN PRIVATE KEY----- تا -----END PRIVATE KEY-----)."
+                echo -e "  پس از پیست کردن، در خط جدید کلمه ${YELLOW}EOF${NC} را تایپ کرده و Enter بزنید:\n"
+                local key_content=""
+                if [ -n "$TTY_DEV" ]; then
+                    while IFS= read -r line < "$TTY_DEV"; do
+                        [ "$line" = "EOF" ] && break
+                        key_content="${key_content}${line}"$'\n'
+                    done
+                else
+                    while IFS= read -r line; do
+                        [ "$line" = "EOF" ] && break
+                        key_content="${key_content}${line}"$'\n'
+                    done
+                fi
+
+                if echo "$cert_content" | grep -q "BEGIN CERTIFICATE" && echo "$key_content" | grep -q "PRIVATE KEY"; then
+                    local tmp_c="/tmp/pasted_cert_$$.crt"
+                    local tmp_k="/tmp/pasted_key_$$.key"
+                    echo "$cert_content" > "$tmp_c"
+                    echo "$key_content" > "$tmp_k"
+                    install_cert_files "$tmp_c" "$tmp_k" "$domain"
+                    rm -f "$tmp_c" "$tmp_k"
+                    echo -e "  ${GREEN}✓ سرتیفیکیت و کلید با موفقیت در HyperDNS ذخیره شدند!${NC}"
+                    return 0
+                else
+                    echo -e "  ${RED}خطا: محتوای پیست‌شده ساختار استاندارد Certificate یا Private Key را ندارد.${NC}"
+                fi
+                ;;
+            5)
+                echo -e "\n  ${YELLOW}حالت دامنه لغو شد و سرور به حالت IP مستقیم (${public_ip}) تغییر یافت.${NC}"
+                USER_DOMAIN=""
+                USER_EMAIL=""
+                if [ -f "${INSTALL_DIR}/hyperdns" ]; then
+                    "${INSTALL_DIR}/hyperdns" -domain "none" >/dev/null 2>&1 || true
+                fi
+                return 0
+                ;;
+            6)
+                echo -e "\n  در حال بررسی مجدد پورت ۸۰..."
+                if ! is_port_80_busy; then
+                    echo -e "  ${GREEN}✓ پورت ۸۰ آزاد است!${NC}"
+                    return 0
+                else
+                    echo -e "  ${RED}پورت ۸۰ هنوز اشغال است.${NC}"
+                fi
+                ;;
+            *)
+                echo -e "  ${RED}گزینه نامعتبر است.${NC}"
+                ;;
+        esac
+    done
+}
+
 # 3. Detect & Configure DNS Server Public IP
 echo -e "${CYAN}[1/5] Detecting server environment and all IP addresses...${NC}"
 
@@ -209,12 +534,33 @@ fi
 # 4. System dependencies
 echo -e "\n${CYAN}[2/5] Installing dependencies and freeing Port 53...${NC}"
 if command -v apt-get >/dev/null 2>&1; then
-    apt-get update -y -q
-    apt-get install -y -q curl openssl lsof systemd iptables net-tools
+    apt-get update -y -q || true
+    apt-get install -y -q curl openssl lsof systemd iptables net-tools certbot 2>/dev/null || \
+    apt-get install -y -q curl openssl lsof systemd iptables net-tools || true
 elif command -v dnf >/dev/null 2>&1; then
-    dnf install -y -q curl openssl lsof systemd iptables net-tools
+    dnf install -y -q epel-release 2>/dev/null || true
+    dnf install -y -q curl openssl lsof systemd iptables net-tools certbot 2>/dev/null || \
+    dnf install -y -q curl openssl lsof systemd iptables net-tools || true
 elif command -v yum >/dev/null 2>&1; then
-    yum install -y -q curl openssl lsof systemd iptables net-tools
+    yum install -y -q epel-release 2>/dev/null || true
+    yum install -y -q curl openssl lsof systemd iptables net-tools certbot 2>/dev/null || \
+    yum install -y -q curl openssl lsof systemd iptables net-tools || true
+fi
+
+# Check if Port 80 is occupied when a domain was selected
+if [ -n "$USER_DOMAIN" ]; then
+    if is_port_80_busy; then
+        OCC_PROC=$(get_port_80_process)
+        echo ""
+        echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
+        echo -e "${RED}${BOLD}  ⚠️  اخطار: پورت ۸۰ سرور اشغال است! / Warning: Port 80 is occupied!${NC}"
+        echo -e "${YELLOW}      پروسه در حال استفاده / Occupying Process: ${CYAN}${BOLD}${OCC_PROC}${NC}"
+        echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
+        echo -e "  پروتکل Let's Encrypt برای صدور خودکار SSL به پورت ۸۰ آزاد نیاز دارد."
+        echo -e "  چون این پورت اشغال است، لطفاً روش دریافت یا تنظیم دستی سرتیفیکیت را مشخص کنید.\n"
+
+        manual_ssl_wizard "$USER_DOMAIN" "$USER_EMAIL" "$PUBLIC_IP" "Port 80 is occupied by ${OCC_PROC}"
+    fi
 fi
 
 # Disable systemd-resolved DNSStubListener if it's hogging port 53
@@ -261,8 +607,11 @@ ln -sf "/usr/local/bin/hyperdns" "/usr/local/bin/hdns"
 
 # 7. Generate dedicated SSL Certificate (covering IP and localhost)
 echo -e "\n${CYAN}[4/5] Configuring SSL Certificate and systemd service...${NC}"
-OPENSSL_CNF="/tmp/openssl_hyperdns_$$.cnf"
-cat <<EOF > "$OPENSSL_CNF"
+if [ -n "$USER_DOMAIN" ] && [ -f "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.crt" ]; then
+    echo -e "  ${GREEN}✓ Active domain certificate found for ${USER_DOMAIN}!${NC}"
+else
+    OPENSSL_CNF="/tmp/openssl_hyperdns_$$.cnf"
+    cat <<EOF > "$OPENSSL_CNF"
 [req]
 default_bits = 2048
 prompt = no
@@ -286,22 +635,23 @@ IP.2 = 127.0.0.1
 DNS.1 = localhost
 EOF
 
-if [ -n "$USER_DOMAIN" ]; then
-    echo "DNS.2 = ${USER_DOMAIN}" >> "$OPENSSL_CNF"
+    if [ -n "$USER_DOMAIN" ]; then
+        echo "DNS.2 = ${USER_DOMAIN}" >> "$OPENSSL_CNF"
+    fi
+
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout "$INSTALL_DIR/certs/key.pem" \
+        -out "$INSTALL_DIR/certs/cert.pem" \
+        -config "$OPENSSL_CNF" 2>/dev/null || \
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout "$INSTALL_DIR/certs/key.pem" \
+        -out "$INSTALL_DIR/certs/cert.pem" \
+        -subj "/CN=${USER_DOMAIN:-$PUBLIC_IP}/O=HyperDNS" 2>/dev/null || true
+
+    rm -f "$OPENSSL_CNF"
+    chmod 600 "$INSTALL_DIR/certs/key.pem" "$INSTALL_DIR/certs/cert.pem" 2>/dev/null || true
+    echo -e "  ${GREEN}✓ Dedicated SSL certificate generated for IP ${PUBLIC_IP}!${NC}"
 fi
-
-openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-    -keyout "$INSTALL_DIR/certs/key.pem" \
-    -out "$INSTALL_DIR/certs/cert.pem" \
-    -config "$OPENSSL_CNF" 2>/dev/null || \
-openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-    -keyout "$INSTALL_DIR/certs/key.pem" \
-    -out "$INSTALL_DIR/certs/cert.pem" \
-    -subj "/CN=${USER_DOMAIN:-$PUBLIC_IP}/O=HyperDNS" 2>/dev/null || true
-
-rm -f "$OPENSSL_CNF"
-chmod 600 "$INSTALL_DIR/certs/key.pem" "$INSTALL_DIR/certs/cert.pem" 2>/dev/null || true
-echo -e "  ${GREEN}✓ Dedicated SSL certificate generated for IP ${PUBLIC_IP}!${NC}"
 
 # Ensure systemd service configuration
 cat <<EOF > /etc/systemd/system/hyperdns.service
@@ -333,8 +683,20 @@ BOOTSTRAP_LOG="$INSTALL_DIR/install.log"
 rm -f "$BOOTSTRAP_LOG"
 
 if [ -n "$USER_DOMAIN" ]; then
-    echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and setting up Let's Encrypt SSL..."
-    timeout 15 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+    if [ -f "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.crt" ]; then
+        echo -e "  Starting HyperDNS engine with verified certificate for ${GREEN}${USER_DOMAIN}${NC}..."
+        timeout 10 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+    else
+        echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and setting up Let's Encrypt SSL..."
+        timeout 15 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
+
+        # If automated issuance failed or timed out:
+        if [ ! -f "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.crt" ]; then
+            echo -e "\n  ${YELLOW}⚠️  صدور خودکار سرتیفیکیت روی پورت ۸۰ کامل نشد!${NC}"
+            echo -e "    احتمالاً پورت ۸۰ توسط فایروال مسدود است یا رکورد دامنه هنوز اعمال نشده است."
+            manual_ssl_wizard "$USER_DOMAIN" "$USER_EMAIL" "$PUBLIC_IP" "Automated ACME verification failed on Port 80"
+        fi
+    fi
 else
     echo -e "  Configuring direct IP mode with dedicated SSL..."
     timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" > "$BOOTSTRAP_LOG" 2>&1 || true
