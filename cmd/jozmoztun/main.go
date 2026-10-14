@@ -35,8 +35,8 @@ func findPhysicalInterface() string {
 	return ""
 }
 
-func configureAdapter(name, ip, gateway, dnsServer string) error {
-	log.Printf("[JozmozTun] Configuring adapter %s (IP: %s, GW: %s, DNS: %s)...", name, ip, gateway, dnsServer)
+func configureAdapter(name, ip, dnsServer string) error {
+	log.Printf("[JozmozTun] Configuring adapter %s (IP: %s, DNS: %s)...", name, ip, dnsServer)
 
 	// Wait up to 5 seconds for the Wintun adapter to appear in Windows
 	var found bool
@@ -54,7 +54,7 @@ func configureAdapter(name, ip, gateway, dnsServer string) error {
 		return fmt.Errorf("timeout waiting for adapter %s to appear", name)
 	}
 
-	// 1. Configure Static IP, Gateway, Metric, and Profile on Wintun adapter
+	// Configure Static IP, on-link route 0.0.0.0/0, Metric, and Profile exactly like xray_tun
 	psConfig := fmt.Sprintf(`
 		$ErrorActionPreference = 'SilentlyContinue'
 		$ad = Get-NetAdapter -Name '%s'
@@ -62,23 +62,29 @@ func configureAdapter(name, ip, gateway, dnsServer string) error {
 			$cur = (Get-NetIPAddress -InterfaceIndex $ad.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).IPAddress
 			if ($cur -ne '%s') {
 				Get-NetIPAddress -InterfaceIndex $ad.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
-				New-NetIPAddress -InterfaceIndex $ad.ifIndex -IPAddress '%s' -PrefixLength 24 -DefaultGateway '%s' -ErrorAction SilentlyContinue | Out-Null
+				New-NetIPAddress -InterfaceIndex $ad.ifIndex -IPAddress '%s' -PrefixLength 30 -ErrorAction SilentlyContinue | Out-Null
+			}
+			
+			# Add on-link default route 0.0.0.0/0 -> 0.0.0.0 with RouteMetric 0 (enables "Internet access" in Windows flyout)
+			$r = Get-NetRoute -InterfaceIndex $ad.ifIndex -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue
+			if (-not $r) {
+				New-NetRoute -InterfaceIndex $ad.ifIndex -DestinationPrefix '0.0.0.0/0' -NextHop '0.0.0.0' -RouteMetric 0 -ErrorAction SilentlyContinue | Out-Null
 			}
 			
 			# Set DNS on this adapter
 			Set-DnsClientServerAddress -InterfaceIndex $ad.ifIndex -ServerAddresses @('%s', '1.1.1.1') -ErrorAction SilentlyContinue
 			
-			# Set Interface Metric with high priority (5) so Windows selects it as primary Ethernet connection
-			Set-NetIPInterface -InterfaceIndex $ad.ifIndex -InterfaceMetric 5 -ErrorAction SilentlyContinue
+			# Set highest priority metric (1) like xray_tun
+			Set-NetIPInterface -InterfaceIndex $ad.ifIndex -InterfaceMetric 1 -AutomaticMetric Disabled -ErrorAction SilentlyContinue
 			
 			# Name resolution and network profile
-			Start-Sleep -Milliseconds 500
+			Start-Sleep -Milliseconds 400
 			$prof = Get-NetConnectionProfile -InterfaceAlias '%s' -ErrorAction SilentlyContinue
 			if ($prof) {
-				Set-NetConnectionProfile -InterfaceAlias '%s' -NetworkCategory Private -ErrorAction SilentlyContinue
+				Set-NetConnectionProfile -InterfaceAlias '%s' -NetworkCategory Public -ErrorAction SilentlyContinue
 			}
 		}
-	`, name, ip, ip, gateway, dnsServer, name, name)
+	`, name, ip, ip, dnsServer, name, name)
 
 	_, err := runCommand("powershell", "-NoProfile", "-Command", psConfig)
 	return err
@@ -87,8 +93,8 @@ func configureAdapter(name, ip, gateway, dnsServer string) error {
 func main() {
 	adapterName := flag.String("name", "JozmozDNS", "Wintun adapter cosmetic name")
 	dnsIP := flag.String("dns", "167.104.219.20", "DNS server IP address")
-	tunIP := flag.String("ip", "10.254.1.2", "TUN IPv4 address")
-	tunGW := flag.String("gw", "10.254.1.1", "TUN IPv4 default gateway")
+	tunIP := flag.String("ip", "172.19.0.1", "TUN IPv4 address")
+	flag.String("gw", "0.0.0.0", "TUN IPv4 default gateway")
 	flag.Parse()
 
 	log.Printf("═════════════════════════════════════════════════════════")
@@ -128,7 +134,7 @@ func main() {
 	// Configure network adapter properties in Windows
 	go func() {
 		time.Sleep(1 * time.Second)
-		if err := configureAdapter(*adapterName, *tunIP, *tunGW, *dnsIP); err != nil {
+		if err := configureAdapter(*adapterName, *tunIP, *dnsIP); err != nil {
 			log.Printf("[JozmozTun] Configure warning: %v", err)
 		} else {
 			log.Printf("[JozmozTun] ✓ Adapter %s successfully configured & activated in Windows!", *adapterName)
