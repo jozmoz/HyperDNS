@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -20,6 +21,18 @@ func runCommand(name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 	out, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(out)), err
+}
+
+func findPhysicalInterface() string {
+	psCmd := `(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Where-Object { $_.InterfaceAlias -notlike '*Jozmoz*' -and $_.InterfaceAlias -notlike '*Wintun*' -and $_.InterfaceAlias -notlike '*tun*' } | Sort-Object RouteMetric | Select-Object -First 1).InterfaceAlias`
+	out, err := runCommand("powershell", "-NoProfile", "-Command", psCmd)
+	if err == nil && len(strings.TrimSpace(out)) > 0 {
+		name := strings.TrimSpace(out)
+		if _, err := net.InterfaceByName(name); err == nil {
+			return name
+		}
+	}
+	return ""
 }
 
 func configureAdapter(name, ip, gateway, dnsServer string) error {
@@ -41,13 +54,16 @@ func configureAdapter(name, ip, gateway, dnsServer string) error {
 		return fmt.Errorf("timeout waiting for adapter %s to appear", name)
 	}
 
-	// 1. Configure Static IP & Gateway on the Wintun adapter
+	// 1. Configure Static IP, Gateway, Metric, and Profile on Wintun adapter
 	psConfig := fmt.Sprintf(`
 		$ErrorActionPreference = 'SilentlyContinue'
 		$ad = Get-NetAdapter -Name '%s'
 		if ($ad) {
-			# Set Static IP
-			New-NetIPAddress -InterfaceIndex $ad.ifIndex -IPAddress '%s' -PrefixLength 24 -DefaultGateway '%s' -ErrorAction SilentlyContinue | Out-Null
+			$cur = (Get-NetIPAddress -InterfaceIndex $ad.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).IPAddress
+			if ($cur -ne '%s') {
+				Get-NetIPAddress -InterfaceIndex $ad.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue | Remove-NetIPAddress -Confirm:$false -ErrorAction SilentlyContinue
+				New-NetIPAddress -InterfaceIndex $ad.ifIndex -IPAddress '%s' -PrefixLength 24 -DefaultGateway '%s' -ErrorAction SilentlyContinue | Out-Null
+			}
 			
 			# Set DNS on this adapter
 			Set-DnsClientServerAddress -InterfaceIndex $ad.ifIndex -ServerAddresses @('%s', '1.1.1.1') -ErrorAction SilentlyContinue
@@ -62,7 +78,7 @@ func configureAdapter(name, ip, gateway, dnsServer string) error {
 				Set-NetConnectionProfile -InterfaceAlias '%s' -NetworkCategory Private -ErrorAction SilentlyContinue
 			}
 		}
-	`, name, ip, gateway, dnsServer, name, name)
+	`, name, ip, ip, gateway, dnsServer, name, name)
 
 	_, err := runCommand("powershell", "-NoProfile", "-Command", psConfig)
 	return err
@@ -91,11 +107,17 @@ func main() {
 		}
 	}
 
+	physIface := findPhysicalInterface()
+	if physIface != "" {
+		log.Printf("[JozmozTun] Bound to physical outbound interface: %s", physIface)
+	}
+
 	key := &engine.Key{
-		Device:   fmt.Sprintf("wintun://%s", *adapterName),
-		Proxy:    "direct://",
-		MTU:      1500,
-		LogLevel: "silent",
+		Device:    fmt.Sprintf("tun://%s", *adapterName),
+		Proxy:     "direct://",
+		Interface: physIface,
+		MTU:       1500,
+		LogLevel:  "info",
 	}
 
 	engine.Insert(key)
