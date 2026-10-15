@@ -185,8 +185,10 @@ func resolveDataPath(p string) string {
 	if p == "" || filepath.IsAbs(p) {
 		return p
 	}
-	if _, err := os.Stat("/opt/JozmozDNS"); err == nil {
-		return filepath.Join("/opt/JozmozDNS", p)
+	for _, dir := range []string{"/opt/JozmozDNS", "/opt/jozmozdns", "/opt/hyperdns", "/opt/HyperDNS"} {
+		if _, err := os.Stat(dir); err == nil {
+			return filepath.Join(dir, p)
+		}
 	}
 	return p
 }

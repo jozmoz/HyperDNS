@@ -84,10 +84,22 @@ func main() {
 	// 1. Resolve DB and Key paths
 	dPath := *dbPath
 	if dPath == "" {
-		if _, err := os.Stat("/opt/jozmozdns"); err == nil {
+		if _, err := os.Stat("/opt/jozmozdns/data.db"); err == nil {
+			dPath = "/opt/jozmozdns/data.db"
+		} else if _, err := os.Stat("/opt/JozmozDNS/data.db"); err == nil {
+			dPath = "/opt/JozmozDNS/data.db"
+		} else if _, err := os.Stat("/opt/hyperdns/data.db"); err == nil {
+			dPath = "/opt/hyperdns/data.db"
+		} else if _, err := os.Stat("/opt/HyperDNS/data.db"); err == nil {
+			dPath = "/opt/HyperDNS/data.db"
+		} else if _, err := os.Stat("/opt/jozmozdns"); err == nil {
 			dPath = "/opt/jozmozdns/data.db"
 		} else if _, err := os.Stat("/opt/JozmozDNS"); err == nil {
 			dPath = "/opt/JozmozDNS/data.db"
+		} else if _, err := os.Stat("/opt/hyperdns"); err == nil {
+			dPath = "/opt/hyperdns/data.db"
+		} else if _, err := os.Stat("/opt/HyperDNS"); err == nil {
+			dPath = "/opt/HyperDNS/data.db"
 		} else {
 			dPath = "data.db"
 		}
@@ -95,10 +107,22 @@ func main() {
 
 	kPath := *keyPath
 	if kPath == "" {
-		if _, err := os.Stat("/opt/jozmozdns"); err == nil {
+		if _, err := os.Stat("/opt/jozmozdns/master.key"); err == nil {
+			kPath = "/opt/jozmozdns/master.key"
+		} else if _, err := os.Stat("/opt/JozmozDNS/master.key"); err == nil {
+			kPath = "/opt/JozmozDNS/master.key"
+		} else if _, err := os.Stat("/opt/hyperdns/master.key"); err == nil {
+			kPath = "/opt/hyperdns/master.key"
+		} else if _, err := os.Stat("/opt/HyperDNS/master.key"); err == nil {
+			kPath = "/opt/HyperDNS/master.key"
+		} else if _, err := os.Stat("/opt/jozmozdns"); err == nil {
 			kPath = "/opt/jozmozdns/master.key"
 		} else if _, err := os.Stat("/opt/JozmozDNS"); err == nil {
 			kPath = "/opt/JozmozDNS/master.key"
+		} else if _, err := os.Stat("/opt/hyperdns"); err == nil {
+			kPath = "/opt/hyperdns/master.key"
+		} else if _, err := os.Stat("/opt/HyperDNS"); err == nil {
+			kPath = "/opt/HyperDNS/master.key"
 		} else {
 			kPath = "master.key"
 		}
@@ -632,9 +656,12 @@ func main() {
 	if err := db.GetSetting("acme", &acmeState); err == nil && len(acmeState.AccountKeyPEM) > 0 {
 		acmeAccountKey = acmeState.AccountKeyPEM
 	}
-	acmeDir := "/opt/JozmozDNS/certs/acme"
-	if _, err := os.Stat("/opt/JozmozDNS"); err != nil {
-		acmeDir = "certs/acme" // a non-installed (dev) run keeps its tree local
+	acmeDir := "certs/acme"
+	for _, dir := range []string{"/opt/JozmozDNS", "/opt/jozmozdns", "/opt/hyperdns", "/opt/HyperDNS"} {
+		if _, err := os.Stat(dir); err == nil {
+			acmeDir = filepath.Join(dir, "certs/acme")
+			break
+		}
 	}
 	_, acmeContactEmail := tlsSettings.ACMEContact()
 	acmeManager := acme.NewManager("", acmeContactEmail, acmeDir, acmeAccountKey)
