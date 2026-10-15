@@ -34,10 +34,10 @@ config.prod.json
 
 /hyperdns
 /hyperdns.exe
-/hyperdns-linux
+!/hyperdns-linux
 /jozmozdns
 /jozmozdns.exe
-/jozmozdns-linux
+!/jozmozdns-linux
 *.exe
 *.dll
 *.so
