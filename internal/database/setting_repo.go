@@ -5,16 +5,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 
 	bolt "go.etcd.io/bbolt"
 )
 
 // settingEnvelopePrefix marks a settings value whose JSON body is encrypted with
-// the master key. Detection is by prefix rather than by a schema field because a
-// legacy record is a bare JSON document, and no JSON document can begin with 'h'
-// — so the two forms can never be confused, and a database written by an older
-// build stays readable.
-const settingEnvelopePrefix = "jmdns:enc:v1:"
+// the master key. Both current (jmdns) and legacy (hdns) prefixes are supported
+// so upgrading from older installs decodes seamlessly without data loss.
+const (
+	settingEnvelopePrefix       = "jmdns:enc:v1:"
+	settingEnvelopePrefixLegacy = "hdns:enc:v1:"
+)
+
+func hasEnvelopePrefix(data []byte) bool {
+	return bytes.HasPrefix(data, []byte(settingEnvelopePrefix)) || bytes.HasPrefix(data, []byte(settingEnvelopePrefixLegacy))
+}
+
+func envelopeBody(data []byte) (string, bool) {
+	if bytes.HasPrefix(data, []byte(settingEnvelopePrefix)) {
+		return string(data[len(settingEnvelopePrefix):]), true
+	}
+	if bytes.HasPrefix(data, []byte(settingEnvelopePrefixLegacy)) {
+		return string(data[len(settingEnvelopePrefixLegacy):]), true
+	}
+	return "", false
+}
 
 // encodeSetting marshals a value and, when a master key is available, seals it.
 //
@@ -45,10 +61,22 @@ func (db *DB) encodeSetting(val any) ([]byte, error) {
 // envelope. A value with no envelope is read as-is, which is what makes an
 // upgrade from an older database a no-op rather than a lockout.
 func (db *DB) decodeSetting(data []byte, target any) error {
-	if !bytes.HasPrefix(data, []byte(settingEnvelopePrefix)) {
-		return json.Unmarshal(data, target)
+	body, isEnc := envelopeBody(data)
+	if !isEnc {
+		err := json.Unmarshal(data, target)
+		if err != nil {
+			// Legacy plain unquoted string fallback
+			if rawMsg, ok := target.(*json.RawMessage); ok {
+				*rawMsg = json.RawMessage(strconv.Quote(string(data)))
+				return nil
+			}
+			if strTarget, ok := target.(*string); ok {
+				*strTarget = string(data)
+				return nil
+			}
+		}
+		return err
 	}
-	body := string(data[len(settingEnvelopePrefix):])
 	if db.cipher == nil {
 		return fmt.Errorf("setting is encrypted but no master key is loaded")
 	}
@@ -58,7 +86,18 @@ func (db *DB) decodeSetting(data []byte, target any) error {
 		// restore the original key, not to delete the database.
 		return fmt.Errorf("could not decrypt setting (wrong master key?): %w", err)
 	}
-	return json.Unmarshal([]byte(plain), target)
+	err = json.Unmarshal([]byte(plain), target)
+	if err != nil {
+		if rawMsg, ok := target.(*json.RawMessage); ok {
+			*rawMsg = json.RawMessage(strconv.Quote(plain))
+			return nil
+		}
+		if strTarget, ok := target.(*string); ok {
+			*strTarget = plain
+			return nil
+		}
+	}
+	return err
 }
 
 // SetSetting saves any structured value as JSON in bucketSettings, encrypted with
@@ -153,12 +192,21 @@ func (db *DB) ValidateSettings() error {
 			return nil
 		}
 		return b.ForEach(func(k, data []byte) error {
+			keyStr := string(k)
 			var raw json.RawMessage
 			if err := db.decodeSetting(data, &raw); err != nil {
-				return fmt.Errorf("validate setting %q: %w", k, err)
+				if _, isAuth := authoritativeSettingTargets[keyStr]; isAuth || keyStr == "allow_all" {
+					return fmt.Errorf("validate setting %q: %w", k, err)
+				}
+				log.Printf("[DB] Warning: ignoring unparseable legacy setting %q: %v", keyStr, err)
+				return nil
 			}
-			if err := validateSettingSchema(string(k), raw); err != nil {
-				return fmt.Errorf("validate setting %q: %w", k, err)
+			if err := validateSettingSchema(keyStr, raw); err != nil {
+				if _, isAuth := authoritativeSettingTargets[keyStr]; isAuth || keyStr == "allow_all" {
+					return fmt.Errorf("validate setting %q: %w", k, err)
+				}
+				log.Printf("[DB] Warning: ignoring invalid legacy setting schema %q: %v", keyStr, err)
+				return nil
 			}
 			return nil
 		})
@@ -208,7 +256,7 @@ func (db *DB) encryptLegacySettings() (int, error) {
 			return nil
 		}
 		return b.ForEach(func(k, v []byte) error {
-			if !bytes.HasPrefix(v, []byte(settingEnvelopePrefix)) {
+			if !hasEnvelopePrefix(v) {
 				// The key is only valid for the life of the transaction, so copy it.
 				legacy = append(legacy, append([]byte(nil), k...))
 			}
@@ -229,7 +277,7 @@ func (db *DB) encryptLegacySettings() (int, error) {
 		}
 		for _, k := range legacy {
 			v := b.Get(k)
-			if v == nil || bytes.HasPrefix(v, []byte(settingEnvelopePrefix)) {
+			if v == nil || hasEnvelopePrefix(v) {
 				continue
 			}
 			sealed, err := db.cipher.EncryptString(string(v))

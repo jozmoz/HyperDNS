@@ -444,6 +444,46 @@ func TestValidateSettingsAcceptsLegacyAndEncryptedRecords(t *testing.T) {
 	}
 }
 
+func TestValidateSettingsAcceptsLegacyHdnsEnvelopePrefix(t *testing.T) {
+	db := settingsFixture(t)
+	sealed, err := db.cipher.EncryptString(`{"account_key":"test_key"}`)
+	if err != nil {
+		t.Fatalf("EncryptString: %v", err)
+	}
+	if err := db.bolt.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketSettings).Put([]byte("acme"), append([]byte("hdns:enc:v1:"), sealed...))
+	}); err != nil {
+		t.Fatalf("seed legacy encrypted acme setting: %v", err)
+	}
+
+	if err := db.ValidateSettings(); err != nil {
+		t.Fatalf("ValidateSettings failed on legacy hdns:enc:v1: prefix: %v", err)
+	}
+
+	var got struct {
+		AccountKey string `json:"account_key"`
+	}
+	if err := db.GetSetting("acme", &got); err != nil {
+		t.Fatalf("GetSetting: %v", err)
+	}
+	if got.AccountKey != "test_key" {
+		t.Fatalf("expected test_key, got %s", got.AccountKey)
+	}
+}
+
+func TestValidateSettingsToleratesLegacyPlainUrlSetting(t *testing.T) {
+	db := settingsFixture(t)
+	if err := db.bolt.Update(func(tx *bolt.Tx) error {
+		return tx.Bucket(bucketSettings).Put([]byte("acme"), []byte("https://acme-v02.api.letsencrypt.org/directory"))
+	}); err != nil {
+		t.Fatalf("seed plain url setting: %v", err)
+	}
+
+	if err := db.ValidateSettings(); err != nil {
+		t.Fatalf("ValidateSettings should not fail on legacy plain string: %v", err)
+	}
+}
+
 func TestValidateSettingsRejectsInvalidAuthoritativeTopLevelSchemas(t *testing.T) {
 	var tests []struct {
 		key string
