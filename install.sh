@@ -2,10 +2,10 @@
 # ==============================================================================
 # JozmozDNS — 1-Line Quick Installer for Linux (Ubuntu, Debian, CentOS, AlmaLinux, Rocky)
 # Next-Gen Standalone SmartDNS & Anti-Sanction Gaming Gateway
-# GitHub: https://github.com/jozmoz/JozmozDNS
+# GitHub: https://github.com/jozmoz/HyperDNS
 #
 # Quick 1-Line Installation Command:
-#   bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/JozmozDNS/main/install.sh)
+#   bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
 # ==============================================================================
 
 set +e
@@ -19,7 +19,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 INSTALL_DIR="/opt/JozmozDNS"
-REPO_RAW="https://raw.githubusercontent.com/jozmoz/JozmozDNS/main"
+REPO_RAW="https://raw.githubusercontent.com/jozmoz/HyperDNS/main"
 SERVICE_NAME="JozmozDNS"
 
 # 1. Root verification

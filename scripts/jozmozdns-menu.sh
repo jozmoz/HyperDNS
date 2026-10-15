@@ -17,7 +17,7 @@ NC='\033[0m'
 
 INSTALL_DIR="/opt/JozmozDNS"
 SERVICE_NAME="JozmozDNS"
-REPO_RAW_URL="https://raw.githubusercontent.com/jozmoz/JozmozDNS/main"
+REPO_RAW_URL="https://raw.githubusercontent.com/jozmoz/HyperDNS/main"
 
 # Detect binary location
 if [ -f "$INSTALL_DIR/jozmozdns" ]; then
