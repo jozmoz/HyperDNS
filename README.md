@@ -1,7 +1,7 @@
 # ⚡ JozmozDNS — Standalone SmartDNS & Anti-Sanction Gaming Gateway
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v2.4.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
+  <img src="https://img.shields.io/badge/Release-v2.5.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
   <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary%20(Zero%20CGO)-a855f7?style=for-the-badge" alt="Single Binary">
@@ -15,11 +15,11 @@
 </p>
 
 > [!NOTE]
-> ### v2.4.0 — JozmozDNS Rebrand, PC Desktop Client with Full System DNS Tunneling & Extended Gaming Presets
-> - **Desktop PC App with Full System Tunneling**: Windows client enforces DNS resolution via Windows NRPT (Name Resolution Policy Table), neutralizes multi-homed / IPv6 DNS leaks, and blocks rogue UDP 53 bypasses — making competitive games and anti-cheats (like **FACEIT Anti-Cheat**) 100% stable without kernel-driver interference.
-> - **Extended Gaming Intelligence**: Added presets for EA FC 26, EA Services, Nintendo Switch Online, CS2, Valve CDN, War Thunder, and FACEIT.
-> - **Built-In ACME & Hot-Swap TLS**: In-process ACME client (RFC 8555) issues and automatically renews SSL certificates without restarting.
-> - **Client Access Whitelist**: Unknown sources are rejected with RFC 8914 Extended DNS Errors. Dual-compatible CLI (`jdns` / `jozmozdns` & legacy `jmdns`).
+> ### v2.5.0 — Steam Cloud Sync, War Thunder Matchmaking Engine & Dual Envelope Crypto
+> - **Steam Cloud Save Sync**: Added native support for Steam Cloud sync via `storage.googleapis.com` and `steamusercontent.com` inside `PresetSteam` and CS2 HGI profile.
+> - **War Thunder Non-443 Matchmaking Bypass**: Isolated matchmaking (`matcher.gaijinent.com`, `char.gaijinent.com` on TCP 7800-7854) into `RuleUnproxyableDirect`, eliminating the infinite "Connecting to server..." hang while preserving HTTPS authentication and launcher caching.
+> - **Zero-Downtime Database & Blind-Index Compatibility**: Dual envelope cryptography seamlessly decrypts and migrates existing `data.db` records (`jmdns:enc:v1:` and `hdns:enc:v1:`) and client authentication tokens.
+> - **Desktop PC App with Full System Tunneling**: Windows client enforces DNS resolution via Windows NRPT, neutralizes multi-homed / IPv6 DNS leaks, and blocks rogue UDP 53 bypasses for FACEIT Anti-Cheat and competitive titles.
 
 <p align="center">
   <a href="#-quick-installation--deployment">🚀 Install</a> •

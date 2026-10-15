@@ -6,6 +6,7 @@ import (
 	"math"
 	"net"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -124,7 +125,7 @@ func (rm *RouteManager) ProbeNode(node RouteNode) RouteNode {
 	}
 
 	// 2. TCP Connect Time (run probes to compute RTT, jitter, loss)
-	targetAddr := fmt.Sprintf("%s:%d", ips[0], port)
+	targetAddr := net.JoinHostPort(ips[0], strconv.Itoa(port))
 	for i := 0; i < probes; i++ {
 		tcpStart := time.Now()
 		conn, dialErr := net.DialTimeout("tcp", targetAddr, 1500*time.Millisecond)

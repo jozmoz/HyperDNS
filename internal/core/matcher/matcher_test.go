@@ -262,6 +262,48 @@ func TestSteamConnectionManagerIsForcedDirect(t *testing.T) {
 	}
 }
 
+func TestWarThunderMatchmakerIsForcedDirect(t *testing.T) {
+	m := NewMatcher()
+
+	for _, d := range []string{
+		"matcher.gaijinent.com",
+		"char.gaijinent.com",
+		"char-wt.gaijinent.com",
+		"matcher-wt.gaijinent.com",
+	} {
+		if rule := mustMatch(t, m, d, ActionDirect); rule != RuleUnproxyableDirect {
+			t.Errorf("Match(%q) rule = %q, want %q", d, rule, RuleUnproxyableDirect)
+		}
+		// A client with shooters preset enabled still gets DIRECT
+		mustMatchClient(t, m, d, []string{"enable_shooters_extra"}, ActionDirect)
+	}
+
+	// While War Thunder web, auth and launcher remain PROXY
+	for _, d := range []string{
+		"login.gaijin.net",
+		"auth.gaijin.net",
+		"warthunder.com",
+		"yupmaster.gaijinent.com",
+	} {
+		mustMatch(t, m, d, ActionProxy)
+	}
+}
+
+func TestSteamCloudSyncResolvesToProxy(t *testing.T) {
+	m := NewMatcher()
+
+	for _, d := range []string{
+		"storage.googleapis.com",
+		"steamcloud-us-east1.storage.googleapis.com",
+		"steamusercontent.com",
+		"ugc.steamusercontent.com",
+		"s.team",
+	} {
+		mustMatch(t, m, d, ActionProxy)
+		mustMatchClient(t, m, d, []string{"enable_steam"}, ActionProxy)
+	}
+}
+
 // One domain, one home. The guard would keep working if a preset re-listed a
 // real-time name, so nothing would break — which is exactly why this needs a test:
 // the preset would claim to proxy something that never resolves to the proxy, and

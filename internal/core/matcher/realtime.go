@@ -120,6 +120,23 @@ var forcedDirectGroups = []forcedDirectGroup{
 			"*.gvt1.com",
 			"gvt2.com",
 			"*.gvt2.com",
+
+			// War Thunder & Gaijin matchmaking / character services.
+			// War Thunder auth, store, web, and launcher run over HTTPS (TCP 80/443) and remain proxied.
+			// However, in-game matchmaking (matcher.gaijinent.com) and profile/character services (char.gaijinent.com)
+			// communicate on proprietary binary protocols over TCP ports 7800-7854.
+			// The SNI reverse proxy on the VPS only binds HTTP/HTTPS and standard gaming web ports;
+			// proxying these matchmaking endpoints causes the client to connect to closed/unbound ports
+			// on the VPS, causing an infinite "Connecting to the server..." hang.
+			// Direct routing ensures gameplay and matchmaking traffic connects directly to Gaijin cluster.
+			"char.gaijinent.com",
+			"*.char.gaijinent.com",
+			"matcher.gaijinent.com",
+			"*.matcher.gaijinent.com",
+			"char-wt.gaijinent.com",
+			"*.char-wt.gaijinent.com",
+			"matcher-wt.gaijinent.com",
+			"*.matcher-wt.gaijinent.com",
 		},
 	},
 }

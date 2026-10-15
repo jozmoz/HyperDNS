@@ -178,6 +178,10 @@ func DefaultSeedProfiles() []GameProfile {
 	addDomain(cs2Domains, "faceit-cdn.net", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
 	addDomain(cs2Domains, "faceit.net", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
 	addDomain(cs2Domains, "faceitstatic.com", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
+	addDomain(cs2Domains, "storage.googleapis.com", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
+	addDomain(cs2Domains, "steamusercontent.com", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
+	addDomain(cs2Domains, "ugc.steamusercontent.com", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
+	addDomain(cs2Domains, "s.team", CategoryGameServices, PolicyProxy, "cs2", "Valve Corporation")
 
 	addDomain(cs2Domains, "steamcontent.com", CategoryCDN, PolicyDirect, "cs2", "Valve Corporation")
 	addDomain(cs2Domains, "content1.steampowered.com", CategoryCDN, PolicyDirect, "cs2", "Valve Corporation")
@@ -245,8 +249,13 @@ func DefaultSeedProfiles() []GameProfile {
 	addDomain(wtDomains, "wt-matchmaking.gaijin.net", CategoryMatchmaking, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "matchmaker.warthunder.com", CategoryMatchmaking, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "cluster.warthunder.com", CategoryMatchmaking, PolicyProxy, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "matcher.gaijinent.com", CategoryMatchmaking, PolicyDirect, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "char.gaijinent.com", CategoryMatchmaking, PolicyDirect, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "char-wt.gaijinent.com", CategoryMatchmaking, PolicyDirect, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "matcher-wt.gaijinent.com", CategoryMatchmaking, PolicyDirect, "warthunder", "Gaijin Entertainment")
 
 	addDomain(wtDomains, "gaijinent.com", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "public-configs.gaijinent.com", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "gaijin.ru", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "cdn.gaijin.net", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "live.warthunder.com", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
@@ -268,6 +277,8 @@ func DefaultSeedProfiles() []GameProfile {
 	addDomain(wtDomains, "yupmaster.gaijinent.com", CategoryCDN, PolicyDirect, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "content.warthunder.com", CategoryCDN, PolicyDirect, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "distr.gaijinent.com", CategoryCDN, PolicyDirect, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "gcdn.co", CategoryCDN, PolicyDirect, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "cdnnow.ru", CategoryCDN, PolicyDirect, "warthunder", "Gaijin Entertainment")
 
 	addDomain(wtDomains, "stat.gaijinent.com", CategoryTelemetry, PolicyDirect, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "telemetry.warthunder.com", CategoryTelemetry, PolicyDirect, "warthunder", "Gaijin Entertainment")
@@ -364,7 +375,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.3.0",
+			Version:        "2.5.0",
 		},
 		{
 			ID:             "node_de",
@@ -381,7 +392,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.3.0",
+			Version:        "2.5.0",
 		},
 		{
 			ID:             "node_fi",
@@ -398,7 +409,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.3.0",
+			Version:        "2.5.0",
 		},
 	}
 }

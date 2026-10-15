@@ -165,6 +165,14 @@ var (
 		"*.teamfortress.com",
 		"portal2.com",
 		"*.portal2.com",
+		// Steam Cloud saves & UGC
+		"storage.googleapis.com",
+		"*.storage.googleapis.com",
+		"steamusercontent.com",
+		"*.steamusercontent.com",
+		"ugc.steamusercontent.com",
+		"s.team",
+		"*.s.team",
 	}
 
 	// Electronic Arts: EA App, Origin, Apex Legends, Battlefield, EA FC / FIFA, Respawn, Frostbite
@@ -1135,6 +1143,8 @@ var (
 		"*.warthunder.com",
 		"gaijin.net",
 		"*.gaijin.net",
+		"gaijin.ru",
+		"*.gaijin.ru",
 		"enlisted.net",
 		"*.enlisted.net",
 		"gaijinent.com",
@@ -1147,6 +1157,12 @@ var (
 		"*.star-conflict.com",
 		"crased.net",
 		"*.crased.net",
+		"gcdn.co",
+		"*.gcdn.co",
+		"cdnnow.ru",
+		"*.cdnnow.ru",
+		"yupmaster.gaijinent.com",
+		"public-configs.gaijinent.com",
 		// World of Tanks & World of Warships (Wargaming)
 		"worldoftanks.com",
 		"*.worldoftanks.com",
