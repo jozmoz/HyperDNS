@@ -19,17 +19,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"hyperdns/internal/api"
-	"hyperdns/internal/auth"
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/database"
-	"hyperdns/internal/game"
-	"hyperdns/internal/httpx"
-	"hyperdns/internal/service"
-	"hyperdns/internal/service/acme"
-	"hyperdns/internal/version"
+	"jozmozdns/internal/api"
+	"jozmozdns/internal/auth"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/game"
+	"jozmozdns/internal/httpx"
+	"jozmozdns/internal/service"
+	"jozmozdns/internal/service/acme"
+	"jozmozdns/internal/version"
 )
 
 type WebServer struct {
@@ -2549,4 +2549,5 @@ func (ws *WebServer) handleSystemRestore(w http.ResponseWriter, r *http.Request)
 		"message": "Database backup restored successfully! Server settings have been reloaded.",
 	})
 }
+
 

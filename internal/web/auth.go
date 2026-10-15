@@ -20,12 +20,12 @@ import (
 	"runtime"
 	"strings"
 
-	"hyperdns/internal/auth"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/httpx"
-	"hyperdns/internal/netutil"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/auth"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/httpx"
+	"jozmozdns/internal/netutil"
+	"jozmozdns/internal/service"
 )
 
 // kdfConcurrency is how many password verifications may run at once: half the
@@ -862,3 +862,4 @@ func (ws *WebServer) handleAuthUnlock(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[Web] Login lockouts cleared for %d address(es) by the operator", cleared)
 	_ = json.NewEncoder(w).Encode(map[string]any{"success": true, "cleared": cleared})
 }
+

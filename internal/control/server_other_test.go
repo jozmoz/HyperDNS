@@ -24,3 +24,4 @@ func TestUnsupportedServerReturnsErrorWithoutBindingFallback(t *testing.T) {
 		t.Fatalf("existing parent directory changed: %v", err)
 	}
 }
+

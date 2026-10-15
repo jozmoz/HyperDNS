@@ -469,3 +469,4 @@ func (c *Cache) Close() {
 func (c *Cache) GetStats() (int, uint64, uint64) {
 	return c.Count(), c.hits.Load(), c.misses.Load()
 }
+

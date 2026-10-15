@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/database"
-	"hyperdns/internal/netutil"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/netutil"
 )
 
 // The DoH endpoint, which is the one transport where the client's address arrives in
@@ -368,3 +368,4 @@ func TestMinAnswerTTLIsTheShortestRecordAcrossEverySection(t *testing.T) {
 		})
 	}
 }
+

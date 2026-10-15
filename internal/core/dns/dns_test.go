@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/database"
 )
 
 type dummyAccess struct{}
@@ -43,3 +43,4 @@ func TestDNSHandler_ProcessQuery(t *testing.T) {
 		t.Errorf("expected A record to rewrite to 198.51.100.1, got %v", resp.Answer[0])
 	}
 }
+

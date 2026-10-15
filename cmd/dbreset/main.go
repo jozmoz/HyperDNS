@@ -5,8 +5,8 @@ import (
 	"os"
 	"time"
 
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
 )
 
 // Disposable-local-instance helper: reset the admin password to a known
@@ -59,3 +59,4 @@ func main() {
 	fmt.Println("reset OK; 2FA disabled; password set; lockouts cleared by restart")
 	_ = time.Now()
 }
+

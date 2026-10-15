@@ -301,3 +301,4 @@ func TestRegenerateAPIKeyRequiresAuth(t *testing.T) {
 		t.Fatal("an unauthenticated request rotated the API key")
 	}
 }
+

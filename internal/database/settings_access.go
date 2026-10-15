@@ -303,3 +303,4 @@ func (s *ServerSettings) PersistWebPort(port int, persist func(*ServerSettings) 
 		TrustedProxyCIDRs:  s.TrustedProxyCIDRs,
 	})
 }
+

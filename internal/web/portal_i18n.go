@@ -684,3 +684,4 @@ func prefersEnglishOverPersian(header string) bool {
 	}
 	return enQ > faQ
 }
+

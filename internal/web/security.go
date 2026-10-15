@@ -358,3 +358,4 @@ var (
 func themeCSSHasExternalReference(css string) bool {
 	return themeCSSImportRe.MatchString(css) || themeCSSExternalURLRe.MatchString(css)
 }
+

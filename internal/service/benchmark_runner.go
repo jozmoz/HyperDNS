@@ -27,3 +27,4 @@ func (b *BenchmarkRunner) Start() bool {
 func (b *BenchmarkRunner) Running() bool {
 	return b != nil && b.running.Load()
 }
+

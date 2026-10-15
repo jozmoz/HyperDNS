@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/service/acme"
+	"jozmozdns/internal/service/acme"
 )
 
 // TestMantisStartACMEIfNeededDoesNotHoldTheGate is the F7 reproducer. A
@@ -166,3 +166,4 @@ func TestMantisBootAndSaveBothReachIssue(t *testing.T) {
 	}
 
 }
+

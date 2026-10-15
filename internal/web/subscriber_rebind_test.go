@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // TestMantisRebindToTakenPortKillsTheRunningPortal is the F3 reproducer. A
@@ -88,3 +88,4 @@ func TestMantisRebindToTakenPortKillsTheRunningPortal(t *testing.T) {
 			upPort, rebindErr)
 	}
 }
+

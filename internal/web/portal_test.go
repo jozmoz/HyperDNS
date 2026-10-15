@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/service"
+	"jozmozdns/internal/service"
 )
 
 func TestSafeHostDisplay(t *testing.T) {
@@ -690,4 +690,5 @@ func TestSubAuthAPI(t *testing.T) {
 		t.Fatalf("GET /api/sub/<token>/auth = %d, want 405", w.Code)
 	}
 }
+
 

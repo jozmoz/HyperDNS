@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // newDotHarness builds a test web server wired the way main wires a fresh
@@ -96,3 +96,4 @@ func newDotCertPair(t *testing.T, domain string) (string, string) {
 	t.Helper()
 	return writeTestCertificatePairFor(t, domain, time.Now().Add(-time.Hour), time.Now().Add(24*time.Hour))
 }
+

@@ -43,3 +43,4 @@ func LoadPresentSettings(store SettingsStore, specs ...SettingSpec) error {
 	}
 	return nil
 }
+

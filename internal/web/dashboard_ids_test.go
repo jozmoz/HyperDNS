@@ -343,3 +343,4 @@ func TestDashboardCleanURLsToleratePathVariants(t *testing.T) {
 		}
 	}
 }
+

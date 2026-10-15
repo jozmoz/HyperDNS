@@ -186,3 +186,4 @@ func TestClientIPFallsBackOnUnusableHeader(t *testing.T) {
 		t.Errorf("ClientIP = %q, want the X-Real-IP fallback 203.0.113.9", got)
 	}
 }
+

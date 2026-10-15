@@ -238,3 +238,4 @@ func TestPortalScriptMessagesReachTheScript(t *testing.T) {
 		}
 	}
 }
+

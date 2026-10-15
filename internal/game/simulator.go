@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"hyperdns/internal/core/matcher"
+	"jozmozdns/internal/core/matcher"
 )
 
 // RuleSimulator provides What-If simulation and blast-radius conflict analysis.
@@ -129,4 +129,5 @@ func (rs *RuleSimulator) Simulate(req RuleSimulationRequest) (*RuleSimulationRes
 		AffectedDomains:  affected,
 	}, nil
 }
+
 

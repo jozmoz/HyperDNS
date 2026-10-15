@@ -120,3 +120,4 @@ func (t *LoginAttemptTracker) sweepLocked(now time.Time) {
 		t.pruneLocked(ip, now)
 	}
 }
+

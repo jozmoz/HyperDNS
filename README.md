@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/hyperdns-dashboard.png" alt="JozmozDNS dashboard — live telemetry, QPS graph and policy presets" width="880">
+  <img src="docs/JozmozDNS-dashboard.png" alt="JozmozDNS dashboard — live telemetry, QPS graph and policy presets" width="880">
 </p>
 
 > [!NOTE]
@@ -19,7 +19,7 @@
 > - **Desktop PC App with Full System Tunneling**: Windows client enforces DNS resolution via Windows NRPT (Name Resolution Policy Table), neutralizes multi-homed / IPv6 DNS leaks, and blocks rogue UDP 53 bypasses — making competitive games and anti-cheats (like **FACEIT Anti-Cheat**) 100% stable without kernel-driver interference.
 > - **Extended Gaming Intelligence**: Added presets for EA FC 26, EA Services, Nintendo Switch Online, CS2, Valve CDN, War Thunder, and FACEIT.
 > - **Built-In ACME & Hot-Swap TLS**: In-process ACME client (RFC 8555) issues and automatically renews SSL certificates without restarting.
-> - **Client Access Whitelist**: Unknown sources are rejected with RFC 8914 Extended DNS Errors. Dual-compatible CLI (`jdns` / `jozmozdns` & legacy `hdns`).
+> - **Client Access Whitelist**: Unknown sources are rejected with RFC 8914 Extended DNS Errors. Dual-compatible CLI (`jdns` / `jozmozdns` & legacy `jmdns`).
 
 <p align="center">
   <a href="#-quick-installation--deployment">🚀 Install</a> •
@@ -61,7 +61,7 @@ It transforms any single cloud VPS (even a \$3/month 1-Core CPU / 1GB RAM instan
 
 ## 🖥️ Server Requirements
 
-HyperDNS is a single static Go binary. There is no database server, no runtime,
+JozmozDNS is a single static Go binary. There is no database server, no runtime,
 no container image underneath it — the sizing question is only how many
 subscribers you serve and whether they relay downloads through you.
 
@@ -95,15 +95,15 @@ and 8443 (DoH).
 ### Option 1: One-Line Linux Installer (Recommended)
 Run as `root` on Ubuntu, Debian, or AlmaLinux/Rocky/CentOS:
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/JozmozDNS/main/install.sh)
 ```
 
-> **Interactive Terminal Console (`jdns`, `jozmozdns`, `hdns` or `hyperdns`):**
-> Anytime after installation, simply run `jdns` or `jozmozdns` (or `hdns`) in your shell to open the terminal management menu (service status, restart, view credentials, change domain & SSL, update from GitHub, or uninstall).
+> **Interactive Terminal Console (`jdns`, `jozmozdns`, `jmdns` or `JozmozDNS`):**
+> Anytime after installation, simply run `jdns` or `jozmozdns` (or `jmdns`) in your shell to open the terminal management menu (service status, restart, view credentials, change domain & SSL, update from GitHub, or uninstall).
 
 
 > [!IMPORTANT]
-> **The installer never upgrades in place.** An existing install is archived to `/root/jozmozdns-preinstall-<date>.tar.gz` (its sha256 printed — the only copy of the old data), then **replaced**: fresh config, fresh credentials, fresh certificates. An interactive run types `FRESH` to confirm the wipe; a piped `curl | bash` run refuses unless `HYPERDNS_FRESH=1` or `JOZMOZDNS_FRESH=1` is set.
+> **The installer never upgrades in place.** An existing install is archived to `/root/jozmozdns-preinstall-<date>.tar.gz` (its sha256 printed — the only copy of the old data), then **replaced**: fresh config, fresh credentials, fresh certificates. An interactive run types `FRESH` to confirm the wipe; a piped `curl | bash` run refuses unless `JozmozDNS_FRESH=1` or `JOZMOZDNS_FRESH=1` is set.
 >
 > **A panel domain is mandatory** — its A record must point at the server. The daemon issues the Let's Encrypt certificate **itself** over its own port-80 listener: no certbot, no acme.sh, nothing to stop the service for. Non-interactive: `JOZMOZDNS_DOMAIN=dns.example.com JOZMOZDNS_EMAIL=you@example.com bash install.sh`. If issuance fails the installer states the cause and exits rather than printing success. Renewal is daily and automatic.
 >
@@ -121,16 +121,16 @@ sudo ./bin/jozmozdns_linux_amd64 -server -web-port 8080
 
 ### Option 3: Compile from Source
 ```bash
-git clone https://github.com/jozmoz/HyperDNS.git
-cd "HyperDNS"
-go build -ldflags="-s -w" -o bin/jozmozdns ./cmd/hyperdns
+git clone https://github.com/jozmoz/JozmozDNS.git
+cd "JozmozDNS"
+go build -ldflags="-s -w" -o bin/jozmozdns ./cmd/JozmozDNS
 ./bin/jozmozdns -server
 ```
 
 ### Option 4: Docker / Docker Compose
 ```bash
-git clone https://github.com/jozmoz/HyperDNS.git
-cd "HyperDNS"
+git clone https://github.com/jozmoz/JozmozDNS.git
+cd "JozmozDNS"
 mkdir -p data certs
 docker compose up -d
 ```
@@ -155,7 +155,7 @@ The container runs with `network_mode: host` on purpose. A NAT hop on every UDP 
 - **Developer 403 Bypass:** Docker Hub, Gradle, Android Developers, NPM, PyPI, OpenAI, Anthropic, Claude, Hugging Face, Cursor, Copilot, Kaggle.
 
 ### 🛡️ 2. Transparent SNI Proxy Relay
-- Layer-4 TCP relaying without SSL termination: the TLS session stays end-to-end between the client and the origin, and HyperDNS never holds the keys for it.
+- Layer-4 TCP relaying without SSL termination: the TLS session stays end-to-end between the client and the origin, and JozmozDNS never holds the keys for it.
 - Anti-DPI TLS ClientHello fragmentation, on by default (`enable_fragmentation`, with a configurable chunk size and inter-chunk delay).
 - A `sync.Pool` of 32 KB buffers, so a relayed connection does not allocate its own — the payload is still copied through user space, and each direction carries an inactivity deadline that is refreshed per chunk so half-open connections are reaped instead of pinned.
 - Up to 4096 concurrent relays; beyond that new connections are rejected rather than queued, which keeps a flood from exhausting memory.
@@ -220,7 +220,7 @@ The container runs with `network_mode: host` on purpose. A NAT hop on every UDP 
 
 ### 📥 6. Bulk Downloads Stay Off the Proxy by Default
 
-A game preset unblocks a whole publisher: the store, sign-in, matchmaking, patch metadata — and the depot hosts that carry the actual multi-gigabyte payload. Those last ones are the only part of a gaming DNS that is measured in gigabytes rather than kilobytes, and relaying them is almost never what you want. So HyperDNS separates them into their own category, **Game & App Downloads** (`enable_downloads`), and ships it **off**.
+A game preset unblocks a whole publisher: the store, sign-in, matchmaking, patch metadata — and the depot hosts that carry the actual multi-gigabyte payload. Those last ones are the only part of a gaming DNS that is measured in gigabytes rather than kilobytes, and relaying them is almost never what you want. So JozmozDNS separates them into their own category, **Game & App Downloads** (`enable_downloads`), and ships it **off**.
 
 With it off, `steamcontent.com`, `download.epicgames.com`, `dl.playstation.net`, `cdn.blizzard.com`, `dlassets.xboxlive.com`, `cdn.gog.com` and the rest resolve to their **real** addresses. Steam still opens, the library still loads its art, the game still connects — the download itself just runs on the subscriber's own connection. The query log labels those answers `DIRECT · Game & App Downloads`, so you can see it happening rather than guess.
 
@@ -282,13 +282,13 @@ report-a-vulnerability process, see **[SECURITY.md](docs/SECURITY.md)**.
 
 ---
 
-## 🖥️ Interactive TUI Controller (`hdns`)
+## 🖥️ Interactive TUI Controller (`jmdns`)
 
-Run HyperDNS in terminal mode to read live metrics, provision subscribers and run diagnostics over SSH without opening a browser:
+Run JozmozDNS in terminal mode to read live metrics, provision subscribers and run diagnostics over SSH without opening a browser:
 ```bash
-./hyperdns
+./JozmozDNS
 # or if installed system-wide:
-hdns
+jmdns
 ```
 
 It is a **numbered menu**, not a full-screen keyboard interface: it prints the banner with this instance's public IP, dashboard URL and API bind, then waits for a number and <kbd>Enter</kbd>. Everything is redrawn each time round, so a value the dashboard changed while you were reading is correct on the next pass.
@@ -302,7 +302,7 @@ It is a **numbered menu**, not a full-screen keyboard interface: it prints the b
 | `5` | Start the service (after a stop) | | `13` | Clear login lockouts |
 | `6` | List subscriber accounts | | `14` | Change admin credentials |
 | `7` | Add a subscriber | | `15` | Emergency admin reset |
-| `8` | Delete a subscriber | | `16` | Uninstall HyperDNS |
+| `8` | Delete a subscriber | | `16` | Uninstall JozmozDNS |
 | `0`, `q` or `exit` | Quit (daemon keeps running) | | <kbd>Ctrl</kbd>+<kbd>C</kbd> | Quit at any prompt |
 
 Options `3`–`5` and `16` reach **runtime ownership**: the console is a client
@@ -325,7 +325,7 @@ The dashboard is not at the host root. On first start the daemon prints its one
 **hidden login address** to the log — `https://<domain>/<admin-path>/login` — and
 that is the only URL that reaches it. Bookmark it then; the path is a random
 16-hex string, and the address is printed exactly once. To recover it later: the
-TUI banner shows the dashboard URL, `hdns status` reports listener and
+TUI banner shows the dashboard URL, `jmdns status` reports listener and
 certificate state without opening the database, and the log line is printed again
 on every start.
 
@@ -352,7 +352,7 @@ on every start.
 
 ## 🔌 Developer REST API
 
-HyperDNS exposes a developer-first REST API for bots and billing systems, in
+JozmozDNS exposes a developer-first REST API for bots and billing systems, in
 two versions:
 
 - **v2** (the successor contract, `/api/v2/…`): symmetric field names
@@ -426,7 +426,7 @@ panel that requires authentication has no public page to light up.
 
 ## 📐 Standards & RFC Compliance
 
-HyperDNS implements and honours the following IETF specifications — the full
+JozmozDNS implements and honours the following IETF specifications — the full
 table, with what each RFC means in this project, lives in
 [SECURITY.md → Standards & RFC Compliance](docs/SECURITY.md#-standards--rfc-compliance):
 
@@ -441,7 +441,7 @@ UUID v4 [RFC 9562].
 
 ## ☕ Support / Donate
 
-HyperDNS is built and maintained by one person, free and open source. If it
+JozmozDNS is built and maintained by one person, free and open source. If it
 unblocked your games or your work, consider buying me a coffee.
 
 | Method | Address / Link |
@@ -456,4 +456,4 @@ All methods, with copy buttons: **[izumirain.github.io](https://izumirain.github
 ---
 
 ## 📜 License
-HyperDNS is distributed under the **AGPL-3.0 License**.
+JozmozDNS is distributed under the **AGPL-3.0 License**.

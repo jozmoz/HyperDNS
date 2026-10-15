@@ -300,3 +300,4 @@ func (a *AuthSettings) SetLDAP(enabled bool, serverURL, bindDN, bindPassword, ba
 	}
 	return nil
 }
+

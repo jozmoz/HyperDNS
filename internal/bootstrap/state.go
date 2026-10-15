@@ -54,3 +54,4 @@ func pathExists(path string) (bool, error) {
 	}
 	return false, err
 }
+

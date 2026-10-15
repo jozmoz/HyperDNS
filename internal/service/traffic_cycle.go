@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // The recurring-quota cycles an operator may choose.
@@ -263,3 +263,4 @@ func (s *ClientService) resetTrafficCycle(id string, newCount uint64) bool {
 		client.Name, id, client.TrafficPrevCycleBytes)
 	return true
 }
+

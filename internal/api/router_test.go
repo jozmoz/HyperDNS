@@ -10,7 +10,7 @@ import (
 
 	"github.com/miekg/dns"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // These tests cover the parts of SecurityMiddleware and the handlers that are easy
@@ -407,3 +407,4 @@ func assertJSONErrorBody(t *testing.T, w *httptest.ResponseRecorder) string {
 	}
 	return msg
 }
+

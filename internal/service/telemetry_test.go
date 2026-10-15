@@ -188,3 +188,4 @@ func BenchmarkSampleMemoryViaReadMemStats(b *testing.B) {
 		runtime.ReadMemStats(&m)
 	}
 }
+

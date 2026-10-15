@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# HyperDNS Clean & Complete Uninstaller
+# JozmozDNS Clean & Complete Uninstaller
 #
 # Reverses scripts/install.sh, including the parts of it that reach outside
-# /opt/hyperdns: the systemd-resolved drop-in, the /etc/resolv.conf the installer
+# /opt/JozmozDNS: the systemd-resolved drop-in, the /etc/resolv.conf the installer
 # replaced, and the firewall rules it opened.
 #
 # The default run archives config.json, data.db, master.key and certs/ to /root
@@ -25,10 +25,10 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-INSTALL_DIR="/opt/hyperdns"
+INSTALL_DIR="/opt/JozmozDNS"
 RESOLV_MARKER="${INSTALL_DIR}/.resolv-backup"
 FIREWALL_MARKER="${INSTALL_DIR}/.firewall-backup"
-BACKUP_ARCHIVE="/root/hyperdns-backup-$(date +%Y%m%d_%H%M%S).tar.gz"
+BACKUP_ARCHIVE="/root/JozmozDNS-backup-$(date +%Y%m%d_%H%M%S).tar.gz"
 
 ASSUME_YES=false
 PURGE=false
@@ -43,8 +43,8 @@ for arg in "$@"; do
             ;;
         -h|--help)
             cat <<'USAGE'
-HyperDNS uninstaller — reverses the installer, including the changes it makes outside
-/opt/hyperdns (the systemd-resolved drop-in, /etc/resolv.conf, firewall rules).
+JozmozDNS uninstaller — reverses the installer, including the changes it makes outside
+/opt/JozmozDNS (the systemd-resolved drop-in, /etc/resolv.conf, firewall rules).
 
   uninstall.sh              interactive; archives your data to /root first
   uninstall.sh -y, --yes    no confirmation prompt; still archives your data
@@ -70,16 +70,16 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 echo -e "${RED}${BOLD}=========================================================================${NC}"
-echo -e "${RED}${BOLD} HyperDNS Clean & Complete Uninstaller${NC}"
+echo -e "${RED}${BOLD} JozmozDNS Clean & Complete Uninstaller${NC}"
 echo -e "${RED}${BOLD}=========================================================================${NC}"
 echo ""
-echo "This uninstaller will completely remove HyperDNS from this server:"
-echo "  1. Stop and disable the systemd service ('hyperdns')"
-echo "  2. Remove the systemd service unit (/etc/systemd/system/hyperdns.service)"
+echo "This uninstaller will completely remove JozmozDNS from this server:"
+echo "  1. Stop and disable the systemd service ('JozmozDNS')"
+echo "  2. Remove the systemd service unit (/etc/systemd/system/JozmozDNS.service)"
 echo "  3. Restore the system DNS resolver that was replaced to free port 53"
 echo "  4. Remove only the firewall rules this server's installer opened"
 echo "  5. Archive config.json, data.db, master.key and certs/ to /root"
-echo "  6. Remove the global 'hdns' command (/usr/local/bin/hdns)"
+echo "  6. Remove the global 'jmdns' command (/usr/local/bin/jmdns)"
 echo "  7. Remove ${INSTALL_DIR} entirely"
 echo ""
 
@@ -109,13 +109,13 @@ echo ""
 if [ "${ASSUME_YES}" != true ]; then
     if [ "${PURGE}" = true ]; then
         # A typed word rather than y/n, because this branch has no undo.
-        read -rp "$(echo -e "${YELLOW}Type DELETE to erase HyperDNS and all subscriber data with no backup: ${NC}")" CONFIRM
+        read -rp "$(echo -e "${YELLOW}Type DELETE to erase JozmozDNS and all subscriber data with no backup: ${NC}")" CONFIRM
         if [ "${CONFIRM}" != "DELETE" ]; then
             echo -e "${YELLOW}Uninstall cancelled. No files were modified.${NC}"
             exit 0
         fi
     else
-        read -rp "$(echo -e "${YELLOW}Are you sure you want to completely uninstall HyperDNS? (yes/no): ${NC}")" CONFIRM
+        read -rp "$(echo -e "${YELLOW}Are you sure you want to completely uninstall JozmozDNS? (yes/no): ${NC}")" CONFIRM
         if [ "${CONFIRM}" != "yes" ] && [ "${CONFIRM}" != "y" ] && [ "${CONFIRM}" != "YES" ]; then
             echo -e "${YELLOW}Uninstall cancelled. No files were modified.${NC}"
             exit 0
@@ -124,16 +124,16 @@ if [ "${ASSUME_YES}" != true ]; then
 fi
 
 echo ""
-echo -e "${CYAN}[1/7] Stopping and disabling the hyperdns service...${NC}"
-systemctl stop hyperdns 2>/dev/null || true
-systemctl disable hyperdns 2>/dev/null || true
+echo -e "${CYAN}[1/7] Stopping and disabling the JozmozDNS service...${NC}"
+systemctl stop JozmozDNS 2>/dev/null || true
+systemctl disable JozmozDNS 2>/dev/null || true
 
 echo -e "${CYAN}[2/7] Removing the systemd service unit...${NC}"
-rm -f /etc/systemd/system/hyperdns.service
+rm -f /etc/systemd/system/JozmozDNS.service
 systemctl daemon-reload 2>/dev/null || true
 
 echo -e "${CYAN}[3/7] Restoring the system DNS resolver...${NC}"
-rm -f /etc/systemd/resolved.conf.d/hyperdns.conf
+rm -f /etc/systemd/resolved.conf.d/JozmozDNS.conf
 
 # The drop-in is only half of what step [2/6] of the installer changed. It also replaced
 # /etc/resolv.conf, because with DNSStubListener=no the 127.0.0.53 that every generated
@@ -179,7 +179,7 @@ echo -e "${CYAN}[4/7] Removing the firewall rules this installer opened...${NC}"
 
 # Only the rules recorded at install time, and only the ones that were not already there.
 # An uninstaller that closed every port unconditionally would close 80, 443 or 8080 on a
-# server that was using them before HyperDNS was ever installed.
+# server that was using them before JozmozDNS was ever installed.
 if [ -f "${FIREWALL_MARKER}" ]; then
     REMOVED=0
     ABSENT=0
@@ -260,23 +260,23 @@ else
     echo -e "  ${YELLOW}! ${INSTALL_DIR} does not exist; nothing to archive.${NC}"
 fi
 
-echo -e "${CYAN}[6/7] Removing the global CLI command 'hdns'...${NC}"
+echo -e "${CYAN}[6/7] Removing the global CLI command 'jmdns'...${NC}"
 # Only if it is this installation's symlink. install.sh creates it with `ln -sf`, so a
 # regular file of the same name belongs to something else and is left where it is.
-if [ -L /usr/local/bin/hdns ]; then
-    rm -f /usr/local/bin/hdns
-elif [ -e /usr/local/bin/hdns ]; then
-    echo -e "  ${YELLOW}! /usr/local/bin/hdns is not a symlink; leaving it in place.${NC}"
+if [ -L /usr/local/bin/jmdns ]; then
+    rm -f /usr/local/bin/jmdns
+elif [ -e /usr/local/bin/jmdns ]; then
+    echo -e "  ${YELLOW}! /usr/local/bin/jmdns is not a symlink; leaving it in place.${NC}"
 fi
 
 echo -e "${CYAN}[7/7] Removing ${INSTALL_DIR}...${NC}"
 rm -rf "${INSTALL_DIR}"
 
 echo ""
-echo -e "${GREEN}${BOLD}✓ HyperDNS has been cleanly and completely uninstalled.${NC}"
+echo -e "${GREEN}${BOLD}✓ JozmozDNS has been cleanly and completely uninstalled.${NC}"
 if [ "${PURGE}" != true ] && [ -f "${BACKUP_ARCHIVE}" ]; then
     echo -e "${CYAN}Your data is not gone — it is in ${BACKUP_ARCHIVE}${NC}"
     echo -e "${CYAN}Keep master.key with it: the database inside cannot be decrypted without it.${NC}"
 fi
-echo -e "${CYAN}System DNS resolvers have been restored. Thank you for using HyperDNS! 👋${NC}"
+echo -e "${CYAN}System DNS resolvers have been restored. Thank you for using JozmozDNS! 👋${NC}"
 echo ""

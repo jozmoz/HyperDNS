@@ -231,3 +231,4 @@ func TestRegeneratedPathRewritesTheDocumentAgain(t *testing.T) {
 		t.Error("the regenerated document leaked the retired namespace's asset URLs")
 	}
 }
+

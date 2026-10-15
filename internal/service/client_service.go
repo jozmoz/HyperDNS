@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // ErrInvalidIP reports an address that an operator typed or pasted and that is not
@@ -998,3 +998,4 @@ func (s *ClientService) tokenBindLock(token string) *sync.Mutex {
 	}
 	return m
 }
+

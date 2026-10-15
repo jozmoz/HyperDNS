@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"hyperdns/internal/database"
-	"hyperdns/internal/sysmetrics"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/sysmetrics"
 )
 
 type StatsService struct {
@@ -679,3 +679,4 @@ func (s *StatsService) ServeSSE(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+

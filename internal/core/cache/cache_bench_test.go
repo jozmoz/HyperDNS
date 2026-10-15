@@ -117,3 +117,4 @@ func BenchmarkCacheKey(b *testing.B) {
 		_ = c.getShard(c.cacheKey(q))
 	}
 }
+

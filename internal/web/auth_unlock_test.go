@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"hyperdns/internal/service"
+	"jozmozdns/internal/service"
 )
 
 // Phase C: the unlock endpoint. The lockout lives in the daemon's memory, so
@@ -102,3 +102,4 @@ func TestAuthUnlockRejectsWrongMethod(t *testing.T) {
 		t.Errorf("GET unlock = %d, want 405", w.Code)
 	}
 }
+

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"hyperdns/internal/database"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service"
 )
 
 // TestWriteJSONErrorIsParseable is the regression test for the habit this package
@@ -162,3 +162,4 @@ func TestWriteClientErrorWritesBothHalves(t *testing.T) {
 		t.Errorf("the refused address is missing from the message: %q", payload["error"])
 	}
 }
+

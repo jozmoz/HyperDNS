@@ -100,3 +100,4 @@ func TestLogoutRequiresAuthentication(t *testing.T) {
 		t.Fatalf("unauthenticated logout = %d, want 401", w.Code)
 	}
 }
+

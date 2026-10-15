@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# HyperDNS — 100% Offline Standalone Installer
+# JozmozDNS — 100% Offline Standalone Installer
 # Works with ZERO internet connection using pre-packaged binary & assets.
 # Supported OS: Ubuntu 20.04+, Debian 11+, CentOS/RHEL/Alma/Rocky 8+
 # ==============================================================================
@@ -40,7 +40,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_DIR="/opt/hyperdns"
+INSTALL_DIR="/opt/JozmozDNS"
 
 # Progress spinner. The HTTPS certificate is issued by the daemon itself at
 # first start (embedded Let's Encrypt client, ~7s observed, up to 5m advertised),
@@ -175,7 +175,7 @@ validate_domain() {
 # ==============================================================================
 # STEP 1: FETCH THE LATEST RELEASE BINARY
 # ==============================================================================
-echo -e "${CYAN}${BOLD}[1/6] Downloading the latest HyperDNS release binary...${NC}"
+echo -e "${CYAN}${BOLD}[1/6] Downloading the latest JozmozDNS release binary...${NC}"
 
 ARCH=$(uname -m)
 case "${ARCH}" in
@@ -196,34 +196,34 @@ echo -e "  ${GREEN}✓ Architecture detected: ${ARCH} (${BIN_ARCH})${NC}"
 # beta installer pulling from it silently fetches the older stable binary and
 # the install fails deep in the v2.2.0 flow. Both URLs derive from the single
 # ref so the binary and the auxiliary files can never disagree.
-HYPERDNS_REF="${HYPERDNS_REF:-v2.2.0-beta.1}"
-RAW_BASE="https://raw.githubusercontent.com/IzumiRain/HyperDNS/${HYPERDNS_REF}"
-RELEASE_BASE="https://github.com/IzumiRain/HyperDNS/releases/download/${HYPERDNS_REF}"
+JozmozDNS_REF="${JozmozDNS_REF:-v2.2.0-beta.1}"
+RAW_BASE="https://raw.githubusercontent.com/IzumiRain/JozmozDNS/${JozmozDNS_REF}"
+RELEASE_BASE="https://github.com/IzumiRain/JozmozDNS/releases/download/${JozmozDNS_REF}"
 
-DL_BIN="$(mktemp /tmp/hyperdns-bin.XXXXXX)"
-if curl -fL --retry 3 --connect-timeout 10 "${RELEASE_BASE}/hyperdns-linux-${BIN_ARCH}" -o "${DL_BIN}" 2>/dev/null && [ -s "${DL_BIN}" ]; then
+DL_BIN="$(mktemp /tmp/JozmozDNS-bin.XXXXXX)"
+if curl -fL --retry 3 --connect-timeout 10 "${RELEASE_BASE}/JozmozDNS-linux-${BIN_ARCH}" -o "${DL_BIN}" 2>/dev/null && [ -s "${DL_BIN}" ]; then
     chmod +x "${DL_BIN}"
     SRC_BIN="${DL_BIN}"
     echo -e "  ${GREEN}✓ Downloaded release binary (${BIN_ARCH}): $(( $(stat -c%s "${DL_BIN}" 2>/dev/null || echo 0) / 1024 / 1024 )) MB${NC}"
 else
-    echo -e "${RED}[Error] Could not download the HyperDNS binary from GitHub Releases.${NC}"
+    echo -e "${RED}[Error] Could not download the JozmozDNS binary from GitHub Releases.${NC}"
     echo -e "Check this server's internet access, or run the offline bundle instead."
     exit 1
 fi
 
-ONLINE_CONFIG_EXAMPLE="$(mktemp /tmp/hyperdns-cfg.XXXXXX)"
+ONLINE_CONFIG_EXAMPLE="$(mktemp /tmp/JozmozDNS-cfg.XXXXXX)"
 if ! curl -fsL --retry 3 "${RAW_BASE}/config.example.json" -o "${ONLINE_CONFIG_EXAMPLE}" || [ ! -s "${ONLINE_CONFIG_EXAMPLE}" ]; then
-    echo -e "${RED}[Error] Could not download config.example.json from ${HYPERDNS_REF}.${NC}"
+    echo -e "${RED}[Error] Could not download config.example.json from ${JozmozDNS_REF}.${NC}"
     exit 1
 fi
 
-ONLINE_RESTORE="$(mktemp /tmp/hyperdns-restore.XXXXXX)"
+ONLINE_RESTORE="$(mktemp /tmp/JozmozDNS-restore.XXXXXX)"
 if ! curl -fsL --retry 3 "${RAW_BASE}/scripts/restore.sh" -o "${ONLINE_RESTORE}" || [ ! -s "${ONLINE_RESTORE}" ]; then
-    echo -e "${RED}[Error] Could not download restore.sh from ${HYPERDNS_REF}.${NC}"
+    echo -e "${RED}[Error] Could not download restore.sh from ${JozmozDNS_REF}.${NC}"
     exit 1
 fi
 
-ONLINE_VERSION_JSON="$(mktemp /tmp/hyperdns-ver.XXXXXX)"
+ONLINE_VERSION_JSON="$(mktemp /tmp/JozmozDNS-ver.XXXXXX)"
 curl -fsL --retry 3 "${RAW_BASE}/offline-bundle/version.json" -o "${ONLINE_VERSION_JSON}" 2>/dev/null || true
 
 install -d -o root -g root -m 0755 "${INSTALL_DIR}"
@@ -241,32 +241,32 @@ install -d -o root -g root -m 0700 "${INSTALL_DIR}/certs"
 IS_UPGRADE=false
 PREV_VERSION=""
 
-if [ -f "${INSTALL_DIR}/hyperdns" ] || [ -f "${INSTALL_DIR}/config.json" ] || [ -f "${INSTALL_DIR}/data.db" ] || [ -f "${INSTALL_DIR}/master.key" ] || systemctl is-active --quiet hyperdns 2>/dev/null || systemctl is-enabled --quiet hyperdns 2>/dev/null; then
+if [ -f "${INSTALL_DIR}/JozmozDNS" ] || [ -f "${INSTALL_DIR}/config.json" ] || [ -f "${INSTALL_DIR}/data.db" ] || [ -f "${INSTALL_DIR}/master.key" ] || systemctl is-active --quiet JozmozDNS 2>/dev/null || systemctl is-enabled --quiet JozmozDNS 2>/dev/null; then
     IS_UPGRADE=true
-    if [ -x "${INSTALL_DIR}/hyperdns" ]; then
-        PREV_VERSION="$("${INSTALL_DIR}/hyperdns" -version 2>/dev/null | head -n1 || true)"
+    if [ -x "${INSTALL_DIR}/JozmozDNS" ]; then
+        PREV_VERSION="$("${INSTALL_DIR}/JozmozDNS" -version 2>/dev/null | head -n1 || true)"
     fi
     [ -z "${PREV_VERSION}" ] && PREV_VERSION="unknown (pre-2.2.0)"
 
     echo -e "${YELLOW}${BOLD}\u250c${NC}"
-    echo -e "${YELLOW}│ SAFE INSTALL — an existing HyperDNS installation was detected${NC}"
+    echo -e "${YELLOW}│ SAFE INSTALL — an existing JozmozDNS installation was detected${NC}"
     echo -e "${YELLOW}│ • Installed Version : ${CYAN}${PREV_VERSION}${NC}"
     echo -e "${YELLOW}│ • Target Version    : ${GREEN}v2.2.0 (this package)${NC}"
     echo -e "${YELLOW}│ • Mode              : ${GREEN}Fresh install — old data ARCHIVED, then REPLACED${NC}"
     echo -e "${YELLOW}\u2514${NC}"
     echo ""
 
-    # Archive the WHOLE install tree to /root — outside /opt/hyperdns, so it
+    # Archive the WHOLE install tree to /root — outside /opt/JozmozDNS, so it
     # survives the wipe below. data.db + master.key + config.json + certs are
     # one unit; the archive keeps them together. 600 on the archive: it holds
     # master.key and plaintext credentials.
-    if systemctl is-active --quiet hyperdns 2>/dev/null; then
+    if systemctl is-active --quiet JozmozDNS 2>/dev/null; then
         echo -e "  ${CYAN}Gracefully stopping the running service...${NC}"
-        systemctl stop hyperdns || true
+        systemctl stop JozmozDNS || true
     fi
 
-    ARCHIVE="/root/hyperdns-preinstall-$(date +%Y%m%d_%H%M%S).tar.gz"
-    tar czf "${ARCHIVE}" -C / opt/hyperdns 2>/dev/null || true
+    ARCHIVE="/root/JozmozDNS-preinstall-$(date +%Y%m%d_%H%M%S).tar.gz"
+    tar czf "${ARCHIVE}" -C / opt/JozmozDNS 2>/dev/null || true
     chmod 600 "${ARCHIVE}" 2>/dev/null || true
     if [ -s "${ARCHIVE}" ]; then
         echo -e "  ${GREEN}\u2713 Previous install archived to: ${ARCHIVE}${NC}"
@@ -280,17 +280,17 @@ if [ -f "${INSTALL_DIR}/hyperdns" ] || [ -f "${INSTALL_DIR}/config.json" ] || [ 
     fi
 
     # The wipe is destructive and must never happen silently: an interactive
-    # run types FRESH, an unattended run (piped stdin) sets HYPERDNS_FRESH=1.
-    if [ "${HYPERDNS_FRESH:-0}" = "1" ]; then
-        echo -e "  ${CYAN}HYPERDNS_FRESH=1 — wipe confirmed by environment.${NC}"
+    # run types FRESH, an unattended run (piped stdin) sets JozmozDNS_FRESH=1.
+    if [ "${JozmozDNS_FRESH:-0}" = "1" ]; then
+        echo -e "  ${CYAN}JozmozDNS_FRESH=1 — wipe confirmed by environment.${NC}"
     elif [ -t 0 ]; then
         printf "%b" "${YELLOW}Type ${RED}FRESH${YELLOW} to wipe the existing install and reinstall: ${NC}"
         read -r CONFIRM
         [ "${CONFIRM}" = "FRESH" ] || { echo -e "  ${YELLOW}Cancelled — the existing install is untouched (archive kept).${NC}"; exit 0; }
     else
-        echo -e "  ${RED}\u2717 Non-interactive run detected and HYPERDNS_FRESH=1 is not set.${NC}"
+        echo -e "  ${RED}\u2717 Non-interactive run detected and JozmozDNS_FRESH=1 is not set.${NC}"
         echo -e "  ${RED}  Refusing to wipe an existing install silently. Re-run with:${NC}"
-        echo -e "  ${RED}    HYPERDNS_FRESH=1 bash install.sh${NC}"
+        echo -e "  ${RED}    JozmozDNS_FRESH=1 bash install.sh${NC}"
         exit 1
     fi
 
@@ -304,10 +304,10 @@ install -d -o root -g root -m 0755 "${INSTALL_DIR}"
 install -d -o root -g root -m 0700 "${INSTALL_DIR}/certs"
 
 # Copy binary atomically
-cp -f "${SRC_BIN}" "${INSTALL_DIR}/hyperdns.new"
-chmod +x "${INSTALL_DIR}/hyperdns.new"
-mv -f "${INSTALL_DIR}/hyperdns.new" "${INSTALL_DIR}/hyperdns"
-ln -sf "${INSTALL_DIR}/hyperdns" /usr/local/bin/hdns
+cp -f "${SRC_BIN}" "${INSTALL_DIR}/JozmozDNS.new"
+chmod +x "${INSTALL_DIR}/JozmozDNS.new"
+mv -f "${INSTALL_DIR}/JozmozDNS.new" "${INSTALL_DIR}/JozmozDNS"
+ln -sf "${INSTALL_DIR}/JozmozDNS" /usr/local/bin/jmdns
 
 
 install -d -o root -g root -m 0755 "${INSTALL_DIR}/scripts"
@@ -396,8 +396,8 @@ if [ -f "${INSTALL_DIR}/config.json" ]; then
     chmod 600 "${INSTALL_DIR}/config.json" 2>/dev/null || true
 fi
 
-echo -e "  ${GREEN}✓ Binary installed to ${INSTALL_DIR}/hyperdns${NC}"
-echo -e "  ${GREEN}✓ Global CLI command installed: 'hdns'${NC}"
+echo -e "  ${GREEN}✓ Binary installed to ${INSTALL_DIR}/JozmozDNS${NC}"
+echo -e "  ${GREEN}✓ Global CLI command installed: 'jmdns'${NC}"
 
 # ==============================================================================
 # STEP 2: RESOLVE PORT 53 CONFLICTS (SYSTEMD-RESOLVED)
@@ -406,7 +406,7 @@ echo -e "${CYAN}${BOLD}[2/6] Freeing Port 53 (systemd-resolved resolver)...${NC}
 if systemctl is-active --quiet systemd-resolved; then
     echo -e "  ${YELLOW}Configuring systemd-resolved to release port 53 listener...${NC}"
     mkdir -p /etc/systemd/resolved.conf.d/
-    cat << 'EOF' > /etc/systemd/resolved.conf.d/hyperdns.conf
+    cat << 'EOF' > /etc/systemd/resolved.conf.d/JozmozDNS.conf
 [Resolve]
 DNSStubListener=no
 EOF
@@ -419,7 +419,7 @@ EOF
     # told the installer to resolve. Both the directory and the file are pinned
     # to world-readable explicitly, as the unit file already is below.
     chmod 755 /etc/systemd/resolved.conf.d
-    chmod 644 /etc/systemd/resolved.conf.d/hyperdns.conf
+    chmod 644 /etc/systemd/resolved.conf.d/JozmozDNS.conf
     systemctl restart systemd-resolved || true
 
     # /etc/resolv.conf is a symlink to /run/systemd/resolve/stub-resolv.conf on a stock
@@ -477,7 +477,7 @@ fi
 # STEP 3: FIREWALL RULES CONFIGURATION
 # ==============================================================================
 echo -e "${CYAN}${BOLD}[3/6] Configuring Firewall Rules for Gaming & DNS...${NC}"
-PORTS=(53 80 443 853 2099 5222 5223 8393 8443)
+PORTS=(53 80 443 853 2099 5222 5223 8393 9443)
 # The panel's port joins the fixed set when this install chose one at random
 # (v2.2.0). An upgrade with no PANEL_PORT (or the default 8080, already in the
 # installed set from before) adds nothing. The rule is recorded like the
@@ -488,7 +488,7 @@ fi
 
 # Every rule this step creates is recorded, and the uninstaller removes only what it finds
 # recorded. Closing all ten unconditionally on uninstall would take down whatever was
-# already listening on 80, 443 or 8080 before HyperDNS was installed here.
+# already listening on 80, 443 or 8080 before JozmozDNS was installed here.
 FIREWALL_MARKER="${INSTALL_DIR}/.firewall-backup"
 
 if command -v ufw >/dev/null 2>&1; then
@@ -592,7 +592,7 @@ IS_HTTPS=false
 # offered (v2.2.0 installer contract).
 #
 # The existing config's domain is offered as the default so an upgrade only
-# needs Enter, and HYPERDNS_DOMAIN covers every shell with no terminal — an
+# needs Enter, and JozmozDNS_DOMAIN covers every shell with no terminal — an
 # offline bundle is often run from a provisioning script.
 EXISTING_DOMAIN=""
 if [ -f "${INSTALL_DIR}/config.json" ]; then
@@ -605,12 +605,12 @@ echo -e "${YELLOW}The dashboard will NOT be reachable as a bare IP over plain HT
 echo -e "${YELLOW}Point an A record at ${PUBLIC_IP} first, then enter the domain.${NC}"
 echo ""
 
-if [ -n "${HYPERDNS_DOMAIN:-}" ]; then
-    if validate_domain "${HYPERDNS_DOMAIN}"; then
-        USER_DOMAIN="${HYPERDNS_DOMAIN}"
-        echo -e "  ${GREEN}✓ Using domain from HYPERDNS_DOMAIN: ${USER_DOMAIN}${NC}"
+if [ -n "${JozmozDNS_DOMAIN:-}" ]; then
+    if validate_domain "${JozmozDNS_DOMAIN}"; then
+        USER_DOMAIN="${JozmozDNS_DOMAIN}"
+        echo -e "  ${GREEN}✓ Using domain from JozmozDNS_DOMAIN: ${USER_DOMAIN}${NC}"
     else
-        echo -e "${RED}[Error] HYPERDNS_DOMAIN='${HYPERDNS_DOMAIN}' is not a valid hostname.${NC}" >&2
+        echo -e "${RED}[Error] JozmozDNS_DOMAIN='${JozmozDNS_DOMAIN}' is not a valid hostname.${NC}" >&2
         echo -e "${YELLOW}Expected a bare name such as dns.example.com -- no scheme, port or path.${NC}" >&2
         exit 1
     fi
@@ -636,7 +636,7 @@ else
         fi
     done
 fi
-USER_EMAIL="${HYPERDNS_EMAIL:-}"
+USER_EMAIL="${JozmozDNS_EMAIL:-}"
 if [ -z "${USER_EMAIL}" ]; then
     USER_EMAIL=$(ask_user " ${BOLD}${CYAN}? Admin email for Let's Encrypt (optional, press Enter to skip): ${NC}" "")
 fi
@@ -685,35 +685,35 @@ fi
 # STEP 5: SYSTEMD SERVICE SETUP
 # ==============================================================================
 echo -e "${CYAN}${BOLD}[5/6] Creating & Starting Systemd Background Service...${NC}"
-cat << 'EOF' > /etc/systemd/system/hyperdns.service
+cat << 'EOF' > /etc/systemd/system/JozmozDNS.service
 [Unit]
-Description=HyperDNS — Standalone SmartDNS & Gaming Gateway
-Documentation=https://github.com/IzumiRain/hyperdns
+Description=JozmozDNS — Standalone SmartDNS & Gaming Gateway
+Documentation=https://github.com/IzumiRain/JozmozDNS
 After=network.target network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/hyperdns
-RuntimeDirectory=hyperdns
+WorkingDirectory=/opt/JozmozDNS
+RuntimeDirectory=JozmozDNS
 RuntimeDirectoryMode=0700
 
-# The daemon binds its root-local control socket at /run/hyperdns/control.sock.
+# The daemon binds its root-local control socket at /run/JozmozDNS/control.sock.
 
 # Every path is named explicitly. The daemon can work them out on its own — it
-# probes for /opt/hyperdns and otherwise falls back to the working directory — but
+# probes for /opt/JozmozDNS and otherwise falls back to the working directory — but
 # a unit that states them is a unit an operator can read the state locations out
 # of, and it keeps being correct if the binary is ever installed elsewhere.
-ExecStart=/opt/hyperdns/hyperdns -daemon \
-    -config /opt/hyperdns/config.json \
-    -db /opt/hyperdns/data.db \
-    -key /opt/hyperdns/master.key
+ExecStart=/opt/JozmozDNS/JozmozDNS -daemon \
+    -config /opt/JozmozDNS/config.json \
+    -db /opt/JozmozDNS/data.db \
+    -key /opt/JozmozDNS/master.key
 
 Restart=always
 RestartSec=3s
 TimeoutStopSec=15s
-SyslogIdentifier=hyperdns
+SyslogIdentifier=JozmozDNS
 
 # 65535 because connection caps are what bound this daemon's stream listeners:
 # 512 on TCP, 1024 on DoT, 512 on HTTPS/DoH — 2048 sockets before UDP, the
@@ -729,7 +729,7 @@ OOMPolicy=continue
 
 # Deliberately NOT sandboxed further: the daemon binds 53/80/443/853 and now
 # performs its own ACME issuance in-process (writes only under
-# /opt/hyperdns/certs). The full note is in scripts/hyperdns.service in the
+# /opt/JozmozDNS/certs). The full note is in scripts/JozmozDNS.service in the
 # repository.
 
 [Install]
@@ -739,10 +739,10 @@ EOF
 # The heredoc above inherits the caller's umask, and a unit file is not a place to trust
 # it: under `umask 000` the redirect creates the file 0666, and a world-writable unit means
 # any local user can rewrite ExecStart and have systemd run it as root on the next boot.
-chmod 644 /etc/systemd/system/hyperdns.service
+chmod 644 /etc/systemd/system/JozmozDNS.service
 
 systemctl daemon-reload
-systemctl enable hyperdns >/dev/null 2>&1
+systemctl enable JozmozDNS >/dev/null 2>&1
 
 # Mark the journal position BEFORE this start. The health step below reads the
 # daemon's own log lines to find the port and admin path it actually bound,
@@ -755,10 +755,10 @@ systemctl enable hyperdns >/dev/null 2>&1
 # cursor could not be captured. Both exclude a reinstall in the same boot,
 # which -b would not.
 BOOT_TIME=$(date +%s)
-BOOT_CURSOR="$(journalctl -u hyperdns -n 0 --show-cursor 2>/dev/null | sed -n 's/^-- cursor: //p')"
+BOOT_CURSOR="$(journalctl -u JozmozDNS -n 0 --show-cursor 2>/dev/null | sed -n 's/^-- cursor: //p')"
 export BOOT_CURSOR BOOT_TIME
 
-systemctl restart hyperdns
+systemctl restart JozmozDNS
 
 sleep 2
 
@@ -774,7 +774,7 @@ echo -e "${CYAN}${BOLD}[6/6] Verifying Service Health...${NC}"
 # to restart.
 SERVICE_UP=false
 for _hc in $(seq 1 20); do
-    if systemctl is-active --quiet hyperdns; then
+    if systemctl is-active --quiet JozmozDNS; then
         SERVICE_UP=true
         break
     fi
@@ -782,9 +782,9 @@ for _hc in $(seq 1 20); do
 done
 
 if [ "${SERVICE_UP}" = true ]; then
-    echo -e "  ${GREEN}✓ HyperDNS core engine is ACTIVE and RUNNING!${NC}"
+    echo -e "  ${GREEN}✓ JozmozDNS core engine is ACTIVE and RUNNING!${NC}"
 else
-    echo -e "  ${RED}✕ Service failed to start. Run 'journalctl -u hyperdns -n 50' to inspect.${NC}"
+    echo -e "  ${RED}✕ Service failed to start. Run 'journalctl -u JozmozDNS -n 50' to inspect.${NC}"
     echo -e "  ${YELLOW}If the journal says the HTTPS certificate is not usable, the domain has no${NC}"
     echo -e "  ${YELLOW}CA-signed certificate yet — see the issuance step above for the fix.${NC}"
     exit 1
@@ -814,12 +814,12 @@ spinner_start "Starting the daemon and issuing the ${USER_DOMAIN} certificate (L
 for _ in $(seq 1 40); do
     _JOURNAL=""
     if [ -n "${BOOT_CURSOR}" ]; then
-        _JOURNAL=$(journalctl -u hyperdns --no-pager --after-cursor="${BOOT_CURSOR}" 2>/dev/null)
+        _JOURNAL=$(journalctl -u JozmozDNS --no-pager --after-cursor="${BOOT_CURSOR}" 2>/dev/null)
     fi
     # Fall back to a time bound — never back to -n 120, which would re-read a
     # previous install's port from this same boot.
     if [ -z "${_JOURNAL}" ]; then
-        _JOURNAL=$(journalctl -u hyperdns --no-pager --since "@${BOOT_TIME}" 2>/dev/null)
+        _JOURNAL=$(journalctl -u JozmozDNS --no-pager --since "@${BOOT_TIME}" 2>/dev/null)
     fi
     ADMIN_PATH=$(printf '%s' "${_JOURNAL}" | grep -oE "/[0-9a-f]{16}/dash/login" | tail -1 | cut -d'/' -f2)
     PANEL_PORT_LIVE=$(printf '%s' "${_JOURNAL}" | grep -oE "Dashboard : https://0\.0\.0\.0:[0-9]+/" | grep -oE "[0-9]+" | tail -1)
@@ -903,30 +903,30 @@ if [ "${HEALTH_OK}" != true ]; then
     echo ""
     echo -e "${RED}${BOLD}  ✕ HEALTH CHECK FAILED — the install is NOT complete.${NC}"
     echo -e "${YELLOW}  Failing probe: ${HEALTH_DETAIL:-see above}${NC}"
-    echo -e "${YELLOW}  Inspect:  journalctl -u hyperdns -n 80 --no-pager${NC}"
+    echo -e "${YELLOW}  Inspect:  journalctl -u JozmozDNS -n 80 --no-pager${NC}"
     echo -e "${YELLOW}  The most likely cause is a DNS record that has not reached this server yet:${NC}"
     echo -e "${YELLOW}  the daemon issues its own certificate at first start and retries daily.${NC}"
     echo -e "${YELLOW}  Verify the A record for ${USER_DOMAIN} points at ${PUBLIC_IP} and that port 80${NC}"
-    echo -e "${YELLOW}  is open to the internet, then:  systemctl restart hyperdns${NC}"
+    echo -e "${YELLOW}  is open to the internet, then:  systemctl restart JozmozDNS${NC}"
     exit 1
 fi
 
 echo ""
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}${BOLD}       🎉 HYPERDNS OFFLINE INSTALLATION COMPLETED SUCCESSFULLY!       ${NC}"
+echo -e "${GREEN}${BOLD}       🎉 JozmozDNS OFFLINE INSTALLATION COMPLETED SUCCESSFULLY!       ${NC}"
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${NC}"
 echo ""
 
 if [ "$IS_HTTPS" = true ] && [ -n "$USER_DOMAIN" ]; then
     if [ -n "$ADMIN_PATH" ]; then
         echo -e "  ${BOLD}?? Web Dashboard (HTTPS):${NC}  ${CYAN}https://${USER_DOMAIN}:${PANEL_PORT:-8443}/${ADMIN_PATH}/dash/${NC}"
-        echo -e "  ${BOLD}?? Hidden admin path:${NC}      ${YELLOW}${ADMIN_PATH}${NC}  ${YELLOW}(recovered: journalctl -u hyperdns | grep 'admin panel path')${NC}"
+        echo -e "  ${BOLD}?? Hidden admin path:${NC}      ${YELLOW}${ADMIN_PATH}${NC}  ${YELLOW}(recovered: journalctl -u JozmozDNS | grep 'admin panel path')${NC}"
     else
         echo -e "  ${BOLD}?? Web Dashboard (HTTPS):${NC}  ${CYAN}https://${USER_DOMAIN}:${PANEL_PORT:-8443}/<admin-path>/dash/${NC}"
-        echo -e "  ${BOLD}?? Hidden admin path:${NC}      read it with: ${YELLOW}journalctl -u hyperdns | grep 'admin panel path'${NC}"
+        echo -e "  ${BOLD}?? Hidden admin path:${NC}      read it with: ${YELLOW}journalctl -u JozmozDNS | grep 'admin panel path'${NC}"
     fi
     echo -e "  ${BOLD}?? Private DNS (DoT):${NC}      ${CYAN}${USER_DOMAIN}:853${NC}"
-    echo -e "  ${BOLD}?? DNS-over-HTTPS (DoH):${NC}   ${CYAN}https://${USER_DOMAIN}:8443/dns-query${NC}"
+    echo -e "  ${BOLD}?? DNS-over-HTTPS (DoH):${NC}   ${CYAN}https://${USER_DOMAIN}:9443/dns-query${NC}"
 else
     _display_port="${PANEL_PORT:-8080}"
     echo -e "  ${BOLD}?? Web Dashboard:${NC}          ${CYAN}bound to 127.0.0.1:${_display_port} ONLY (no domain configured)${NC}"
@@ -947,8 +947,8 @@ else
 fi
 echo ""
 echo -e "  ${BOLD}🎮 Dedicated Primary DNS IP:${NC} ${CYAN}${PUBLIC_IP}${NC}"
-echo -e "  ${BOLD}🖥️  Terminal console:${NC}       run ${PURPLE}hdns${NC} anytime — it talks to the running service over its control socket (live telemetry, stop/start/uninstall included); ${PURPLE}hdns status${NC} and ${PURPLE}hdns flush${NC} also work beside the daemon"
-echo -e "  ${BOLD}📂 Config File Location:${NC}   ${YELLOW}/opt/hyperdns/config.json${NC}"
+echo -e "  ${BOLD}🖥️  Terminal console:${NC}       run ${PURPLE}jmdns${NC} anytime — it talks to the running service over its control socket (live telemetry, stop/start/uninstall included); ${PURPLE}jmdns status${NC} and ${PURPLE}jmdns flush${NC} also work beside the daemon"
+echo -e "  ${BOLD}📂 Config File Location:${NC}   ${YELLOW}/opt/JozmozDNS/config.json${NC}"
 echo ""
 echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${NC}"
 echo ""

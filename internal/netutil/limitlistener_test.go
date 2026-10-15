@@ -145,3 +145,4 @@ func TestLimitListenerPassesThroughWhenUnbounded(t *testing.T) {
 		t.Error("LimitListener(nil, 10) should stay nil rather than wrap nothing")
 	}
 }
+

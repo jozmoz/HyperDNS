@@ -82,3 +82,4 @@ func TestAPIKeyRotationUngatedWithoutPredicate(t *testing.T) {
 		t.Fatalf("POST with no gate wired = %d, want 200", w.Code)
 	}
 }
+

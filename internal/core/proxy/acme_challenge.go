@@ -107,3 +107,4 @@ func parseHTTPRequestHead(head []byte) (method, path, host string, ok bool) {
 	}
 	return method, path, host, true
 }
+

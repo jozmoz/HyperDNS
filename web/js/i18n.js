@@ -1,4 +1,4 @@
-/* HyperDNS panel localisation — Persian / English.
+/* JozmozDNS panel localisation — Persian / English.
  *
  * The dictionary is keyed on the English source text rather than on data-i18n
  * attributes, and that choice is worth defending because the obvious alternative
@@ -33,7 +33,7 @@
     /* --- shell, auth, login --- */
     'JozmozDNS — Next-Gen Gaming & Anti-Sanction SmartDNS Controller':
       'JozmozDNS — کنترلر هوشمند DNS برای گیم و دور زدن تحریم',
-    'HyperDNS — Next-Gen Gaming & Anti-Sanction SmartDNS Controller':
+    'JozmozDNS — Next-Gen Gaming & Anti-Sanction SmartDNS Controller':
       'JozmozDNS — کنترلر هوشمند DNS برای گیم و دور زدن تحریم',
     'STANDALONE CONTROLLER': 'کنترلر مستقل',
     'ADMIN USERNAME': 'نام کاربری مدیر',
@@ -45,7 +45,7 @@
     'ONLINE · SMARTDNS': 'آنلاین · SMARTDNS',
     'JozmozDNS Smart Controller — Low-Latency SmartDNS Engine ·':
       'کنترلر هوشمند JozmozDNS — موتور SmartDNS با تأخیر پایین ·',
-    'HyperDNS Smart Controller — Low-Latency SmartDNS Engine ·':
+    'JozmozDNS Smart Controller — Low-Latency SmartDNS Engine ·':
       'کنترلر هوشمند JozmozDNS — موتور SmartDNS با تأخیر پایین ·',
 
     /* --- security setup modal --- */
@@ -104,7 +104,7 @@
     'Game Intelligence': 'هوشمندی بازی‌ها',
     'HGI': 'هوشمندی بازی',
     'JozmozDNS Game Intelligence Engine': 'موتور هوشمندی بازی‌های JozmozDNS',
-    'HyperDNS Game Intelligence Engine': 'موتور هوشمندی بازی‌های JozmozDNS',
+    'JozmozDNS Game Intelligence Engine': 'موتور هوشمندی بازی‌های JozmozDNS',
     'Gaming Intelligence & Route Controller': 'هوشمندی بازی‌ها و کنترلر مسیر',
     'Detect Active Game': 'تشخیص بازی فعال',
     'Probe All Routes': 'آزمایش تمام مسیرها',
@@ -621,7 +621,7 @@
     'Subscription domain (empty = panel domain)': 'دامنه اشتراک (خالی = دامنه پنل)',
     'Advertised port': 'پورت اعلام‌شده',
     'Portal title (default JozmozDNS)': 'عنوان پورتال (پیش‌فرض JozmozDNS)',
-    'Portal title (default HyperDNS)': 'عنوان پورتال (پیش‌فرض JozmozDNS)',
+    'Portal title (default JozmozDNS)': 'عنوان پورتال (پیش‌فرض JozmozDNS)',
     'Certificate path (separate domain only)': 'مسیر گواهی (فقط برای دامنه مجزا)',
     'Key path (separate domain only)': 'مسیر کلید (فقط برای دامنه مجزا)',
     'Save Subscription Settings': 'ذخیره تنظیمات اشتراک',
@@ -903,8 +903,8 @@
   ];
   /* ------------------------------------------------------------------ engine */
 
-  var LANG_KEY = 'hyperdns_lang';
-  var THEME_KEY = 'hyperdns_theme';
+  var LANG_KEY = 'JozmozDNS_lang';
+  var THEME_KEY = 'JozmozDNS_theme';
   var ATTRS = ['placeholder', 'title', 'aria-label'];
 
   /* Subtrees whose text is not prose. CODE and PRE hold shell and Python snippets an
@@ -1029,7 +1029,7 @@
       applying = false;
     }
     syncSwitchLabels();
-    document.dispatchEvent(new CustomEvent('hyperdns:lang', { detail: { lang: lang } }));
+    document.dispatchEvent(new CustomEvent('JozmozDNS:lang', { detail: { lang: lang } }));
   }
 
   /* The panel re-renders the query stream, the client grid and the upstream list on a
@@ -1079,7 +1079,7 @@
       try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* private mode */ }
     }
     syncSwitchLabels();
-    document.dispatchEvent(new CustomEvent('hyperdns:theme', { detail: { theme: theme } }));
+    document.dispatchEvent(new CustomEvent('JozmozDNS:theme', { detail: { theme: theme } }));
   }
 
   /* --------------------------------------------------------------- switch UI */

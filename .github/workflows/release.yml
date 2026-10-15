@@ -1,4 +1,4 @@
-﻿name: Release HyperDNS
+name: Release JozmozDNS
 
 on:
   push:
@@ -70,34 +70,34 @@ jobs:
           mkdir -p dist
           
           # Linux AMD64
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o dist/hyperdns-linux-amd64 ./cmd/hyperdns
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o dist/JozmozDNS-linux-amd64 ./cmd/JozmozDNS
           
           # Linux ARM64
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o dist/hyperdns-linux-arm64 ./cmd/hyperdns
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w" -o dist/JozmozDNS-linux-arm64 ./cmd/JozmozDNS
           
           # Windows AMD64
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o dist/hyperdns-windows-amd64.exe ./cmd/hyperdns
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -o dist/JozmozDNS-windows-amd64.exe ./cmd/JozmozDNS
           
           # macOS ARM64 (Apple Silicon)
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o dist/hyperdns-darwin-arm64 ./cmd/hyperdns
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -o dist/JozmozDNS-darwin-arm64 ./cmd/JozmozDNS
           
           # macOS AMD64 (Intel)
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o dist/hyperdns-darwin-amd64 ./cmd/hyperdns
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags "-s -w" -o dist/JozmozDNS-darwin-amd64 ./cmd/JozmozDNS
           
           # Build Offline Bundle. scripts/uninstall.sh is the canonical copy;
           # offline-bundle/scripts/ holds the mirror kept
           # byte-identical. The uninstaller is not optional: install.sh copies it
-          # to /opt/hyperdns/scripts/uninstall.sh, and when it is missing the
+          # to /opt/JozmozDNS/scripts/uninstall.sh, and when it is missing the
           # TUI's "Complete Uninstall" falls back to an rm -rf that takes data.db
           # and master.key with it and restores neither the resolver nor the
           # firewall. version.json ships so the daemon's startup drift check has
           # a matching file.
           # config.example.json keeps its example name in the bundle: install.sh
-          # looks for exactly that file to seed a fresh /opt/hyperdns/config.json
+          # looks for exactly that file to seed a fresh /opt/JozmozDNS/config.json
           # with per-install credentials. Shipping it as config.json would skip
           # that branch entirely (the beta zip shipped it correctly).
           mkdir -p offline_temp/scripts
-          cp dist/hyperdns-linux-amd64 offline_temp/hyperdns
+          cp dist/JozmozDNS-linux-amd64 offline_temp/JozmozDNS
           cp offline-bundle/install.sh offline_temp/install.sh
           cp config.example.json offline_temp/config.example.json
           cp offline-bundle/version.json offline_temp/version.json
@@ -105,10 +105,10 @@ jobs:
           cp scripts/restore.sh offline_temp/scripts/restore.sh
           cp offline-bundle/README.txt offline_temp/README.txt
           cp offline-bundle/migrate-from-v1.sh offline_temp/migrate-from-v1.sh
-          chmod +x offline_temp/install.sh offline_temp/hyperdns offline_temp/scripts/*.sh offline_temp/migrate-from-v1.sh
+          chmod +x offline_temp/install.sh offline_temp/JozmozDNS offline_temp/scripts/*.sh offline_temp/migrate-from-v1.sh
           
-          tar -czvf dist/hyperdns-offline-bundle.tar.gz -C offline_temp .
-          (cd offline_temp && zip -r ../dist/hyperdns-offline-bundle.zip .)
+          tar -czvf dist/JozmozDNS-offline-bundle.tar.gz -C offline_temp .
+          (cd offline_temp && zip -r ../dist/JozmozDNS-offline-bundle.zip .)
           
           # Generate SHA256 Checksums
           cd dist

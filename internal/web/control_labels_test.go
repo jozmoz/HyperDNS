@@ -94,3 +94,4 @@ func stripTagsAndEntities(s string) string {
 	s = regexp.MustCompile(`&[a-zA-Z#0-9]+;`).ReplaceAllString(s, "")
 	return s
 }
+

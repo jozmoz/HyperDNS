@@ -201,3 +201,4 @@ func TestDoHServesAtRootWhileAdminMoves(t *testing.T) {
 		t.Errorf("GET /dns-query with no DoH handler = %d, want 404", w.Code)
 	}
 }
+

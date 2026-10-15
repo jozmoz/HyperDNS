@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"hyperdns/internal/control"
-	"hyperdns/internal/version"
+	"jozmozdns/internal/control"
+	"jozmozdns/internal/version"
 )
 
 // ControlClient is the daemon-owned management surface consumed by the TUI.
@@ -40,7 +40,7 @@ type ControlClient interface {
 // daemon and makes the client path straightforward to test.
 //
 // v2.2.0 adds Start and Stop: the console is a client process that runs with
-// the daemon down (bare `hdns` is dispatched before any DB access), so it is
+// the daemon down (bare `jmdns` is dispatched before any DB access), so it is
 // exactly the place an operator lands when the service is stopped and needs
 // the way back up.
 type SystemController interface {
@@ -60,7 +60,7 @@ type ExecSystemController struct {
 func (s ExecSystemController) Start(ctx context.Context) error {
 	args := s.StartCommand
 	if len(args) == 0 {
-		args = []string{"systemctl", "start", "hyperdns"}
+		args = []string{"systemctl", "start", "JozmozDNS"}
 	}
 	return runCommand(ctx, args)
 }
@@ -68,7 +68,7 @@ func (s ExecSystemController) Start(ctx context.Context) error {
 func (s ExecSystemController) Stop(ctx context.Context) error {
 	args := s.StopCommand
 	if len(args) == 0 {
-		args = []string{"systemctl", "stop", "hyperdns"}
+		args = []string{"systemctl", "stop", "JozmozDNS"}
 	}
 	return runCommand(ctx, args)
 }
@@ -76,7 +76,7 @@ func (s ExecSystemController) Stop(ctx context.Context) error {
 func (s ExecSystemController) Restart(ctx context.Context) error {
 	args := s.RestartCommand
 	if len(args) == 0 {
-		args = []string{"systemctl", "restart", "hyperdns"}
+		args = []string{"systemctl", "restart", "JozmozDNS"}
 	}
 	return runCommand(ctx, args)
 }
@@ -89,7 +89,7 @@ func (s ExecSystemController) Uninstall(ctx context.Context) error {
 		// interactive dead-weight on a pipe. -y still writes the /root
 		// backup archive — only --purge skips that, and nothing in this
 		// console passes --purge.
-		args = []string{"/opt/hyperdns/scripts/uninstall.sh", "-y"}
+		args = []string{"/opt/JozmozDNS/scripts/uninstall.sh", "-y"}
 	}
 	return runInteractive(ctx, args)
 }
@@ -228,7 +228,7 @@ func printMenu(ctx context.Context, out io.Writer, p palette, client ControlClie
 	fmt.Fprintln(out, p.Bold(" 🔒 Security & System"))
 	fmt.Fprintln(out, "  [12] 🔑 View / rotate API key    [13] 🔓 Clear login lockouts")
 	fmt.Fprintln(out, "  [14] 🛡️  Change admin credentials [15] 🚨 Emergency admin reset")
-	fmt.Fprintln(out, "  [16] 💣 Uninstall HyperDNS")
+	fmt.Fprintln(out, "  [16] 💣 Uninstall JozmozDNS")
 	fmt.Fprintln(out, p.Faint(strings.Repeat("─", 64)))
 	fmt.Fprintln(out, "  [0] 🚪 Exit console (daemon keeps running)")
 }
@@ -278,7 +278,7 @@ func runChoice(ctx context.Context, choice string, scanner *bufio.Scanner, out, 
 		if err := system.Stop(ctx); err != nil {
 			return err
 		}
-		fmt.Fprintln(out, "Service stopped. Use [5] Start service (or systemctl start hyperdns) to bring it back.")
+		fmt.Fprintln(out, "Service stopped. Use [5] Start service (or systemctl start JozmozDNS) to bring it back.")
 	case "5":
 		if system == nil {
 			return errors.New("system controller is unavailable")
@@ -508,3 +508,4 @@ func sanitizedError(err error) string {
 	}
 	return "control request failed"
 }
+

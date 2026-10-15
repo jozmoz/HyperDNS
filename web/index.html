@@ -30,11 +30,11 @@
   <script>
     (function () {
       try {
-        var t = localStorage.getItem('hyperdns_theme');
+        var t = localStorage.getItem('JozmozDNS_theme');
         if (t !== 'light' && t !== 'dark') {
           t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
         }
-        var l = localStorage.getItem('hyperdns_lang');
+        var l = localStorage.getItem('JozmozDNS_lang');
         if (l !== 'fa' && l !== 'en') l = 'en';
         var h = document.documentElement;
         h.setAttribute('data-theme', t);
@@ -986,7 +986,7 @@
              showed the markup's static "v1.5.0" and became a broken header the moment app.js
              filled it in: the real string is "v1.5.0-beta [3585f9bf]", it does not fit beside
              the wordmark at 9px mono, so it wrapped to a second line and then a third and
-             pushed a 68px stack through a 56px header — "HyperDNS" clipped by its own top
+             pushed a 68px stack through a 56px header — "JozmozDNS" clipped by its own top
              border on every phone.
              Simply forbidding the wrap moves the failure rather than fixing it. At 360px the
              header has 328px of content width; a nowrap brand row is 32 (mark) + 10 + 69

@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/service"
-	"hyperdns/internal/version"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service"
+	"jozmozdns/internal/version"
 )
 
 func setupTestAPI(t *testing.T) (*API, *database.DB, *database.ServerSettings, func()) {
@@ -395,3 +395,4 @@ func TestListFieldsEncodeAsArraysNotNull(t *testing.T) {
 	populated := call(http.MethodGet, "/api/v1/clients", nil)
 	wantArray("GET /api/v1/clients (populated)", "clients", populated)
 }
+

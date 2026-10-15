@@ -1,6 +1,6 @@
-﻿# 🎮 HyperDNS — Supported Games, Platforms & Services Directory
+# 🎮 JozmozDNS — Supported Games, Platforms & Services Directory
 
-HyperDNS features native, low-latency SmartDNS routing and zero-knowledge SNI proxying for **171+ games, launchers, anti-cheat handshakes, and developer platforms**.
+JozmozDNS features native, low-latency SmartDNS routing and zero-knowledge SNI proxying for **171+ games, launchers, anti-cheat handshakes, and developer platforms**.
 
 All routing rules are updated for **Zero Packet Loss**, **Direct Region Matchmaking**, and **Bypassing 403 Sanctions & ISP Throttling**.
 
@@ -151,7 +151,7 @@ All routing rules are updated for **Zero Packet Loss**, **Direct Region Matchmak
 
 ## 👑 5. Major Publishers & Ecosystems
 
-HyperDNS supports whole-ecosystem anti-sanction routing for the world's largest gaming platforms:
+JozmozDNS supports whole-ecosystem anti-sanction routing for the world's largest gaming platforms:
 
 ### 🔴 Riot Games Full Suite
 - **League of Legends** (PC & Wild Rift)
@@ -165,7 +165,7 @@ HyperDNS supports whole-ecosystem anti-sanction routing for the world's largest 
 > titles, `*.discord.media` for Discord — carries its audio as UDP, and the SNI
 > proxy is a TCP service. Answering those names with the proxy's address would hand
 > the client somewhere nothing is listening, so voice would show as connected and
-> carry no audio. HyperDNS answers them with the real address instead. Text chat and
+> carry no audio. JozmozDNS answers them with the real address instead. Text chat and
 > party/lobby signalling, which are TCP, are proxied as normal.
 
 ### 🟣 Steam & Valve Ecosystem
@@ -183,7 +183,7 @@ HyperDNS supports whole-ecosystem anti-sanction routing for the world's largest 
 > Valve's own binary framing rather than TLS — so there is no port for the proxy to
 > accept on and no SNI for it to read. Answering that name with the proxy's address
 > would hand the client somewhere nothing can serve it, which is worse than not
-> touching it, so HyperDNS answers it with the real address. Everything above stays
+> touching it, so JozmozDNS answers it with the real address. Everything above stays
 > proxied, and a current client's sign-in path — the Web API call, then a WebSocket
 > connection manager on 443 — runs entirely over the proxied names, so this does not
 > put Steam login back behind a filter.
@@ -245,7 +245,7 @@ HyperDNS supports whole-ecosystem anti-sanction routing for the world's largest 
 
 ## 🛡️ 8. Anti-Cheat Handshake Support
 
-Anti-cheats often fail on restricted networks during startup. HyperDNS provides dedicated transparent SNI proxying for:
+Anti-cheats often fail on restricted networks during startup. JozmozDNS provides dedicated transparent SNI proxying for:
 - **Riot Vanguard** (`vanguard.riotgames.com`, `anticheat.riotgames.com`)
 - **Easy Anti-Cheat (EAC)** (`easyanticheat.net`, `eac-cdn.com`)
 - **BattlEye** (`battleye.com`)
@@ -268,7 +268,7 @@ Bypasses 403 Forbidden sanctions on software development, AI models, and infrast
 ---
 
 <p align="center">
-  <b>HyperDNS</b> — Built for Gamers, Developers & Power Users.<br>
+  <b>JozmozDNS</b> — Built for Gamers, Developers & Power Users.<br>
   <i>Zero Ping Overhead · Sharded In-Memory Cache · Transparent Zero-Knowledge SNI Proxy</i>
 </p>
 

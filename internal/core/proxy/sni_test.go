@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // recorder is a net.Conn that records the size of every Write, so a test can
@@ -342,3 +342,4 @@ func TestFullRelayTableIsRefusedNotUnreadable(t *testing.T) {
 			"unreadable destination, and conflating them points the operator at the wrong fault", unreadable)
 	}
 }
+

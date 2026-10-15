@@ -219,3 +219,4 @@ func TestProvisionClientWithoutAnExpiryOrDaysIsLifetime(t *testing.T) {
 		t.Errorf("a lifetime account expires at %v", stored.ExpiresAt)
 	}
 }
+

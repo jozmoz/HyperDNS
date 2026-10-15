@@ -44,3 +44,4 @@ func TestGetMinTTLObeysSOAMinimum(t *testing.T) {
 		t.Errorf("getMinTTL = %d, want SOA MINIMUM 300 (RFC 2308), not the header TTL 86400", got)
 	}
 }
+

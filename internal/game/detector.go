@@ -160,3 +160,4 @@ func (d *ActiveGameDetector) DetectActiveGame() *DetectedGame {
 		SuggestedAction: fmt.Sprintf("Activate %s profile route policies", bestGame.profile.Name),
 	}
 }
+

@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/miekg/dns"
-	"hyperdns/internal/netutil"
+	"jozmozdns/internal/netutil"
 )
 
 type DoHHandler struct {
@@ -157,3 +157,4 @@ func minAnswerTTL(msg *dns.Msg) uint32 {
 	}
 	return ttl
 }
+

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // fakeChallengeResponder stands in for the ACME manager: it knows exactly one
@@ -195,3 +195,4 @@ func TestParseHTTPRequestHead(t *testing.T) {
 		}
 	}
 }
+

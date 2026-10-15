@@ -306,3 +306,4 @@ func (g *targetGuard) vet(name string, addr netip.Addr) error {
 	}
 	return nil
 }
+

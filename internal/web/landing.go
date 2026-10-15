@@ -186,3 +186,4 @@ func (ws *WebServer) serveLandingPage(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = io.WriteString(w, landingPageHTML)
 }
+

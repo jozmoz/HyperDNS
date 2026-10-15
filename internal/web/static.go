@@ -438,3 +438,4 @@ func etagMatches(header, etag string) bool {
 	}
 	return false
 }
+

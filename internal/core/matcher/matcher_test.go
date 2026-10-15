@@ -856,3 +856,4 @@ func TestConcurrentMatchDuringReload(t *testing.T) {
 
 	wg.Wait()
 }
+

@@ -520,3 +520,4 @@ func TestConcurrentAccess(t *testing.T) {
 		t.Error("no lookups were counted")
 	}
 }
+

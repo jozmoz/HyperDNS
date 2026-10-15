@@ -22,3 +22,4 @@ func TestLoginAttemptTrackerResetReportsExactCount(t *testing.T) {
 		t.Fatalf("Count = %d, want 0", got)
 	}
 }
+

@@ -59,3 +59,4 @@ func WriteMethodNotAllowed(w http.ResponseWriter, allow string) {
 	w.Header().Set("Allow", allow)
 	WriteJSONError(w, http.StatusMethodNotAllowed, "Method not allowed")
 }
+

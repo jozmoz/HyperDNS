@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"hyperdns/internal/database"
-	"hyperdns/internal/service/acme"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service/acme"
 )
 
 // The panel-certificate resolver (v2.2.0 field report): renaming the panel
@@ -203,3 +203,4 @@ func peerLeafCN(t *testing.T, port int, _ string) string {
 	}
 	return certs[0].Subject.CommonName
 }
+

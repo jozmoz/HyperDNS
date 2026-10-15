@@ -10,7 +10,7 @@ import (
 	"time"
 
 	bolt "go.etcd.io/bbolt"
-	"hyperdns/internal/crypto"
+	"jozmozdns/internal/crypto"
 )
 
 var (
@@ -20,7 +20,7 @@ var (
 	bucketSettings  = []byte("settings")
 	bucketUpstreams = []byte("upstreams")
 
-	// HGI (HyperDNS Game Intelligence) buckets
+	// HGI (JozmozDNS Game Intelligence) buckets
 	bucketGames       = []byte("game_profiles")
 	bucketDomains     = []byte("domain_intelligence")
 	bucketRoutes      = []byte("route_nodes")
@@ -28,7 +28,7 @@ var (
 	bucketAuditLogs   = []byte("audit_logs")
 )
 
-// bucketsInUse is all active storage buckets required by HyperDNS and HGI.
+// bucketsInUse is all active storage buckets required by JozmozDNS and HGI.
 var (
 	bucketsInUse = [][]byte{
 		bucketClients,
@@ -184,7 +184,7 @@ func openDatabase(dbPath string, cipher *crypto.Cipher, existing bool) (*DB, err
 		// Not counted as a conversion: the pages those buckets used never held a
 		// secret, so they are not worth a whole-file rewrite on their own. If a real
 		// migration runs on the same start, the compaction below reclaims them anyway.
-		log.Printf("[DB] Dropped %d empty bucket(s) that no version of HyperDNS ever wrote to.", dropped)
+		log.Printf("[DB] Dropped %d empty bucket(s) that no version of JozmozDNS ever wrote to.", dropped)
 	}
 	if n, err := db.encryptLegacySettings(); err != nil {
 		log.Printf("[DB] Could not encrypt the legacy settings records: %v; they stay in cleartext.", err)
@@ -351,7 +351,7 @@ func (db *DB) RestoreFromReader(r io.Reader) error {
 		return fmt.Errorf("database is not initialized")
 	}
 
-	tmpFile, err := os.CreateTemp("", "hyperdns-restore-*.db")
+	tmpFile, err := os.CreateTemp("", "JozmozDNS-restore-*.db")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary restore file: %w", err)
 	}
@@ -369,7 +369,7 @@ func (db *DB) RestoreFromReader(r io.Reader) error {
 		Timeout:  3 * time.Second,
 	})
 	if err != nil {
-		return fmt.Errorf("uploaded file is not a valid HyperDNS database: %w", err)
+		return fmt.Errorf("uploaded file is not a valid JozmozDNS database: %w", err)
 	}
 	defer uploadedDB.Close()
 
@@ -404,4 +404,5 @@ func (db *DB) RestoreFromReader(r io.Reader) error {
 		})
 	})
 }
+
 

@@ -9,14 +9,14 @@ import (
 	"strconv"
 	"strings"
 
-	"hyperdns/internal/auth"
-	"hyperdns/internal/control"
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/netutil"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/auth"
+	"jozmozdns/internal/control"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/netutil"
+	"jozmozdns/internal/service"
 )
 
 // daemonControl is the only production adapter between the daemon's live
@@ -212,7 +212,7 @@ func (d *daemonControl) ControlPersistPanelPort(port int) error {
 	// next start is a fatal collision in service mode — log.Fatalf takes the
 	// resolver down with the panel — so it is refused here, at the moment of
 	// the change, instead of at the next boot. The probe catches what the
-	// settings cannot see: something outside HyperDNS already holding the
+	// settings cannot see: something outside JozmozDNS already holding the
 	// port.
 	snap := d.settings.Snapshot()
 	_, _, err := netutil.ValidatePort(strconv.Itoa(port), snap.WebPort, d.dnsCfg, d.sniCfg, d.tlsCfg)
@@ -220,7 +220,7 @@ func (d *daemonControl) ControlPersistPanelPort(port int) error {
 		return control.NewError(400, "invalid_port", "panel port refused: "+err.Error(), nil)
 	}
 	if err := netutil.ProbeBind(snap.BindHost, port); err != nil {
-		return control.NewError(400, "port_busy", "something outside HyperDNS is already binding that port: "+err.Error(), nil)
+		return control.NewError(400, "port_busy", "something outside JozmozDNS is already binding that port: "+err.Error(), nil)
 	}
 	if err := d.settings.PersistWebPort(port, func(s *database.ServerSettings) error {
 		return d.db.SetSetting("server", s)
@@ -405,3 +405,4 @@ var (
 // Keep fmt imported in older Go toolchains where errors.As formatting in a
 // wrapped adapter error is useful to callers during diagnostics.
 var _ = fmt.Sprintf
+

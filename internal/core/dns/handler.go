@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/database"
 )
 
 type AccessProvider interface {
@@ -276,7 +276,7 @@ func attachProhibitedEDE(resp, req *dns.Msg) {
 	}
 	opt.Option = append(opt.Option, &dns.EDNS0_EDE{
 		InfoCode:  dns.ExtendedErrorCodeProhibited,
-		ExtraText: "This address is not registered with this HyperDNS server.",
+		ExtraText: "This address is not registered with this JozmozDNS server.",
 	})
 }
 
@@ -669,3 +669,4 @@ func (h *Handler) logQuery(start time.Time, ip, account, proto, domain, rule, ac
 		Cached:      cached,
 	})
 }
+

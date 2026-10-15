@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
-	"hyperdns/internal/service/acme"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service/acme"
 )
 
 // The dedicated subscriber listener exists because the Subscription Portal's
@@ -308,3 +308,4 @@ func TestSubscriberDomainChangeRefusesWithoutTheNewPairsCert(t *testing.T) {
 			"the listener would serve X's certificate for Y's name, the exact 'Not Secure' report")
 	}
 }
+

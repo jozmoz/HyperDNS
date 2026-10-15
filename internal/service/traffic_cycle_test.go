@@ -6,7 +6,7 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // A recurring quota is what turns a limit an operator has to administer by hand
@@ -728,3 +728,4 @@ func TestUpdateClientRejectsAnUnknownCycle(t *testing.T) {
 		t.Errorf("an account with no cycle reports a reset date of %s", got.Format(time.RFC3339))
 	}
 }
+

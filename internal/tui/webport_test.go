@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // validateWebPort is the only thing standing between a typed line and a stored
@@ -278,3 +278,4 @@ func TestProbeBindCoercesAnEmptyHost(t *testing.T) {
 		t.Errorf("probeBind(\"\", %d) reported free while a wildcard listener holds it", port)
 	}
 }
+

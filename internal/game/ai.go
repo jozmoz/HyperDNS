@@ -115,7 +115,7 @@ func (ai *AIAssistant) evaluateDeterministic(
 	}
 
 	// Case C: General overview and conflict audit
-	resp.Summary = "HyperDNS Game Intelligence Audit Summary"
+	resp.Summary = "JozmozDNS Game Intelligence Audit Summary"
 	resp.Analysis = fmt.Sprintf("System is managing %d active Game Profiles across %d Route Nodes. DNS fast path is operational on port 53 with zero latency overhead.", len(profiles), len(nodes))
 	resp.Recommendations = append(resp.Recommendations, "Ensure all competitive profiles (FC 26, CS2, War Thunder) have primary and fallback routes configured.")
 	resp.SuggestedActions = append(resp.SuggestedActions, "Use Rule Simulator prior to applying wide wildcard blocks on publisher root domains.")
@@ -138,4 +138,5 @@ func isPromptInjection(q string) bool {
 	}
 	return false
 }
+
 

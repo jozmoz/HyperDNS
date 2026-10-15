@@ -193,3 +193,4 @@ func validateCreateClient(req CreateClientRequest) error {
 	}
 	return nil
 }
+

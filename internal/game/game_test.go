@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
 )
 
 func setupTestStore(t *testing.T) (*Store, *database.DB) {
@@ -387,4 +387,5 @@ func TestEngine_LifecycleAndRollback(t *testing.T) {
 		t.Errorf("expected 0 purged on empty cache, got %d", purged)
 	}
 }
+
 

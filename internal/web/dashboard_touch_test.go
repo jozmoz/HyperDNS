@@ -204,3 +204,4 @@ func TestClientCardHeaderKeepsItsActionsOnScreen(t *testing.T) {
 		}
 	}
 }
+

@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
 )
 
 // openTestStore creates a real encrypted database in a temp dir, because the
@@ -118,3 +118,4 @@ func TestMigrationDoesNotTouchOtherSettings(t *testing.T) {
 		t.Errorf("migration clobbered an unrelated setting: %v", server)
 	}
 }
+

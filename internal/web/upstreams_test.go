@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // The two upstream editors are the only handlers that persist the whole "dns"
@@ -206,3 +206,4 @@ func TestAddUpstreamNormalizesBareIP(t *testing.T) {
 		t.Errorf("stored upstreams = %v, want the bare IP normalized to :53", got.Upstreams)
 	}
 }
+

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	bolt "go.etcd.io/bbolt"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 var (
@@ -623,4 +623,5 @@ func (s *Store) SaveLearningSettings(cfg LearningSettings) error {
 		return b.Put([]byte("hgi_learning"), data)
 	})
 }
+
 

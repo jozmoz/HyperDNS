@@ -10,7 +10,7 @@ import (
 	"time"
 
 	bolt "go.etcd.io/bbolt"
-	"hyperdns/internal/crypto"
+	"jozmozdns/internal/crypto"
 )
 
 // clientsFixture opens a database in a fresh directory, keyed differently from
@@ -910,3 +910,4 @@ func TestDeleteClientReportsAMissingID(t *testing.T) {
 		t.Errorf("the second DeleteClient = %v, want ErrClientNotFound", err)
 	}
 }
+

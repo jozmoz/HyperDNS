@@ -81,3 +81,4 @@ func loadMigrationMarkers(store SettingsStore) (map[string]bool, error) {
 	}
 	return markers, nil
 }
+

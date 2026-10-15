@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 const (
@@ -645,3 +645,4 @@ func (s *Server) GetStats() (int64, uint64, uint64, uint64) {
 func (s *Server) GuardStats() (refused, unreadable uint64) {
 	return s.refused.Load(), s.unreadable.Load()
 }
+

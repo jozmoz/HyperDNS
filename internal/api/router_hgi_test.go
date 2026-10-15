@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"hyperdns/internal/game"
+	"jozmozdns/internal/game"
 )
 
 func setupTestHGIAPI(t *testing.T) (*API, http.Handler, func()) {
@@ -174,4 +174,5 @@ func TestHGI_DiscoveryAndRouteActions(t *testing.T) {
 		t.Fatalf("PUT /api/v2/games/cs2/categories/matchmaking?propagate=true = %d: %s", wProp.Code, wProp.Body.String())
 	}
 }
+
 

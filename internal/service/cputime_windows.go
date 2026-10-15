@@ -23,3 +23,4 @@ func filetimeToSeconds(ft windows.Filetime) float64 {
 	nsec := (int64(ft.HighDateTime)<<32 | int64(ft.LowDateTime)) * 100
 	return float64(nsec) / float64(time.Second.Nanoseconds())
 }
+

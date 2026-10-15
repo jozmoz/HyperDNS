@@ -120,3 +120,4 @@ func isLoopback(ip string) bool {
 	parsed := net.ParseIP(ip)
 	return parsed != nil && parsed.IsLoopback()
 }
+

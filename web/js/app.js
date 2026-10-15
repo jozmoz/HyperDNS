@@ -1,5 +1,5 @@
 // =======================================================
-// HyperDNS Front-End Application Logic (ES6)
+// JozmozDNS Front-End Application Logic (ES6)
 // Bulletproof, Offline-Safe, Self-Healing
 // =======================================================
 
@@ -8,7 +8,7 @@
 // 'hdns_session_admin' here and wrote it to localStorage, which the server has
 // never accepted — it only produced a guaranteed 401 on first load and made a
 // logged-out browser look logged in.
-let authToken = localStorage.getItem('jozmozdns_token') || localStorage.getItem('hyperdns_token') || '';
+let authToken = localStorage.getItem('jozmozdns_token') || localStorage.getItem('JozmozDNS_token') || '';
 
 // The admin namespace. Since v2.1 the panel is not at the root of the host: the
 // SPA lives at /<admin-path>/dash/... and every dashboard API at
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         authToken = data.token;
         localStorage.setItem('jozmozdns_token', authToken);
-        localStorage.setItem('hyperdns_token', authToken);
+        localStorage.setItem('JozmozDNS_token', authToken);
         hideLoginModal();
         bootDashboard();
 
@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.token) {
           authToken = data.token;
           localStorage.setItem('jozmozdns_token', authToken);
-          localStorage.setItem('hyperdns_token', authToken);
+          localStorage.setItem('JozmozDNS_token', authToken);
         }
         // Keep the local copy in step so the Settings card and the next open of
         // this modal show the name that is now in force.
@@ -359,7 +359,7 @@ async function signOut() {
     // to do either way is drop the local session.
   } finally {
     localStorage.removeItem('jozmozdns_token');
-    localStorage.removeItem('hyperdns_token');
+    localStorage.removeItem('JozmozDNS_token');
     authToken = '';
     showLoginModal();
   }
@@ -2112,7 +2112,7 @@ function applyChartTheme() {
   } catch (e) { /* a chart that fails to re-colour is still a readable chart */ }
 }
 
-document.addEventListener('hyperdns:theme', applyChartTheme);
+document.addEventListener('JozmozDNS:theme', applyChartTheme);
 
 function initChart() {
   try {
@@ -2802,7 +2802,7 @@ function initAdminPathControls() {
         // The old token died with the session wipe; carry nothing into the new
         // namespace but the browser itself.
         localStorage.removeItem('jozmozdns_token');
-        localStorage.removeItem('hyperdns_token');
+        localStorage.removeItem('JozmozDNS_token');
         authToken = '';
         if (newPath) {
           showToast('Admin path regenerated. Sign in at the new address.', 'success');

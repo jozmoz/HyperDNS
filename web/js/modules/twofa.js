@@ -125,7 +125,7 @@ function initTwoFactorControls() {
           return;
         }
         showToast('Two-factor enabled. Please sign in again.', 'success');
-        localStorage.removeItem('hyperdns_token');
+        localStorage.removeItem('JozmozDNS_token');
         setAuthToken('');
         window.location.reload();
       } catch (err) {
@@ -156,7 +156,7 @@ function initTwoFactorControls() {
           return;
         }
         showToast('Two-factor disabled. Please sign in again.', 'success');
-        localStorage.removeItem('hyperdns_token');
+        localStorage.removeItem('JozmozDNS_token');
         setAuthToken('');
         window.location.reload();
       } catch (err) {
@@ -239,7 +239,7 @@ function initLdapControls() {
       }
       if (statusEl) statusEl.textContent = 'Saved.';
       showToast('LDAP settings saved — sign in again.', 'success');
-      localStorage.removeItem('hyperdns_token');
+      localStorage.removeItem('JozmozDNS_token');
       setAuthToken('');
       window.location.reload();
     } catch (err) {

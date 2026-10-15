@@ -201,3 +201,4 @@ func FuzzExtractHTTPHost(f *testing.F) {
 		}
 	})
 }
+

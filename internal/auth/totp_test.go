@@ -89,11 +89,11 @@ func TestGeneratedSecretsAreCanonical(t *testing.T) {
 }
 
 func TestOTPAuthURIEscapesLabel(t *testing.T) {
-	uri := OTPAuthURI("HyperDNS", "admin:with colon", "ABCDEF")
-	if !strings.HasPrefix(uri, "otpauth://totp/HyperDNS:admin") {
+	uri := OTPAuthURI("JozmozDNS", "admin:with colon", "ABCDEF")
+	if !strings.HasPrefix(uri, "otpauth://totp/JozmozDNS:admin") {
 		t.Errorf("uri %q does not start with the expected label", uri)
 	}
-	if !strings.Contains(uri, "secret=ABCDEF") || !strings.Contains(uri, "issuer=HyperDNS") {
+	if !strings.Contains(uri, "secret=ABCDEF") || !strings.Contains(uri, "issuer=JozmozDNS") {
 		t.Errorf("uri %q lost the query parameters", uri)
 	}
 	// The raw colon in the account must not have survived into the label.
@@ -119,3 +119,4 @@ func codeFor(t *testing.T, secret string, at time.Time) string {
 	v := (uint64(sum[off])&0x7f)<<24 | uint64(sum[off+1])<<16 | uint64(sum[off+2])<<8 | uint64(sum[off+3])
 	return fmt.Sprintf("%06d", v%1000000)
 }
+

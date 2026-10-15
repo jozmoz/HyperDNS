@@ -18,3 +18,4 @@ func NewServer(string, http.Handler) *Server { return &Server{} }
 func (*Server) Start() error { return ErrUnsupported }
 
 func (*Server) Shutdown(context.Context) error { return nil }
+

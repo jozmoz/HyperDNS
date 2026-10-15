@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	"hyperdns/internal/service/acme"
+	"jozmozdns/internal/service/acme"
 )
 
 // certHolder is the process-lifetime TLS certificate source with hot-swap.
@@ -107,3 +107,4 @@ func (ws *WebServer) SetDOTCertHolder(h *certHolder, rebind func(src *certHolder
 	ws.dotCertHolder = h
 	ws.dnsRebind = rebind
 }
+

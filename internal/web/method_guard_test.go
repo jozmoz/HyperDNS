@@ -319,3 +319,4 @@ func TestEveryRegisteredRouteHasAMethodGuard(t *testing.T) {
 		}
 	}
 }
+

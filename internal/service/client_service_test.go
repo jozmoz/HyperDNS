@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
 )
 
 // funcIP resolves the account's register secret and binds ip — the test stand-in
@@ -363,3 +363,4 @@ func TestRefreshClientIndexStoresAPrivateCopy(t *testing.T) {
 		t.Errorf("indexed CustomPolicies = %v, want [gaming]", indexed.CustomPolicies)
 	}
 }
+

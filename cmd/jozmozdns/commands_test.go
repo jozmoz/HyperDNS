@@ -13,8 +13,8 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"hyperdns/internal/bootstrap"
-	"hyperdns/internal/control"
+	"jozmozdns/internal/bootstrap"
+	"jozmozdns/internal/control"
 )
 
 type flushClientStub struct {
@@ -97,9 +97,9 @@ func TestBareInvocationSubprocessDoesNotTouchStorage(t *testing.T) {
 
 	cmd := exec.Command(os.Args[0], "-test.run=^TestBareInvocationSubprocessHelper$")
 	cmd.Env = append(os.Environ(),
-		"HYPERDNS_BARE_CLIENT_HELPER=1",
-		"HYPERDNS_TEST_DB_PATH="+dbPath,
-		"HYPERDNS_TEST_KEY_PATH="+keyPath,
+		"JozmozDNS_BARE_CLIENT_HELPER=1",
+		"JozmozDNS_TEST_DB_PATH="+dbPath,
+		"JozmozDNS_TEST_KEY_PATH="+keyPath,
 	)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -115,13 +115,13 @@ func TestBareInvocationSubprocessDoesNotTouchStorage(t *testing.T) {
 }
 
 func TestBareInvocationSubprocessHelper(t *testing.T) {
-	if os.Getenv("HYPERDNS_BARE_CLIENT_HELPER") != "1" {
+	if os.Getenv("JozmozDNS_BARE_CLIENT_HELPER") != "1" {
 		return
 	}
 	os.Args = []string{
 		os.Args[0],
-		"-db", os.Getenv("HYPERDNS_TEST_DB_PATH"),
-		"-key", os.Getenv("HYPERDNS_TEST_KEY_PATH"),
+		"-db", os.Getenv("JozmozDNS_TEST_DB_PATH"),
+		"-key", os.Getenv("JozmozDNS_TEST_KEY_PATH"),
 	}
 	preDBInput = func() io.Reader { return strings.NewReader("0\n") }
 	main()
@@ -262,10 +262,10 @@ func TestStatusGuidanceUsesLiveClientWithoutStoppingDaemon(t *testing.T) {
 		t.Fatalf("runStatusCommand: %v", err)
 	}
 	got := out.String()
-	if !strings.Contains(got, "Run `hdns` to open the live control console") {
+	if !strings.Contains(got, "Run `jmdns` to open the live control console") {
 		t.Fatalf("status guidance = %q, want live control-console guidance", got)
 	}
-	if strings.Contains(got, "systemctl stop hyperdns") || strings.Contains(got, "needs the service stopped") {
+	if strings.Contains(got, "systemctl stop JozmozDNS") || strings.Contains(got, "needs the service stopped") {
 		t.Fatalf("status guidance still tells the operator to stop the daemon: %q", got)
 	}
 }
@@ -354,7 +354,7 @@ func TestPreDBCommandSubprocessExitStatus(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			cmd := exec.Command(os.Args[0], "-test.run=^TestPreDBCommandSubprocessHelper$")
-			cmd.Env = append(os.Environ(), "HYPERDNS_PREDB_TEST_COMMAND="+tt.command)
+			cmd.Env = append(os.Environ(), "JozmozDNS_PREDB_TEST_COMMAND="+tt.command)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 			err := cmd.Run()
@@ -374,7 +374,7 @@ func TestPreDBCommandSubprocessExitStatus(t *testing.T) {
 }
 
 func TestPreDBCommandSubprocessHelper(t *testing.T) {
-	command, ok := os.LookupEnv("HYPERDNS_PREDB_TEST_COMMAND")
+	command, ok := os.LookupEnv("JozmozDNS_PREDB_TEST_COMMAND")
 	if !ok {
 		return
 	}
@@ -384,3 +384,4 @@ func TestPreDBCommandSubprocessHelper(t *testing.T) {
 	}
 	os.Exit(exitCode)
 }
+

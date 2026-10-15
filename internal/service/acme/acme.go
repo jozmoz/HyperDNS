@@ -547,3 +547,4 @@ func (m *Manager) Complete(detail string) {
 func (m *Manager) ApplyFailed(detail string) {
 	m.fail("apply", 95, detail)
 }
+

@@ -1252,3 +1252,4 @@ func GetAllPresets() map[string][]string {
 		"FamilySafe Protection":      PresetFamilySafe,
 	}
 }
+

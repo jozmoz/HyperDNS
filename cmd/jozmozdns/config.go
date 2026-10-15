@@ -1,6 +1,6 @@
 // Command-line configuration file support.
 //
-// The installers pass "-config /opt/hyperdns/config.json" to the daemon.
+// The installers pass "-config /opt/JozmozDNS/config.json" to the daemon.
 // The file mirrors config.example.json and supplies the *default* values that
 // are used when the BoltDB has no persisted value yet (fresh install).
 // Any value already stored in the database always wins over the file.
@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/database"
 )
 
 // sniProxyFile mirrors the SNI proxy block of config.json.
@@ -300,3 +300,4 @@ func applyRulesFromConfig(path string, m *matcher.Matcher) {
 		log.Printf("[Main] Applied %d rule toggles from config file %s", applied, path)
 	}
 }
+

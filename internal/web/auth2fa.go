@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"hyperdns/internal/auth"
-	"hyperdns/internal/database"
-	"hyperdns/internal/httpx"
+	"jozmozdns/internal/auth"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/httpx"
 )
 
 // The v2.1 authentication surface: TOTP enrollment and LDAP directory
@@ -375,3 +375,4 @@ func (ws *WebServer) storedBindPassword() string {
 	_ = snap // the snapshot deliberately cannot carry it; read under the record
 	return ws.authSettings.StoredBindPassword()
 }
+

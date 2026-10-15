@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/control"
-	"hyperdns/internal/database"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/control"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service"
 )
 
 func TestControlClientViewRedactsStoredCredentialsFromLists(t *testing.T) {
@@ -72,3 +72,4 @@ func TestDaemonControlClearLockoutsUsesSharedTracker(t *testing.T) {
 		t.Fatalf("cleared=%d remaining=%d, want 1/0", cleared, tracker.Count())
 	}
 }
+

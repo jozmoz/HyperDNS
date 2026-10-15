@@ -249,3 +249,4 @@ func TestPortalBrandLineIsTheOperatorsTitle(t *testing.T) {
 		t.Error("the default brand line is not rendered as the portal heading")
 	}
 }
+

@@ -61,8 +61,8 @@ jobs:
           python3 tests/scripts/test_restore.py
 
       # The suite above only covers --data-dir (offline/disposable) mode. The one
-      # below covers production mode, which stops the hyperdns service and replaces
-      # /opt/hyperdns members, so it runs inside a networkless container with
+      # below covers production mode, which stops the JozmozDNS service and replaces
+      # /opt/JozmozDNS members, so it runs inside a networkless container with
       # systemctl stubbed on PATH rather than against a real systemd install.
       - uses: actions/setup-python@v5
         with:
@@ -70,7 +70,7 @@ jobs:
 
       - name: Restore script production tests
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o build/hyperdns-restore-fixture ./cmd/hyperdns
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o build/JozmozDNS-restore-fixture ./cmd/JozmozDNS
           docker pull golang:1.26-bookworm
           python3 tests/scripts/test_restore_production.py
           python3 tests/scripts/test_restore.py
@@ -82,7 +82,7 @@ jobs:
       # bind port 53 over a conflict the installer was asked to clear.
       - name: Installer umask regression tests
         run: |
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o build/hyperdns-umask-fixture ./cmd/hyperdns
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o build/JozmozDNS-umask-fixture ./cmd/JozmozDNS
           python3 tests/scripts/test_installer_umask.py
 
       - name: go vet
@@ -144,4 +144,4 @@ jobs:
           CGO_ENABLED: 0
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-        run: go build -ldflags="-s -w" ./cmd/hyperdns
+        run: go build -ldflags="-s -w" ./cmd/JozmozDNS

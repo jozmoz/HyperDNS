@@ -32,3 +32,4 @@ func asError(err error) (*Error, bool) {
 	ok := errors.As(err, &opErr)
 	return opErr, ok
 }
+

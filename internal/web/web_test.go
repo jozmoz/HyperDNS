@@ -10,13 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/service"
-	webAssets "hyperdns/web"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service"
+	webAssets "jozmozdns/web"
 )
 
 // testAdminPassword is the credential the web tests log in with. It has to
@@ -210,3 +210,4 @@ func TestWebServer_AutoRegisterIP(t *testing.T) {
 		t.Errorf("expected sub page to display server public IP '95.179.140.241' instead of 127.0.0.1")
 	}
 }
+

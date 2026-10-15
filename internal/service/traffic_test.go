@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 func newTrafficClient(t *testing.T, db *database.DB, id string, limitGB float64, used uint64) *database.Client {
@@ -342,3 +342,4 @@ func TestFlushTrafficIsSerialised(t *testing.T) {
 		t.Fatalf("stored TrafficUsedBytes = %d, want 800 from 8 racing flushes", stored.TrafficUsedBytes)
 	}
 }
+

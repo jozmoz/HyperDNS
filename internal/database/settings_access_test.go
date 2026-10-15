@@ -340,3 +340,4 @@ func TestReadersOnlyObserveAssignedValues(t *testing.T) {
 	close(done)
 	writer.Wait()
 }
+

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // What these tests defend: an operator uses these numbers to decide whether the
@@ -258,3 +258,4 @@ func TestPushQueryLogSplitsCachedFromUncached(t *testing.T) {
 			again.Latency.Count, st.Latency.Count)
 	}
 }
+

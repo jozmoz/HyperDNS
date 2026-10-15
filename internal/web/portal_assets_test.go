@@ -344,3 +344,4 @@ func TestPortalMarkupWiringMatchesTheScript(t *testing.T) {
 			`is reached with the arrow keys, not with Tab`, got)
 	}
 }
+

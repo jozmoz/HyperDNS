@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // Mantis PoC set for the v2.1.0 Hotfix 5 attack surface.
@@ -212,3 +212,4 @@ func TestPoC05PortalTitleIsEscapedNotExecuted(t *testing.T) {
 		t.Error("the escaped form of the title is absent — the title may not be rendered at all")
 	}
 }
+

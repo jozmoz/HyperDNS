@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"hyperdns/internal/httpx"
+	"jozmozdns/internal/httpx"
 )
 
 // One-time SSE tickets (v2.1.0 A-06 remediation).
@@ -103,3 +103,4 @@ func (ws *WebServer) sseTicketAuthorized(r *http.Request) bool {
 	t := r.URL.Query().Get("ticket")
 	return t != "" && ws.sseTickets.consume(t)
 }
+

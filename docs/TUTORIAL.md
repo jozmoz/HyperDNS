@@ -1,4 +1,4 @@
-# 🎓 HyperDNS — Complete Step-by-Step Tutorial
+# 🎓 JozmozDNS — Complete Step-by-Step Tutorial
 
 <p align="center">
   <a href="../README.md">README</a> •
@@ -20,7 +20,7 @@
 ## Table of contents
 
 0. [What you need before you start](#0-what-you-need-before-you-start)
-1. [Install HyperDNS](#1-install-hyperdns)
+1. [Install JozmozDNS](#1-install-JozmozDNS)
 2. [First login — save the two secrets](#2-first-login--save-the-two-secrets)
 3. [Dashboard tour](#3-dashboard-tour)
 4. [Panel domain and HTTPS](#4-panel-domain-and-https)
@@ -33,7 +33,7 @@
 11. [Limits, expiry, and day-to-day client management](#11-limits-expiry-and-day-to-day-client-management)
 12. [Advanced rules: custom proxied / blocked / direct / static records](#12-advanced-rules-custom-proxied--blocked--direct--static-records)
 13. [The REST API and Swagger](#13-the-rest-api-and-swagger)
-14. [The `hdns` console: status, flush, stop, start, uninstall](#14-the-hdns-console-status-flush-stop-start-uninstall)
+14. [The `jmdns` console: status, flush, stop, start, uninstall](#14-the-jmdns-console-status-flush-stop-start-uninstall)
 15. [Backup and restore](#15-backup-and-restore)
 16. [Troubleshooting](#16-troubleshooting)
 
@@ -61,7 +61,7 @@
    If your provider has a cloud firewall (Hetzner/OVH/Vultr security groups),
    open these **there** too — the host firewall alone is not enough.
 4. **Root access.** The installer writes to `/etc/systemd/system/`,
-   `/etc/systemd/resolved.conf.d/` and `/opt/hyperdns`.
+   `/etc/systemd/resolved.conf.d/` and `/opt/JozmozDNS`.
 
 > ⚠️ **Read [SECURITY.md](SECURITY.md) before you expose the install to the
 > public internet.** It covers the threat model, what is encrypted, and the
@@ -69,30 +69,30 @@
 
 ---
 
-## 1. Install HyperDNS
+## 1. Install JozmozDNS
 
 ### 1a. One-line online install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.2.0-beta.1/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/JozmozDNS/v2.2.0-beta.1/scripts/install.sh | sudo bash
 ```
 
 The installer is interactive when a TTY is present. To fully script it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/IzumiRain/HyperDNS/v2.2.0-beta.1/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/IzumiRain/JozmozDNS/v2.2.0-beta.1/scripts/install.sh \
   -o install.sh
 
 # Required: the panel domain, and an email for the certificate authority
-HYPERDNS_DOMAIN=dns.example.com \
-HYPERDNS_EMAIL=you@example.com \
+JozmozDNS_DOMAIN=dns.example.com \
+JozmozDNS_EMAIL=you@example.com \
 sudo bash install.sh
 ```
 
 ### 1b. What the installer does (and what it refuses to do)
 
 - Downloads the pinned release binary, verifies it, installs it to
-  `/opt/hyperdns/`, and registers the `hyperdns` systemd service.
+  `/opt/JozmozDNS/`, and registers the `JozmozDNS` systemd service.
 - **Generates a random admin password** and a **random 16-character admin
   path**, and prints both **exactly once**. Copy them into a password manager
   now — the password is never stored and cannot be recovered, only reset.
@@ -101,15 +101,15 @@ sudo bash install.sh
   fails, the installer prints the reason and exits — it never prints success on
   a broken install.
 - **Never upgrades in place.** If it finds an existing install, it archives it
-  to `/root/hyperdns-preinstall-<date>.tar.gz` (with its sha256 printed) and then
+  to `/root/JozmozDNS-preinstall-<date>.tar.gz` (with its sha256 printed) and then
   replaces it wholesale: fresh config, fresh credentials, fresh certificates.
   An interactive run must type `FRESH` to confirm the wipe; a piped
-  `curl | bash` run refuses outright unless `HYPERDNS_FRESH=1` is set.
+  `curl | bash` run refuses outright unless `JozmozDNS_FRESH=1` is set.
 - Sets `systemd-resolved` aside (it binds 127.0.0.53:53 and would block port 53)
-  via a drop-in at `/etc/systemd/resolved.conf.d/hyperdns.conf`, with safe
+  via a drop-in at `/etc/systemd/resolved.conf.d/JozmozDNS.conf`, with safe
   permissions (`755` on the directory, `644` on the file).
 
-> **Coming from HyperDNS 1.x?** Run `bash migrate-from-v1.sh` from the offline
+> **Coming from JozmozDNS 1.x?** Run `bash migrate-from-v1.sh` from the offline
 > bundle **first**, then install.
 
 ### 1c. Offline install (no outbound internet at all)
@@ -119,9 +119,9 @@ installer, the migration script and every asset, and verifies itself by sha256.
 Copy it to the server and:
 
 ```bash
-tar xzf hyperdns-v2.2.0-beta-linux-amd64-offline.tar.gz
-cd hyperdns-offline
-HYPERDNS_DOMAIN=dns.example.com HYPERDNS_EMAIL=you@example.com sudo bash install.sh
+tar xzf JozmozDNS-v2.2.0-beta-linux-amd64-offline.tar.gz
+cd JozmozDNS-offline
+JozmozDNS_DOMAIN=dns.example.com JozmozDNS_EMAIL=you@example.com sudo bash install.sh
 ```
 
 The bundle's own `verify_bundle.py` re-checks every file's checksum before you
@@ -130,11 +130,11 @@ trust it.
 ### 1d. Verify it is running
 
 ```bash
-systemctl status hyperdns
-hdns status
+systemctl status JozmozDNS
+jmdns status
 ```
 
-`hdns status` needs no database access and is safe to run beside the daemon. It
+`jmdns status` needs no database access and is safe to run beside the daemon. It
 reports the service state, which listeners are answering on which ports, does a
 live DNS query, and prints the panel domain and certificate status.
 
@@ -149,8 +149,8 @@ https://<panel-domain>/<admin-path>/login
 ```
 
 - `<admin-path>` is the 16-character random string the installer printed once.
-  If you lost it: `hdns status` shows the dashboard URL, and the daemon reprints
-  it in the journal on every start (`journalctl -u hyperdns | head`).
+  If you lost it: `jmdns status` shows the dashboard URL, and the daemon reprints
+  it in the journal on every start (`journalctl -u JozmozDNS | head`).
 - The username is `admin`. The password is the random string the installer
   printed once.
 
@@ -190,7 +190,7 @@ reloads rules), a **Flush Cache** button, and **Sign Out**.
 
 ## 4. Panel domain and HTTPS
 
-If you passed `HYPERDNS_DOMAIN` to the installer this is already done — skip to
+If you passed `JozmozDNS_DOMAIN` to the installer this is already done — skip to
 [step 5](#5-custom-domain-for-the-subscriber-link). Otherwise:
 
 1. In your domain's DNS panel, create an **A record** for the panel hostname,
@@ -242,7 +242,7 @@ never reaches the admin login and vice versa.
 | **Enable subscriber portal** (`sub-enabled-input`) | On. |
 | **Custom Subscription Domain** (`sub-domain-input`) | `sub.yourbrand.com` — *empty means "same as the panel domain"*, which is the default. |
 | **Advertised port** (`sub-port-input`) | Leave blank for 443 (recommended). Set only if the portal must run on a non-standard port. |
-| **Portal title** (`sub-title-input`) | Your brand name — shown as the page title. Defaults to `HyperDNS`. |
+| **Portal title** (`sub-title-input`) | Your brand name — shown as the page title. Defaults to `JozmozDNS`. |
 
 Then click **Issue SSL** (`sub-issue-ssl-btn`). A progress bar appears and the
 daemon issues a certificate for that hostname the same way it did for the panel
@@ -467,7 +467,7 @@ Create a subscriber by API:
 
 ```bash
 curl -X POST "https://dns.example.com/<admin-path>/api/v2/clients" \
-  -H "Authorization: Bearer $HYPERDNS_KEY" \
+  -H "Authorization: Bearer $JozmozDNS_KEY" \
   -H "Content-Type: application/json" \
   -d '{"display_name": "Reza (PS5 & Phone)", "traffic_limit_gb": 100}'
 ```
@@ -491,14 +491,14 @@ print(client["registration_secret"]) # send this via a second channel
 
 ---
 
-## 14. The `hdns` console: status, flush, stop, start, uninstall
+## 14. The `jmdns` console: status, flush, stop, start, uninstall
 
 ```bash
-hdns status      # live service report: ports, listeners, DNS test, certs.
+jmdns status      # live service report: ports, listeners, DNS test, certs.
                    # needs no database — safe beside a busy daemon
-hdns flush       # ask the running daemon to flush its DNS cache
-hdns version     # what the binary reports (e.g. HyperDNS v2.2.0-beta)
-hdns uninstall   # interactive uninstaller
+jmdns flush       # ask the running daemon to flush its DNS cache
+jmdns version     # what the binary reports (e.g. JozmozDNS v2.2.0-beta)
+jmdns uninstall   # interactive uninstaller
 ```
 
 The interactive console can also **stop**, **start** and **uninstall** the
@@ -508,8 +508,8 @@ panel is unreachable.
 Systemd equivalents:
 
 ```bash
-systemctl stop hyperdns      systemctl start hyperdns
-journalctl -u hyperdns -f    # the live daemon log (dashboard URL is reprinted on every start)
+systemctl stop JozmozDNS      systemctl start JozmozDNS
+journalctl -u JozmozDNS -f    # the live daemon log (dashboard URL is reprinted on every start)
 ```
 
 ---
@@ -520,22 +520,22 @@ Two files are the entire installation — everything else is reproducible:
 
 | File | Why it matters |
 | :--- | :--- |
-| `/opt/hyperdns/data.db` | The whole state: subscribers, quotas, rules, settings. |
-| `/opt/hyperdns/master.key` | The 32-byte AES-256-GCM key sealing the sensitive fields. |
+| `/opt/JozmozDNS/data.db` | The whole state: subscribers, quotas, rules, settings. |
+| `/opt/JozmozDNS/master.key` | The 32-byte AES-256-GCM key sealing the sensitive fields. |
 
 ```bash
 # Back up
-tar czf hyperdns-backup-$(date +%F).tar.gz \
-  -C /opt/hyperdns data.db master.key
-sha256sum hyperdns-backup-*.tar.gz
+tar czf JozmozDNS-backup-$(date +%F).tar.gz \
+  -C /opt/JozmozDNS data.db master.key
+sha256sum JozmozDNS-backup-*.tar.gz
 ```
 
 - **Lose `master.key`** and every sealed field is unreadable forever — the
   backup is worthless without it. Store a copy **off the server**.
 - **Leak `master.key`** and the sealed fields become readable. Never commit it
   to git; the repo's `.gitignore` already excludes it.
-- **Restore** on a fresh box: install HyperDNS, stop the service, drop both
-  files into `/opt/hyperdns/`, start the service. Upgrades from older versions
+- **Restore** on a fresh box: install JozmozDNS, stop the service, drop both
+  files into `/opt/JozmozDNS/`, start the service. Upgrades from older versions
   migrate the data format on first boot and then rewrite the file once, so
   freed pages holding old plaintext are not recoverable from the backup file.
 
@@ -551,14 +551,14 @@ documented in [SECURITY.md](SECURITY.md).
 | Symptom | Check |
 | :--- | :--- |
 | **Installer says the panel certificate failed** | The A record must resolve to this server *from outside*; port 80 must be open end-to-end including the provider's cloud firewall; no other service on 80. The installer names the cause. |
-| **I lost the admin path** | `hdns status`, or `journalctl -u hyperdns | head` — it is reprinted on every start. |
-| **I lost the admin password** | Not recoverable, only resettable — run the installer with `HYPERDNS_FRESH=1` (it archives the old install first), or boot the binary with a fresh config. |
+| **I lost the admin path** | `jmdns status`, or `journalctl -u JozmozDNS | head` — it is reprinted on every start. |
+| **I lost the admin password** | Not recoverable, only resettable — run the installer with `JozmozDNS_FRESH=1` (it archives the old install first), or boot the binary with a fresh config. |
 | **Subscriber says "nothing works"** | Did they register their IP? Their link is `/sub/<token>`; the secret is separate. Check **Clients** for their current bound IP, and ask them to re-register on the network they're using. |
 | **Queries answered but game still lags** | Check **Live Stream** for the game's domains: are they `PROXY` (going through the SNI proxy) or `DIRECT`? A `DIRECT` answer means the preset for that game is off. |
 | **Downloads stuck at 0 B/s, store page loads fine** | The one case `enable_downloads` exists for — their line cannot reach the CDN at all. Turn it on, or add the specific CDN host to **Custom Proxied**. |
-| **Changed a rule, nothing changed** | Cached answers keep their old routing until TTL expiry. **Flush Cache** (sidebar) or `hdns flush`. |
-| **Port 53 already in use** | `systemd-resolved`. The installer handles it; if you uninstalled and reinstalled manually, check `/etc/systemd/resolved.conf.d/hyperdns.conf`. |
-| **Dashboard loads but `hdns status` shows a listener NOT answering** | Firewall. Verify with `ss -lnup` locally and a port checker from outside. |
+| **Changed a rule, nothing changed** | Cached answers keep their old routing until TTL expiry. **Flush Cache** (sidebar) or `jmdns flush`. |
+| **Port 53 already in use** | `systemd-resolved`. The installer handles it; if you uninstalled and reinstalled manually, check `/etc/systemd/resolved.conf.d/JozmozDNS.conf`. |
+| **Dashboard loads but `jmdns status` shows a listener NOT answering** | Firewall. Verify with `ss -lnup` locally and a port checker from outside. |
 
 ---
 

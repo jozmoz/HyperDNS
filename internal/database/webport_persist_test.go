@@ -132,7 +132,7 @@ func TestPersistWebPortLeavesTheRunningRecordAlone(t *testing.T) {
 // TestPersistWebPortReportsAFailedWrite keeps a failed write from reading as a
 // success.
 //
-// The operator's next action after this returns is `systemctl restart hyperdns`.
+// The operator's next action after this returns is `systemctl restart JozmozDNS`.
 // If the write failed and they were told it succeeded, they restart expecting the
 // panel on a new port and find it on the old one — with no error anywhere to
 // explain why.
@@ -162,3 +162,4 @@ func TestPersistWebPortWithNoCallbackDoesNothing(t *testing.T) {
 		t.Error("PersistWebPort mutated the live WebPort when handed no persist callback")
 	}
 }
+

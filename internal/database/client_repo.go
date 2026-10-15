@@ -948,3 +948,4 @@ func (db *DB) encryptLegacyClientTokens() (int, error) {
 	})
 	return converted, err
 }
+

@@ -196,3 +196,4 @@ func TestKeepaliveHandlesNilMessages(t *testing.T) {
 	attachTCPKeepalive(nil, queryAsking(false), "TCP")
 	attachTCPKeepalive(new(dns.Msg), nil, "TCP")
 }
+

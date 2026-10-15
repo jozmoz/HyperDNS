@@ -193,3 +193,4 @@ func TestTargetGuardResolve(t *testing.T) {
 		t.Error("resolve on a name with no answer must fail")
 	}
 }
+

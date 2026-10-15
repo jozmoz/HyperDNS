@@ -269,7 +269,7 @@
               showError(DICT[lang].errNet);
               return;
             }
-            try { localStorage.setItem('hyperdns_token', body.token); } catch (e2) { /* private mode */ }
+            try { localStorage.setItem('JozmozDNS_token', body.token); } catch (e2) { /* private mode */ }
             window.location.replace(BASE + '/dash/home');
           });
         }).catch(function () {

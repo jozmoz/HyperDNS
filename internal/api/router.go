@@ -10,16 +10,16 @@ import (
 	"strings"
 	"time"
 
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/game"
-	"hyperdns/internal/httpx"
-	"hyperdns/internal/netutil"
-	"hyperdns/internal/service"
-	"hyperdns/internal/version"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/game"
+	"jozmozdns/internal/httpx"
+	"jozmozdns/internal/netutil"
+	"jozmozdns/internal/service"
+	"jozmozdns/internal/version"
 )
 
 type API struct {
@@ -40,7 +40,7 @@ type API struct {
 	// when TOTP is off.
 	totpGate func(*http.Request) bool
 
-	// gameEngine coordinates HyperDNS Game Intelligence (HGI) capabilities.
+	// gameEngine coordinates JozmozDNS Game Intelligence (HGI) capabilities.
 	gameEngine *game.Engine
 }
 
@@ -502,7 +502,7 @@ func (a *API) handleDocs(w http.ResponseWriter, r *http.Request) {
 	html := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <head>
-  <title>HyperDNS REST API v1 Documentation</title>
+  <title>JozmozDNS REST API v1 Documentation</title>
   <meta charset="utf-8"/>
   <link rel="stylesheet" type="text/css" href="%s/swagger/swagger-ui.css">
   <style>
@@ -522,7 +522,7 @@ func (a *API) handleDocs(w http.ResponseWriter, r *http.Request) {
 </head>
 <body>
   <div id="offline-notice">
-    <h1>HyperDNS REST API v1</h1>
+    <h1>JozmozDNS REST API v1</h1>
     <p>The interactive viewer normally loads here, but this browser could not load it
       from this origin. <b>The API itself is running normally</b> &mdash; only the viewer is
       missing. Every endpoint below is live right now; from the server itself:</p>
@@ -587,11 +587,11 @@ func (a *API) handleDocs(w http.ResponseWriter, r *http.Request) {
       spec: {
         openapi: "3.0.0",
         info: {
-          title: "HyperDNS Core REST API",
+          title: "JozmozDNS Core REST API",
           version: "%s",
-          description: "REST API for the HyperDNS SmartDNS Controller: AES-256-GCM encrypted subscribers, gaming presets and real-time DNS telemetry.\n\n**Authentication.** Press Authorize and paste the master API key from Settings. It travels as the X-API-Key header, or as Authorization: Bearer <key> — both are accepted, and a live dashboard session token works in either.\n\n**If Try it out answers 403 rather than 401**, the key is not the problem: the REST API is bound to localhost and this browser is not on the server. Turn on Public API in Settings, or call the API from the machine itself."
+          description: "REST API for the JozmozDNS SmartDNS Controller: AES-256-GCM encrypted subscribers, gaming presets and real-time DNS telemetry.\n\n**Authentication.** Press Authorize and paste the master API key from Settings. It travels as the X-API-Key header, or as Authorization: Bearer <key> — both are accepted, and a live dashboard session token works in either.\n\n**If Try it out answers 403 rather than 401**, the key is not the problem: the REST API is bound to localhost and this browser is not on the server. Turn on Public API in Settings, or call the API from the machine itself."
         },
-        servers: [{ url: "%s", description: "This HyperDNS instance. Since v2.1 the API lives below the install's hidden 16-hex admin path, so the base is that path and not the host root — Try it out resolves against this value." }],
+        servers: [{ url: "%s", description: "This JozmozDNS instance. Since v2.1 the API lives below the install's hidden 16-hex admin path, so the base is that path and not the host root — Try it out resolves against this value." }],
         security: [{ ApiKeyAuth: [] }, { BearerAuth: [] }],
         components: {
           securitySchemes: {
@@ -681,7 +681,7 @@ func (a *API) handleDocs(w http.ResponseWriter, r *http.Request) {
             post: { summary: "Regenerate the master API key", description: "The previous key stops working the moment this returns, there is no grace period, and it is the only copy — every bot, billing hook and monitoring probe holding it starts getting 401 immediately, including whatever made this call. If the write to disk fails the answer is a 500 and the OLD key stays in force, so a failed rotation never locks the daemon out.", responses: { 200: { description: "New key" }, 500: { description: "Could not save the new API key; the previous key still works" } } }
           },
           "/api/server/restart": {
-            post: { summary: "Restart the resolver's runtime state", description: "POST only. Flushes the in-memory DNS cache so the next query for every name is resolved fresh from upstream. This does not tear down and rebuild the UDP/TCP/DoT/DoH listeners — a full process restart is systemd's job (systemctl restart hyperdns) and is deliberately outside the API's reach, because an endpoint that can kill the process that serves it can lock an operator out of the panel. Use this after changing upstreams or policies, when stale answers are the problem.", responses: { 200: { description: "Runtime state reset" }, 405: { description: "POST only" } } }
+            post: { summary: "Restart the resolver's runtime state", description: "POST only. Flushes the in-memory DNS cache so the next query for every name is resolved fresh from upstream. This does not tear down and rebuild the UDP/TCP/DoT/DoH listeners — a full process restart is systemd's job (systemctl restart JozmozDNS) and is deliberately outside the API's reach, because an endpoint that can kill the process that serves it can lock an operator out of the panel. Use this after changing upstreams or policies, when stale answers are the problem.", responses: { 200: { description: "Runtime state reset" }, 405: { description: "POST only" } } }
           }
         }
       }
@@ -704,3 +704,4 @@ func adminServerURL(adminPath string) string {
 	}
 	return "/" + adminPath
 }
+

@@ -202,3 +202,4 @@ func TestDiagnosticsClearsTheScoreBeforeAndOnFailure(t *testing.T) {
 			"echoes part of a request back would render it as markup here.")
 	}
 }
+

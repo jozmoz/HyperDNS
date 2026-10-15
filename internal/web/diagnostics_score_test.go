@@ -93,3 +93,4 @@ func TestDiagnosticsScoreAgreesWithTheReachableCount(t *testing.T) {
 		}
 	}
 }
+

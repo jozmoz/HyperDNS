@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // applyConfigFile is the layer between an operator's config.json and a live
@@ -330,3 +330,4 @@ func TestConfigNilTargetsAreRejected(t *testing.T) {
 		t.Error("an empty path produced an access block")
 	}
 }
+

@@ -126,3 +126,4 @@ func TestProxyRelayAndGuardStatsAreIndependent(t *testing.T) {
 			st.RelaysRefused, st.RelaysUnreadable)
 	}
 }
+

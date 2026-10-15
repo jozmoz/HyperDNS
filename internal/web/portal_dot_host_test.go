@@ -163,3 +163,4 @@ func TestSubDataAPIReportsHostAndAddressSeparately(t *testing.T) {
 		t.Errorf("has_domain is not set with a domain configured: %s", body)
 	}
 }
+

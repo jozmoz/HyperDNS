@@ -18,23 +18,23 @@ import (
 	"syscall"
 	"time"
 
-	"hyperdns/internal/bootstrap"
-	"hyperdns/internal/control"
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/dns"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/proxy"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/game"
-	"hyperdns/internal/netutil"
-	"hyperdns/internal/service"
-	"hyperdns/internal/service/acme"
-	"hyperdns/internal/tui"
-	"hyperdns/internal/version"
-	internalWeb "hyperdns/internal/web"
-	webAssets "hyperdns/web"
+	"jozmozdns/internal/bootstrap"
+	"jozmozdns/internal/control"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/dns"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/proxy"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/game"
+	"jozmozdns/internal/netutil"
+	"jozmozdns/internal/service"
+	"jozmozdns/internal/service/acme"
+	"jozmozdns/internal/tui"
+	"jozmozdns/internal/version"
+	internalWeb "jozmozdns/internal/web"
+	webAssets "jozmozdns/web"
 )
 
 const banner = `
@@ -86,8 +86,8 @@ func main() {
 	if dPath == "" {
 		if _, err := os.Stat("/opt/jozmozdns"); err == nil {
 			dPath = "/opt/jozmozdns/data.db"
-		} else if _, err := os.Stat("/opt/hyperdns"); err == nil {
-			dPath = "/opt/hyperdns/data.db"
+		} else if _, err := os.Stat("/opt/JozmozDNS"); err == nil {
+			dPath = "/opt/JozmozDNS/data.db"
 		} else {
 			dPath = "data.db"
 		}
@@ -97,8 +97,8 @@ func main() {
 	if kPath == "" {
 		if _, err := os.Stat("/opt/jozmozdns"); err == nil {
 			kPath = "/opt/jozmozdns/master.key"
-		} else if _, err := os.Stat("/opt/hyperdns"); err == nil {
-			kPath = "/opt/hyperdns/master.key"
+		} else if _, err := os.Stat("/opt/JozmozDNS"); err == nil {
+			kPath = "/opt/JozmozDNS/master.key"
 		} else {
 			kPath = "master.key"
 		}
@@ -129,16 +129,16 @@ func main() {
 	}
 	if err != nil {
 		// The overwhelmingly common cause is that the background daemon already
-		// holds the bbolt file lock (bbolt is single-writer). `hdns` in an SSH
+		// holds the bbolt file lock (bbolt is single-writer). `jmdns` in an SSH
 		// session hits exactly this. Tell the operator what to do instead of a
 		// bare "timeout" (v2.1.0 installer-feedback fix #4).
 		if isLockTimeout(err) {
-			log.Printf("[Main] The database at %s is locked — another HyperDNS service process owns the bbolt store.", dPath)
+			log.Printf("[Main] The database at %s is locked — another JozmozDNS service process owns the bbolt store.", dPath)
 			log.Printf("[Main] Client commands do not need direct database access:")
-			log.Printf("[Main]   1. Open the live control console: hdns")
-			log.Printf("[Main]   2. Show live status: hdns status")
-			log.Printf("[Main]   3. Flush the daemon cache: hdns flush")
-			log.Printf("[Main]   4. Use the web dashboard or inspect logs: journalctl -u hyperdns -f")
+			log.Printf("[Main]   1. Open the live control console: jmdns")
+			log.Printf("[Main]   2. Show live status: jmdns status")
+			log.Printf("[Main]   3. Flush the daemon cache: jmdns flush")
+			log.Printf("[Main]   4. Use the web dashboard or inspect logs: journalctl -u JozmozDNS -f")
 			log.Fatalf("[Main] Refusing to start a second service process while the database is owned")
 		}
 		log.Fatalf("[Main] Failed to open database at %s: %v", dPath, err)
@@ -168,7 +168,7 @@ func main() {
 		Enabled:       true,
 		Port:          53,
 		DoTPort:       853,
-		DoHPort:       8443,
+		DoHPort:       9443,
 		Upstreams:     []string{"1.1.1.1:53", "8.8.8.8:53", "9.9.9.9:53", "1.0.0.1:53"},
 		CacheSize:     20000,
 		CacheMinTTL:   60,
@@ -379,7 +379,7 @@ func main() {
 	// Interactive domain setup prompt when running in an interactive terminal without a domain
 	if tlsSettings.Domain == "" && *domainFlag == "" && !*daemonMode && stdinIsInteractive(os.Stdin) {
 		fmt.Println("\n──────────────────────────────────────────────────────────")
-		fmt.Println("  ⚡ HyperDNS Domain & SSL Setup")
+		fmt.Println("  ⚡ JozmozDNS Domain & SSL Setup")
 		fmt.Printf("  Server Public IP: %s\n", serverSettings.PublicIP)
 		fmt.Println("  (Point an A record to this IP before configuring your domain)")
 		fmt.Print("? Enter Panel Domain (e.g. dns.example.com) [Press Enter to skip & use direct IP]: ")
@@ -409,7 +409,7 @@ func main() {
 	//
 	// The plaintext goes to STDOUT ONLY (fmt.Println), never through the log
 	// package (v2.1.0 A-04 remediation): log output is what systemd/journald and
-	// the hyperdns_out.log the service wrapper captures persist, and a rotating
+	// the JozmozDNS_out.log the service wrapper captures persist, and a rotating
 	// log file is readable by anything that can read the box's logs. The banner
 	// lines around it still go through log.Printf so they show up wherever the
 	// operator looks; only the credential itself is stdout-only.
@@ -417,7 +417,7 @@ func main() {
 		log.Printf("[Main] No admin password was configured. Generated one for this install — printed to STDOUT below, NOT to this log.")
 		log.Printf("[Main]     username : %s", serverSettings.AdminUsername)
 		fmt.Println("──────────────────────────────────────────────────────────")
-		fmt.Printf("  HyperDNS first-run credentials (save them now — shown once)\n")
+		fmt.Printf("  JozmozDNS first-run credentials (save them now — shown once)\n")
 		fmt.Printf("    username : %s\n", serverSettings.AdminUsername)
 		fmt.Printf("    password : %s\n", generatedAdminPassword)
 		fmt.Println("──────────────────────────────────────────────────────────")
@@ -632,8 +632,8 @@ func main() {
 	if err := db.GetSetting("acme", &acmeState); err == nil && len(acmeState.AccountKeyPEM) > 0 {
 		acmeAccountKey = acmeState.AccountKeyPEM
 	}
-	acmeDir := "/opt/hyperdns/certs/acme"
-	if _, err := os.Stat("/opt/hyperdns"); err != nil {
+	acmeDir := "/opt/JozmozDNS/certs/acme"
+	if _, err := os.Stat("/opt/JozmozDNS"); err != nil {
 		acmeDir = "certs/acme" // a non-installed (dev) run keeps its tree local
 	}
 	_, acmeContactEmail := tlsSettings.ACMEContact()
@@ -644,7 +644,7 @@ func main() {
 	// itself inside Issue (challenge-only).
 	sniServer.SetChallengeResponder(acmeManager)
 
-	// Initialize HyperDNS Game Intelligence Engine (HGI)
+	// Initialize JozmozDNS Game Intelligence Engine (HGI)
 	gameEngine, err := game.NewEngine(db, m)
 	if err != nil {
 		log.Printf("[Main] Warning: Failed to initialize Game Intelligence Engine: %v", err)
@@ -652,7 +652,7 @@ func main() {
 		defer gameEngine.Close()
 		dnsHandler.SetQueryObserver(gameEngine.ObserveDNSQuery)
 		webServer.SetGameEngine(gameEngine)
-		log.Printf("[Main] HyperDNS Game Intelligence Engine (HGI) initialized successfully.")
+		log.Printf("[Main] JozmozDNS Game Intelligence Engine (HGI) initialized successfully.")
 	}
 
 	// The web panel and local control protocol must operate on the same benchmark
@@ -691,7 +691,7 @@ func main() {
 	// daemon-client commands were dispatched before storage access above.
 	args := flag.Args()
 	if len(args) > 0 && strings.ToLower(args[0]) == "uninstall" {
-		tui.UninstallHyperDNS()
+		tui.UninstallJozmozDNS()
 		return
 	}
 
@@ -760,10 +760,10 @@ func main() {
 	// Only explicit service modes reach runtime ownership. A bare invocation was
 	// already dispatched to the storage-free control client above.
 	fmt.Print(banner)
-	log.Printf("[Main] Starting HyperDNS Engine (Public IP: %s, Bind: %s)...", serverSettings.PublicIP, serverSettings.BindHost)
+	log.Printf("[Main] Starting JozmozDNS Engine (Public IP: %s, Bind: %s)...", serverSettings.PublicIP, serverSettings.BindHost)
 
 	// The daemon owns the only control socket. Start it after all shared services
-	// exist and before public listeners are announced ready. Bare `hdns` is a
+	// exist and before public listeners are announced ready. Bare `jmdns` is a
 	// client process and never reaches this branch.
 	controlServer, err := startDaemonControl(*daemonMode, *serverMode, func() localControlServer {
 		return control.NewServer(control.DefaultSocketPath, control.NewHandler(controlOps))
@@ -775,9 +775,9 @@ func main() {
 		// Linux-only by design: the transport authorizes its peer with
 		// SO_PEERCRED and there is deliberately no TCP fallback. A host without
 		// it still runs the resolver, the relay and the dashboard; only the
-		// `hdns` console and `hdns flush` need the socket.
+		// `jmdns` console and `jmdns flush` need the socket.
 		log.Printf("[Main] Local control console unavailable on this platform: %v", err)
-		log.Printf("[Main] The resolver, relay and dashboard are unaffected; `hdns` client commands require a Linux host.")
+		log.Printf("[Main] The resolver, relay and dashboard are unaffected; `jmdns` client commands require a Linux host.")
 	}
 
 	if dnsSettings.Enabled {
@@ -823,9 +823,9 @@ func main() {
 	// control endpoint first so no new mutation races with public listener drain.
 	shutdownDone := make(chan struct{})
 	gracefulStop := func() {
-		log.Println("[Main] Shutting down HyperDNS gracefully...")
+		log.Println("[Main] Shutting down JozmozDNS gracefully...")
 		shutdownDaemonRuntime(controlServer, dnsServer.Stop, sniServer.Stop, webServer.Stop)
-		log.Println("[Main] HyperDNS stopped successfully.")
+		log.Println("[Main] JozmozDNS stopped successfully.")
 	}
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -896,7 +896,7 @@ func isLockTimeout(err error) bool {
 // it was opened. On Windows the handle-based stat carries no path for SameFile to
 // re-open, so it answers false there and a NUL stdin would still read as
 // interactive; that is the safe direction (a desktop console keeps its menu), and
-// no HyperDNS service runs headless on Windows.
+// no JozmozDNS service runs headless on Windows.
 func stdinIsInteractive(f *os.File) bool {
 	if f == nil {
 		return false
@@ -905,7 +905,7 @@ func stdinIsInteractive(f *os.File) bool {
 	if err != nil {
 		return false
 	}
-	// Pipes, regular files and sockets: `echo 1 | hyperdns`, `hyperdns < answers`.
+	// Pipes, regular files and sockets: `echo 1 | JozmozDNS`, `JozmozDNS < answers`.
 	if fi.Mode()&os.ModeCharDevice == 0 {
 		return false
 	}
@@ -1143,3 +1143,4 @@ func isPlaceholderPublicIP(ip string) bool {
 	}
 	return false
 }
+

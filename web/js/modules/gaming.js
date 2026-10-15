@@ -1,4 +1,4 @@
-// HyperDNS Game Intelligence Engine (HGI) UI Controller (v2.2)
+// JozmozDNS Game Intelligence Engine (HGI) UI Controller (v2.2)
 // ES Module loaded after app.js. Bridges to window.__hdns for auth & API communication.
 
 (() => {
@@ -765,7 +765,7 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `hyperdns-hgi-report-${Date.now()}.json`;
+        a.download = `JozmozDNS-hgi-report-${Date.now()}.json`;
         document.body.appendChild(a);
         a.click();
         a.remove();

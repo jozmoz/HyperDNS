@@ -129,3 +129,4 @@ func TestLiveStreamHandlersFeedTheBuffer(t *testing.T) {
 			"the render path owns the table, and reaching past it is what lets the two diverge.")
 	}
 }
+

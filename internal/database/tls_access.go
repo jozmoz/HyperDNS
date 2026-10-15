@@ -165,3 +165,4 @@ func (t *TLSSettings) SetCertPaths(certPath, keyPath string, persist func(*TLSSe
 	}
 	return nil
 }
+

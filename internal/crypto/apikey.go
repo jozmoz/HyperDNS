@@ -35,3 +35,4 @@ func GenerateAPIKey() string {
 	_, _ = rand.Read(b)
 	return APIKeyPrefix + hex.EncodeToString(b)
 }
+

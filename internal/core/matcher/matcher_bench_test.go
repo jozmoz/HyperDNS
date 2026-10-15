@@ -127,3 +127,4 @@ func BenchmarkGetCustomRecord(b *testing.B) {
 		m.GetCustomRecord("pin.example")
 	}
 }
+

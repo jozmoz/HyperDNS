@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/service"
 )
 
 // postJSON issues a POST with a JSON body and returns the recorder.
@@ -418,7 +418,7 @@ func TestConfigServerEnforcesPasswordPolicy(t *testing.T) {
 
 	stored := ws.settings.AdminPassword
 
-	weak := []string{"admin", "short", "password123", "aaaaaaaaaaaa", "abcdefghijkl", "hyperdns"}
+	weak := []string{"admin", "short", "password123", "aaaaaaaaaaaa", "abcdefghijkl", "JozmozDNS"}
 	for _, pw := range weak {
 		body := fmt.Sprintf(`{"admin_password":%q,"current_password":%q}`, pw, testAdminPassword)
 		w := postJSON(t, h, "/api/config/server", body, tok)
@@ -640,3 +640,4 @@ func TestKDFGateIsBounded(t *testing.T) {
 		t.Fatalf("kdfGate has %d slots still held; a path forgot to release", len(ws.kdfGate))
 	}
 }
+

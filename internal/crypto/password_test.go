@@ -174,7 +174,7 @@ func TestValidatePasswordStrength(t *testing.T) {
 		{"the old default", "admin", "admin", true},
 		{"common word", "admin", "password123", true},
 		{"common word dressed up", "admin", "password2024!", true},
-		{"product name", "admin", "hyperdns", true},
+		{"product name", "admin", "JozmozDNS", true},
 		{"equals username", "operator1", "operator1", true},
 		{"single repeated rune", "admin", "aaaaaaaaaaaa", true},
 		{"sequential run", "admin", "abcdefghijkl", true},
@@ -229,3 +229,4 @@ func TestVerifyPasswordCostIsBounded(t *testing.T) {
 		t.Errorf("one verification took %v; the work factor is too high for an unauthenticated endpoint", elapsed)
 	}
 }
+

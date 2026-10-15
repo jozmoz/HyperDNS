@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // tlsPanelConfig carries the TLS switchboard settings an integration test needs
@@ -325,3 +325,4 @@ func TestTLSPanelDoesNotAnswerPlaintext(t *testing.T) {
 		t.Errorf("plaintext request returned status %d, want 400", resp.StatusCode)
 	}
 }
+

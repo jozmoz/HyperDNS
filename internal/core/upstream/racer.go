@@ -649,3 +649,4 @@ func (p *UpstreamPool) attachECS(msg *dns.Msg, clientIP net.IP) {
 	}
 	opt.Option = append(opt.Option, ecs)
 }
+

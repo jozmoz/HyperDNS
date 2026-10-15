@@ -4,8 +4,8 @@ import (
 	"errors"
 	"net/http"
 
-	"hyperdns/internal/database"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service"
 )
 
 // This file is the one place in httpx that knows anything about the domain, and it
@@ -50,3 +50,4 @@ func ClientErrorStatus(err error) int {
 func WriteClientError(w http.ResponseWriter, err error) {
 	WriteJSONErrorFor(w, ClientErrorStatus(err), err)
 }
+

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"hyperdns/internal/game"
+	"jozmozdns/internal/game"
 )
 
 // normalizeDomain helper ensures domain strings are trimmed and lowercased.
@@ -882,7 +882,7 @@ func (a *API) handleV2LearningExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", "attachment; filename=\"hyperdns-hgi-learning-report.json\"")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"JozmozDNS-hgi-learning-report.json\"")
 	_, _ = w.Write(data)
 }
 
@@ -1305,3 +1305,4 @@ func (a *API) handleV2CachePurge(w http.ResponseWriter, r *http.Request) {
 		"purged_count": purgedCount,
 	})
 }
+

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service"
 )
 
 type recoveryStoreStub struct {
@@ -196,3 +196,4 @@ func TestAdminRecoveryValidatesBeforeMutation(t *testing.T) {
 		sessions.Close()
 	}
 }
+

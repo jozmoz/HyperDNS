@@ -193,3 +193,4 @@ func TestSessionCloseIsIdempotent(t *testing.T) {
 	sm.Close()
 	sm.Close() // must not panic on a closed channel
 }
+

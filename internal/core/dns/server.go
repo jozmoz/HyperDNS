@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"hyperdns/internal/netutil"
+	"jozmozdns/internal/netutil"
 )
 
 // alpnDoT is the ALPN identifier RFC 7858 registers for DNS-over-TLS.
@@ -354,3 +354,4 @@ func (s *Server) Stop() {
 		}
 	}
 }
+

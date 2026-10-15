@@ -182,3 +182,4 @@ func TestPurgedStylesheetIsNotTheWholeFramework(t *testing.T) {
 			"and safelist.", size)
 	}
 }
+

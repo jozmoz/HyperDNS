@@ -8,7 +8,7 @@ import (
 	"time"
 
 	bolt "go.etcd.io/bbolt"
-	"hyperdns/internal/crypto"
+	"jozmozdns/internal/crypto"
 )
 
 // settingsFixture opens a database in a fresh directory. bbolt takes an exclusive
@@ -587,3 +587,4 @@ func TestEnvelopePrefixCannotBeValidJSON(t *testing.T) {
 		}
 	}
 }
+

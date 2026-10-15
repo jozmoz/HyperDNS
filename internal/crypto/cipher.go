@@ -22,7 +22,7 @@ var (
 // blindIndexInfo separates the lookup subkey from the master key. Reusing the
 // AES key for anything but AES-GCM is the classic way to weaken both, so the
 // index gets its own key derived through HKDF.
-const blindIndexInfo = "hyperdns:blind-index:v1"
+const blindIndexInfo = "JozmozDNS:blind-index:v1"
 
 // Cipher provides hardware-accelerated AES-256-GCM AEAD encryption/decryption.
 type Cipher struct {
@@ -137,3 +137,4 @@ func (c *Cipher) BlindIndex(plaintext string) string {
 	mac.Write([]byte(plaintext))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
+

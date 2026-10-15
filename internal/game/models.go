@@ -274,3 +274,4 @@ type AIAssistantResponse struct {
 	GeneratedAt      time.Time `json:"generated_at"`
 }
 
+

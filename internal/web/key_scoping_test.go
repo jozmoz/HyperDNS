@@ -84,3 +84,4 @@ func TestUnlockKeepsTheMasterKeyPath(t *testing.T) {
 		t.Fatalf("unlock with the master key = %d — %s", w.Code, w.Body.String())
 	}
 }
+

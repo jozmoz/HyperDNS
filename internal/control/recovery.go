@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
 )
 
 type serverSettingsStore interface {
@@ -86,3 +86,4 @@ func validateAdminIdentity(username, password string) error {
 	}
 	return nil
 }
+

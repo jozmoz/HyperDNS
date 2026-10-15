@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // The live-log stream is the one handler in this package that never returns while a
@@ -301,3 +301,4 @@ func TestSSERefusesAWriterItCannotFlush(t *testing.T) {
 	// with subscribers that were never served.
 	awaitSubscribers(t, s, 0)
 }
+

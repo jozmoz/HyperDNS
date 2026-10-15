@@ -150,3 +150,4 @@ var PresetDownloads = []string{
 	"cdn.gog.com",
 	"*.cdn.gog.com",
 }
+

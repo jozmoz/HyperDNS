@@ -66,3 +66,4 @@ import "embed"
 //go:embed fonts/vazirmatn-var.woff2
 //go:embed fonts/jetbrains-mono-var.woff2
 var StaticFS embed.FS
+

@@ -345,3 +345,4 @@ func TestLoadExistingMasterKeyHandlesTheRaceLoserTheSameWay(t *testing.T) {
 		t.Errorf("error = %v, want ErrMasterKeyUnusable", err)
 	}
 }
+

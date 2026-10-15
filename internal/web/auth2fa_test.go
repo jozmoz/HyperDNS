@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/auth"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/auth"
+	"jozmozdns/internal/database"
 )
 
 // jsLineCommentRe strips // comments from a slice of js/app.js, so a scan can
@@ -623,7 +623,7 @@ func TestLDAPSettingsRejectNonLDAPURLS(t *testing.T) {
 // One validated code must not authorise a second gated operation, and least of
 // all a different one — a code seen at login must not buy a key rotation, a
 // lockout unlock, or a directory re-point. The RFC 6238 one-time-use rule
-// applies per verifier; the cross-endpoint part is HyperDNS's own invariant,
+// applies per verifier; the cross-endpoint part is JozmozDNS's own invariant,
 // and this is the test that owns it.
 func TestTOTPCodeCannotBeReplayedAcrossGatedEndpoints(t *testing.T) {
 	ws, _, cleanup := setupTestWebServer(t)
@@ -676,3 +676,4 @@ func TestTOTPCodeCannotBeReplayedAcrossGatedEndpoints(t *testing.T) {
 		t.Fatalf("a fresh code was refused: %d, want 200 — %s", w.Code, w.Body.String())
 	}
 }
+

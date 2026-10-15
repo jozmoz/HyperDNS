@@ -281,3 +281,4 @@ func (c *Cache) releaseFlight(key string) {
 func (c *Cache) PrefetchStats() (staleServed, started, failed, dropped uint64) {
 	return c.staleServed.Load(), c.refreshes.Load(), c.refreshFailed.Load(), c.refreshDropped.Load()
 }
+

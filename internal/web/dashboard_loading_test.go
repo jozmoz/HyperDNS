@@ -159,3 +159,4 @@ func TestClientLoadReportsFailureInThePanel(t *testing.T) {
 			"1 — the static notice inside #clients-list.", n)
 	}
 }
+

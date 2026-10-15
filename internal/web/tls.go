@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"hyperdns/internal/database"
-	"hyperdns/internal/httpx"
-	"hyperdns/internal/service/acme"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/httpx"
+	"jozmozdns/internal/service/acme"
 )
 
 // ACME issuance for the operator's own domain.
@@ -696,3 +696,4 @@ func (ws *WebServer) StartACMEIfNeeded() {
 		log.Printf("[TLS] Certificate for %s is still not usable after issuance: %v", domain, err)
 	}
 }
+

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/service"
+	"jozmozdns/internal/service"
 )
 
 // Opening a /sub/ link re-binds the subscription's one allowed address. These tests
@@ -327,3 +327,4 @@ func TestPublicSubAPIDoesNotLeakTheRegisterSecret(t *testing.T) {
 			"the operator's edit modal and provisioning card read it from there")
 	}
 }
+

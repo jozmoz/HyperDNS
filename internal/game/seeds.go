@@ -247,6 +247,8 @@ func DefaultSeedProfiles() []GameProfile {
 	addDomain(wtDomains, "cluster.warthunder.com", CategoryMatchmaking, PolicyProxy, "warthunder", "Gaijin Entertainment")
 
 	addDomain(wtDomains, "gaijinent.com", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "gaijin.ru", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
+	addDomain(wtDomains, "cdn.gaijin.net", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "live.warthunder.com", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "api.warthunder.com", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "gaijin.systems", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
@@ -254,6 +256,14 @@ func DefaultSeedProfiles() []GameProfile {
 	addDomain(wtDomains, "crossout.net", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "wiki.warthunder.com", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "forum.warthunder.com", CategoryGameServices, PolicyProxy, "warthunder", "Gaijin Entertainment")
+
+	// Anti-Cheat (EAC / BattlEye for War Thunder)
+	addDomain(wtDomains, "easyanticheat.net", CategoryAuth, PolicyProxy, "warthunder", "EasyAntiCheat")
+	addDomain(wtDomains, "eac-cdn.com", CategoryAuth, PolicyProxy, "warthunder", "EasyAntiCheat")
+	addDomain(wtDomains, "modules-cdn.eac-prod.on.epicgames.com", CategoryAuth, PolicyProxy, "warthunder", "EasyAntiCheat")
+	addDomain(wtDomains, "on.epicgames.com", CategoryAuth, PolicyProxy, "warthunder", "Epic Games")
+	addDomain(wtDomains, "epicgames.dev", CategoryAuth, PolicyProxy, "warthunder", "Epic Games")
+	addDomain(wtDomains, "battleye.com", CategoryAuth, PolicyProxy, "warthunder", "BattlEye")
 
 	addDomain(wtDomains, "yupmaster.gaijinent.com", CategoryCDN, PolicyDirect, "warthunder", "Gaijin Entertainment")
 	addDomain(wtDomains, "content.warthunder.com", CategoryCDN, PolicyDirect, "warthunder", "Gaijin Entertainment")
@@ -343,7 +353,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			ID:             "node_tr",
 			Name:           "Turkey (Istanbul)",
 			Region:         "tr",
-			Endpoint:       "tr.hyperdns.network",
+			Endpoint:       "tr.JozmozDNS.network",
 			Port:           443,
 			IsMaster:       false,
 			Active:         true,
@@ -360,7 +370,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			ID:             "node_de",
 			Name:           "Germany (Frankfurt)",
 			Region:         "de",
-			Endpoint:       "de.hyperdns.network",
+			Endpoint:       "de.JozmozDNS.network",
 			Port:           443,
 			IsMaster:       false,
 			Active:         true,
@@ -377,7 +387,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			ID:             "node_fi",
 			Name:           "Finland (Helsinki)",
 			Region:         "fi",
-			Endpoint:       "fi.hyperdns.network",
+			Endpoint:       "fi.JozmozDNS.network",
 			Port:           443,
 			IsMaster:       false,
 			Active:         true,
@@ -392,4 +402,5 @@ func DefaultSeedRouteNodes() []RouteNode {
 		},
 	}
 }
+
 

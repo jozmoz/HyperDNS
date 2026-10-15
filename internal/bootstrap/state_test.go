@@ -8,7 +8,7 @@ import (
 	"sort"
 	"testing"
 
-	"hyperdns/internal/bootstrap"
+	"jozmozdns/internal/bootstrap"
 )
 
 func TestClassifyPaths(t *testing.T) {
@@ -85,3 +85,4 @@ func mustWriteFixture(t *testing.T, path string, data []byte) {
 		t.Fatalf("WriteFile: %v", err)
 	}
 }
+

@@ -132,3 +132,4 @@ func parseKeyMaterial(data []byte) ([]byte, error) {
 
 	return nil, fmt.Errorf("holds %d bytes, which is neither a raw 32-byte key nor a hex/base64 encoding of one", len(data))
 }
+

@@ -259,3 +259,4 @@ func TestDialogsAndToastsSetTextRatherThanMarkup(t *testing.T) {
 		}
 	}
 }
+

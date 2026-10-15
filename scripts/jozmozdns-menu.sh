@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # JozmozDNS — Interactive Terminal Management Console
-# Usage: jdns or jozmozdns (alias: hdns, hyperdns)
-# GitHub: https://github.com/jozmoz/HyperDNS
+# Usage: jdns or jozmozdns (alias: jmdns, JozmozDNS)
+# GitHub: https://github.com/jozmoz/JozmozDNS
 # ==============================================================================
 
 set +e
@@ -15,23 +15,23 @@ PURPLE='\033[0;35m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-INSTALL_DIR="/opt/hyperdns"
-SERVICE_NAME="hyperdns"
-REPO_RAW_URL="https://raw.githubusercontent.com/jozmoz/HyperDNS/main"
+INSTALL_DIR="/opt/JozmozDNS"
+SERVICE_NAME="JozmozDNS"
+REPO_RAW_URL="https://raw.githubusercontent.com/jozmoz/JozmozDNS/main"
 
 # Detect binary location
 if [ -f "$INSTALL_DIR/jozmozdns" ]; then
     BIN_PATH="$INSTALL_DIR/jozmozdns"
-elif [ -f "$INSTALL_DIR/hyperdns" ]; then
-    BIN_PATH="$INSTALL_DIR/hyperdns"
+elif [ -f "$INSTALL_DIR/JozmozDNS" ]; then
+    BIN_PATH="$INSTALL_DIR/JozmozDNS"
 elif [ -f "/opt/jozmozdns/jozmozdns" ]; then
     BIN_PATH="/opt/jozmozdns/jozmozdns"
-elif [ -f "/root/HyperDNS-main/hyperdns" ]; then
-    BIN_PATH="/root/HyperDNS-main/hyperdns"
-elif [ -f "/root/hyperdns" ]; then
-    BIN_PATH="/root/hyperdns"
+elif [ -f "/root/JozmozDNS-main/JozmozDNS" ]; then
+    BIN_PATH="/root/JozmozDNS-main/JozmozDNS"
+elif [ -f "/root/JozmozDNS" ]; then
+    BIN_PATH="/root/JozmozDNS"
 else
-    BIN_PATH="/opt/hyperdns/hyperdns"
+    BIN_PATH="/opt/JozmozDNS/JozmozDNS"
 fi
 
 get_public_ip() {
@@ -66,7 +66,7 @@ show_banner() {
     echo "  ██║╚██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║ ╚████║███████║"
     echo "  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
     echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
-    echo -e "       ${YELLOW}Management Console · GitHub: github.com/jozmoz/HyperDNS${NC}"
+    echo -e "       ${YELLOW}Management Console · GitHub: github.com/jozmoz/JozmozDNS${NC}"
     echo ""
     echo -e "  ${BOLD}Status:${NC} $(get_service_status) | ${BOLD}Server IP:${NC} ${CYAN}$(get_public_ip)${NC}"
     echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}"
@@ -90,7 +90,7 @@ show_credentials() {
     fi
 
     local dash_line
-    dash_line=$(echo "$journal_log" | grep -i "HyperDNS Dashboard" | tail -1 || true)
+    dash_line=$(echo "$journal_log" | grep -i "JozmozDNS Dashboard" | tail -1 || true)
     if [ -n "$dash_line" ]; then
         echo -e "  ${GREEN}$dash_line${NC}"
     elif [ -n "$saved_url" ]; then
@@ -284,13 +284,13 @@ EOF
             sed -i -E 's/^#?DNS=.*/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf 2>/dev/null || true
         fi
         mkdir -p /etc/systemd/resolved.conf.d/
-        cat <<EOF > /etc/systemd/resolved.conf.d/hyperdns.conf
+        cat <<EOF > /etc/systemd/resolved.conf.d/JozmozDNS.conf
 [Resolve]
 DNS=1.1.1.1 8.8.8.8
 DNSStubListener=no
 EOF
         chmod 755 /etc/systemd/resolved.conf.d 2>/dev/null || true
-        chmod 644 /etc/systemd/resolved.conf.d/hyperdns.conf 2>/dev/null || true
+        chmod 644 /etc/systemd/resolved.conf.d/JozmozDNS.conf 2>/dev/null || true
 
         if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
             systemctl restart systemd-resolved 2>/dev/null || true
@@ -346,7 +346,7 @@ EOF
     fi
 }
 
-# Helper: Install verified certificate files into HyperDNS directories
+# Helper: Install verified certificate files into JozmozDNS directories
 install_cert_files() {
     local cert_src="$1"
     local key_src="$2"
@@ -521,9 +521,9 @@ manual_ssl_wizard() {
                         if [ -f "$cb_live_cert" ] && [ -f "$cb_live_key" ]; then
                             install_cert_files "$cb_live_cert" "$cb_live_key" "$domain"
                             echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت دریافت و نصب شد!${NC}"
-                        elif [ -f "${INSTALL_DIR}/hyperdns" ]; then
-                            echo -e "  تلاش صدور از طریق موتور داخلی HyperDNS..."
-                            timeout 20 "${INSTALL_DIR}/hyperdns" -server -domain "${domain}" -email "${email}" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
+                        elif [ -f "${INSTALL_DIR}/JozmozDNS" ]; then
+                            echo -e "  تلاش صدور از طریق موتور داخلی JozmozDNS..."
+                            timeout 20 "${INSTALL_DIR}/JozmozDNS" -server -domain "${domain}" -email "${email}" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
                             if [ -f "${INSTALL_DIR}/certs/acme/${domain}.crt" ]; then
                                 install_cert_files "${INSTALL_DIR}/certs/acme/${domain}.crt" "${INSTALL_DIR}/certs/acme/${domain}.key" "$domain"
                                 echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت صادر و ذخیره شد!${NC}"
@@ -585,7 +585,7 @@ manual_ssl_wizard() {
                     echo "$key_content" > "$tmp_k"
                     install_cert_files "$tmp_c" "$tmp_k" "$domain"
                     rm -f "$tmp_c" "$tmp_k"
-                    echo -e "  ${GREEN}✓ سرتیفیکیت و کلید با موفقیت در HyperDNS ذخیره شدند!${NC}"
+                    echo -e "  ${GREEN}✓ سرتیفیکیت و کلید با موفقیت در JozmozDNS ذخیره شدند!${NC}"
                     return 0
                 else
                     echo -e "  ${RED}خطا: محتوای پیست‌شده ساختار استاندارد Certificate یا Private Key را ندارد.${NC}"
@@ -673,11 +673,11 @@ change_domain_ssl() {
             pkill -9 -f "$BIN_PATH" 2>/dev/null || true
             free_port_53 "$s_ip"
             systemctl daemon-reload || true
-            echo -e "${GREEN}Restarting HyperDNS service...${NC}"
+            echo -e "${GREEN}Restarting JozmozDNS service...${NC}"
             systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME" 2>/dev/null || true
             sleep 2
             if ! systemctl is-active --quiet "$SERVICE_NAME"; then
-                echo -e "\n${RED}⚠️  HyperDNS service failed to start! Checking logs...${NC}"
+                echo -e "\n${RED}⚠️  JozmozDNS service failed to start! Checking logs...${NC}"
                 journalctl -u "$SERVICE_NAME" -n 25 --no-pager 2>/dev/null || true
                 if is_port_53_busy "$s_ip"; then
                     echo -e "\n${YELLOW}Port 53 was occupied. Freeing and retrying...${NC}"
@@ -731,7 +731,7 @@ change_domain_ssl() {
                 timeout 10 "$BIN_PATH" -server -domain "$dom_name" >/dev/null 2>&1 || true
             fi
             echo -e "${GREEN}✓ Certificates saved and applied!${NC}"
-            echo -e "${CYAN}Restarting HyperDNS...${NC}"
+            echo -e "${CYAN}Restarting JozmozDNS...${NC}"
             systemctl restart "$SERVICE_NAME"
             sleep 2
             ;;
@@ -775,7 +775,7 @@ change_domain_ssl() {
             if [ -f "$BIN_PATH" ]; then
                 "$BIN_PATH" -domain "none" -public-ip "$s_ip" >/dev/null 2>&1 || true
             fi
-            local OPENSSL_CNF="/tmp/openssl_hyperdns_$$.cnf"
+            local OPENSSL_CNF="/tmp/openssl_JozmozDNS_$$.cnf"
             cat <<EOF > "$OPENSSL_CNF"
 [req]
 default_bits = 2048
@@ -786,7 +786,7 @@ x509_extensions = v3_req
 
 [dn]
 C = US
-O = HyperDNS
+O = JozmozDNS
 CN = ${s_ip}
 
 [v3_req]
@@ -813,7 +813,7 @@ EOF
             echo -e "\n${CYAN}Clearing cached certificates in $INSTALL_DIR/certs/acme/...${NC}"
             systemctl stop "$SERVICE_NAME" 2>/dev/null || true
             rm -rf "$INSTALL_DIR/certs/acme"/* 2>/dev/null || true
-            echo -e "${GREEN}Restarting HyperDNS to re-request certificate...${NC}"
+            echo -e "${GREEN}Restarting JozmozDNS to re-request certificate...${NC}"
             systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
             echo -e "${GREEN}✓ Certificate cache flushed and renewal triggered!${NC}"
             sleep 2
@@ -824,16 +824,16 @@ EOF
     esac
 }
 
-update_hyperdns() {
-    echo -e "\n${BOLD}${CYAN}=== Update HyperDNS from GitHub ===${NC}"
-    echo -e "Downloading latest release from: ${YELLOW}${REPO_RAW_URL}/hyperdns-linux${NC}..."
+update_JozmozDNS() {
+    echo -e "\n${BOLD}${CYAN}=== Update JozmozDNS from GitHub ===${NC}"
+    echo -e "Downloading latest release from: ${YELLOW}${REPO_RAW_URL}/JozmozDNS-linux${NC}..."
     
     local cache_buster
     cache_buster=$(date +%s)
-    local tmp_file="/tmp/hyperdns_update_$$"
-    if curl -fsSL -o "$tmp_file" "${REPO_RAW_URL}/hyperdns-linux?t=${cache_buster}"; then
+    local tmp_file="/tmp/JozmozDNS_update_$$"
+    if curl -fsSL -o "$tmp_file" "${REPO_RAW_URL}/JozmozDNS-linux?t=${cache_buster}"; then
         chmod +x "$tmp_file"
-        echo -e "${CYAN}Stopping HyperDNS service...${NC}"
+        echo -e "${CYAN}Stopping JozmozDNS service...${NC}"
         systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 
         echo -e "${CYAN}Replacing binary at ${BIN_PATH}...${NC}"
@@ -841,20 +841,20 @@ update_hyperdns() {
         chmod +x "$BIN_PATH"
         rm -f "$tmp_file"
 
-        if [ "$BIN_PATH" != "/opt/hyperdns/hyperdns" ] && [ -d "/opt/hyperdns" ]; then
-            cp "$BIN_PATH" "/opt/hyperdns/hyperdns" 2>/dev/null || true
+        if [ "$BIN_PATH" != "/opt/JozmozDNS/JozmozDNS" ] && [ -d "/opt/JozmozDNS" ]; then
+            cp "$BIN_PATH" "/opt/JozmozDNS/JozmozDNS" 2>/dev/null || true
         fi
 
         # Also update the menu script itself
         echo -e "${CYAN}Updating management menu script...${NC}"
-        curl -fsSL -o /usr/local/bin/hyperdns "${REPO_RAW_URL}/scripts/hyperdns-menu.sh?t=${cache_buster}" 2>/dev/null || true
-        chmod +x /usr/local/bin/hyperdns 2>/dev/null || true
-        ln -sf /usr/local/bin/hyperdns /usr/local/bin/hdns 2>/dev/null || true
+        curl -fsSL -o /usr/local/bin/JozmozDNS "${REPO_RAW_URL}/scripts/JozmozDNS-menu.sh?t=${cache_buster}" 2>/dev/null || true
+        chmod +x /usr/local/bin/JozmozDNS 2>/dev/null || true
+        ln -sf /usr/local/bin/JozmozDNS /usr/local/bin/jmdns 2>/dev/null || true
 
-        echo -e "${CYAN}Restarting HyperDNS service...${NC}"
+        echo -e "${CYAN}Restarting JozmozDNS service...${NC}"
         free_port_53
         systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
-        echo -e "\n${GREEN}${BOLD}✓ HyperDNS and Management Menu updated to the latest version successfully!${NC}"
+        echo -e "\n${GREEN}${BOLD}✓ JozmozDNS and Management Menu updated to the latest version successfully!${NC}"
     else
         echo -e "\n${RED}Failed to download updated binary from GitHub.${NC}"
         rm -f "$tmp_file"
@@ -875,7 +875,7 @@ flush_cache() {
 }
 
 run_diagnostics() {
-    echo -e "\n${BOLD}${CYAN}=== HyperDNS Diagnostic Port Check ===${NC}"
+    echo -e "\n${BOLD}${CYAN}=== JozmozDNS Diagnostic Port Check ===${NC}"
     local cur_ip
     cur_ip=$(get_public_ip)
     echo "Testing DNS, DoT, DoH and SNI Proxy ports on ${cur_ip}..."
@@ -890,7 +890,7 @@ run_diagnostics() {
     if is_port_53_busy "$cur_ip"; then
         local p53_p
         p53_p=$(get_port_53_process "$cur_ip")
-        if [ "$p53_p" != "hyperdns" ] && [ "$p53_p" != "unknown" ]; then
+        if [ "$p53_p" != "JozmozDNS" ] && [ "$p53_p" != "unknown" ]; then
             echo -e "\n  ${YELLOW}⚠️  Port 53 on ${cur_ip} is occupied by external process: ${BOLD}${p53_p}${NC}"
             read -rp "  Do you want to free Port 53 now? [y/N]: " fix_p53
             if [[ "$fix_p53" =~ ^[yY] ]]; then
@@ -906,8 +906,8 @@ run_diagnostics() {
 get_db_path() {
     if [ -f "$INSTALL_DIR/data.db" ]; then
         echo "$INSTALL_DIR/data.db"
-    elif [ -f "/root/HyperDNS-main/data.db" ]; then
-        echo "/root/HyperDNS-main/data.db"
+    elif [ -f "/root/JozmozDNS-main/data.db" ]; then
+        echo "/root/JozmozDNS-main/data.db"
     elif [ -f "./data.db" ]; then
         echo "./data.db"
     else
@@ -916,7 +916,7 @@ get_db_path() {
 }
 
 backup_database() {
-    echo -e "\n${BOLD}${CYAN}=== HyperDNS Database Backup ===${NC}"
+    echo -e "\n${BOLD}${CYAN}=== JozmozDNS Database Backup ===${NC}"
     local db_path
     db_path=$(get_db_path)
     if [ ! -f "$db_path" ]; then
@@ -929,7 +929,7 @@ backup_database() {
     mkdir -p "$backup_dir"
     local timestamp
     timestamp=$(date +"%Y%m%d_%H%M%S")
-    local backup_file="$backup_dir/hyperdns_backup_${timestamp}.db"
+    local backup_file="$backup_dir/JozmozDNS_backup_${timestamp}.db"
 
     echo -e "${CYAN}Creating database snapshot from ${db_path}...${NC}"
     cp "$db_path" "$backup_file"
@@ -943,7 +943,7 @@ backup_database() {
 }
 
 restore_database() {
-    echo -e "\n${BOLD}${CYAN}=== HyperDNS Database Restore ===${NC}"
+    echo -e "\n${BOLD}${CYAN}=== JozmozDNS Database Restore ===${NC}"
     local backup_dir="$INSTALL_DIR/backups"
     local db_path
     db_path=$(get_db_path)
@@ -1008,7 +1008,7 @@ restore_database() {
         return
     fi
 
-    echo -e "${CYAN}Stopping HyperDNS service...${NC}"
+    echo -e "${CYAN}Stopping JozmozDNS service...${NC}"
     systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 
     if [ -f "$db_path" ]; then
@@ -1019,44 +1019,44 @@ restore_database() {
     cp "$selected_backup" "$db_path"
     chmod 600 "$db_path"
 
-    echo -e "${CYAN}Starting HyperDNS service...${NC}"
+    echo -e "${CYAN}Starting JozmozDNS service...${NC}"
     systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
 
     echo -e "\n${GREEN}${BOLD}✓ Database successfully restored from $(basename "$selected_backup")!${NC}"
     read -rp "Press Enter to continue..."
 }
 
-uninstall_hyperdns() {
+uninstall_JozmozDNS() {
     echo -e "\n${RED}${BOLD}======================================================${NC}"
-    echo -e "${RED}${BOLD}           ⚠️  UNINSTALL HYPERDNS  ⚠️                ${NC}"
+    echo -e "${RED}${BOLD}           ⚠️  UNINSTALL JozmozDNS  ⚠️                ${NC}"
     echo -e "${RED}${BOLD}======================================================${NC}"
     echo -e "This will stop the service, remove binaries and restore system settings."
     read -rp "Are you SURE you want to completely uninstall? (y/N): " confirm
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
         systemctl stop "$SERVICE_NAME" 2>/dev/null || true
         systemctl disable "$SERVICE_NAME" 2>/dev/null || true
-        rm -f /etc/systemd/system/hyperdns.service
+        rm -f /etc/systemd/system/JozmozDNS.service
         systemctl daemon-reload
 
-        rm -f /usr/local/bin/hyperdns /usr/local/bin/hdns
+        rm -f /usr/local/bin/JozmozDNS /usr/local/bin/jmdns
 
-        read -rp "Do you also want to delete all database and settings in /opt/hyperdns? (y/N): " del_data
+        read -rp "Do you also want to delete all database and settings in /opt/JozmozDNS? (y/N): " del_data
         if [[ "$del_data" =~ ^[Yy]$ ]]; then
-            rm -rf /opt/hyperdns
-            echo -e "${RED}✓ Data directory /opt/hyperdns removed.${NC}"
+            rm -rf /opt/JozmozDNS
+            echo -e "${RED}✓ Data directory /opt/JozmozDNS removed.${NC}"
         else
-            echo -e "${YELLOW}Data preserved in /opt/hyperdns for backup.${NC}"
+            echo -e "${YELLOW}Data preserved in /opt/JozmozDNS for backup.${NC}"
         fi
 
         # Restore systemd-resolved if it was modified
-        if [ -f /etc/systemd/resolved.conf.d/hyperdns.conf ]; then
-            rm -f /etc/systemd/resolved.conf.d/hyperdns.conf
+        if [ -f /etc/systemd/resolved.conf.d/JozmozDNS.conf ]; then
+            rm -f /etc/systemd/resolved.conf.d/JozmozDNS.conf
             systemctl restart systemd-resolved 2>/dev/null || true
         fi
         systemctl enable systemd-resolved 2>/dev/null || true
         systemctl start systemd-resolved 2>/dev/null || true
 
-        echo -e "\n${GREEN}HyperDNS has been uninstalled successfully.${NC}"
+        echo -e "\n${GREEN}JozmozDNS has been uninstalled successfully.${NC}"
         exit 0
     else
         echo -e "${YELLOW}Uninstall cancelled.${NC}"
@@ -1065,8 +1065,8 @@ uninstall_hyperdns() {
 }
 
 manage_telegram_bot() {
-    echo -e "\n${BOLD}${CYAN}=== HyperDNS Telegram Bot Management ===${NC}"
-    local bot_service="hyperdns-bot"
+    echo -e "\n${BOLD}${CYAN}=== JozmozDNS Telegram Bot Management ===${NC}"
+    local bot_service="JozmozDNS-bot"
     local bot_script="$INSTALL_DIR/integrations/telegram_bot.py"
     local bot_env="$INSTALL_DIR/telegram.env"
     local bot_unit="/etc/systemd/system/${bot_service}.service"
@@ -1102,8 +1102,8 @@ manage_telegram_bot() {
             mkdir -p "$INSTALL_DIR/integrations"
             if [ -f "$(dirname "$BIN_PATH")/integrations/telegram_bot.py" ]; then
                 cp "$(dirname "$BIN_PATH")/integrations/telegram_bot.py" "$INSTALL_DIR/integrations/telegram_bot.py"
-            elif [ -f "/root/HyperDNS-main/integrations/telegram_bot.py" ]; then
-                cp /root/HyperDNS-main/integrations/telegram_bot.py "$INSTALL_DIR/integrations/telegram_bot.py"
+            elif [ -f "/root/JozmozDNS-main/integrations/telegram_bot.py" ]; then
+                cp /root/JozmozDNS-main/integrations/telegram_bot.py "$INSTALL_DIR/integrations/telegram_bot.py"
             else
                 echo -e "${CYAN}Downloading bot script from GitHub...${NC}"
                 curl -fsSL -o "$INSTALL_DIR/integrations/telegram_bot.py" "${REPO_RAW_URL}/integrations/telegram_bot.py"
@@ -1111,14 +1111,14 @@ manage_telegram_bot() {
 
             # Create env file if not exists
             if [ ! -f "$bot_env" ]; then
-                echo -e "\n${YELLOW}Please enter your HyperDNS REST API Key:${NC}"
+                echo -e "\n${YELLOW}Please enter your JozmozDNS REST API Key:${NC}"
                 echo -e "(You can find it in the Dashboard → Settings → API Key)"
                 read -rp "API Key: " input_api_key
                 cat > "$bot_env" <<ENVEOF
-# HyperDNS Telegram Bot Environment
+# JozmozDNS Telegram Bot Environment
 # The bot reads all other settings (Token, Admin IDs, etc.) from the panel database.
-HYPERDNS_API_BASE=http://127.0.0.1:8080/api/v2
-HYPERDNS_API_KEY=${input_api_key}
+JozmozDNS_API_BASE=http://127.0.0.1:8080/api/v2
+JozmozDNS_API_KEY=${input_api_key}
 ENVEOF
                 chmod 600 "$bot_env"
                 echo -e "${GREEN}✓ Environment file created at $bot_env${NC}"
@@ -1127,21 +1127,21 @@ ENVEOF
             # Install systemd service
             cat > "$bot_unit" <<'SVCEOF'
 [Unit]
-Description=HyperDNS Telegram Sales & Subscription Bot
-Documentation=https://github.com/jozmoz/HyperDNS
-After=hyperdns.service
-Wants=hyperdns.service
+Description=JozmozDNS Telegram Sales & Subscription Bot
+Documentation=https://github.com/jozmoz/JozmozDNS
+After=JozmozDNS.service
+Wants=JozmozDNS.service
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/hyperdns
-EnvironmentFile=-/opt/hyperdns/telegram.env
-ExecStart=/usr/bin/python3 /opt/hyperdns/integrations/telegram_bot.py
+WorkingDirectory=/opt/JozmozDNS
+EnvironmentFile=-/opt/JozmozDNS/telegram.env
+ExecStart=/usr/bin/python3 /opt/JozmozDNS/integrations/telegram_bot.py
 Restart=always
 RestartSec=10s
 TimeoutStopSec=10s
-SyslogIdentifier=hyperdns-bot
+SyslogIdentifier=JozmozDNS-bot
 
 [Install]
 WantedBy=multi-user.target
@@ -1152,7 +1152,7 @@ SVCEOF
             systemctl restart "$bot_service"
 
             echo -e "\n${GREEN}${BOLD}✓ Telegram Bot installed and started successfully!${NC}"
-            echo -e "${YELLOW}Note: Make sure you have configured the Telegram bot settings in the HyperDNS Dashboard → Settings → Telegram Bot.${NC}"
+            echo -e "${YELLOW}Note: Make sure you have configured the Telegram bot settings in the JozmozDNS Dashboard → Settings → Telegram Bot.${NC}"
             ;;
         2)
             systemctl start "$bot_service" 2>/dev/null && echo -e "${GREEN}✓ Bot started!${NC}" || echo -e "${RED}Failed to start bot. Run option [1] first to install.${NC}"
@@ -1169,12 +1169,12 @@ SVCEOF
             journalctl -u "$bot_service" -f -n 50 || true
             ;;
         6)
-            echo -e "\n${YELLOW}Enter the new HyperDNS API Key:${NC}"
+            echo -e "\n${YELLOW}Enter the new JozmozDNS API Key:${NC}"
             read -rp "API Key: " new_key
             if [ -n "$new_key" ]; then
                 cat > "$bot_env" <<ENVEOF
-HYPERDNS_API_BASE=http://127.0.0.1:8080/api/v2
-HYPERDNS_API_KEY=${new_key}
+JozmozDNS_API_BASE=http://127.0.0.1:8080/api/v2
+JozmozDNS_API_KEY=${new_key}
 ENVEOF
                 chmod 600 "$bot_env"
                 systemctl restart "$bot_service" 2>/dev/null || true
@@ -1189,7 +1189,7 @@ ENVEOF
 }
 
 change_dns_server_ip() {
-    echo -e "\n${BOLD}${CYAN}=== HyperDNS Server IP Management ===${NC}"
+    echo -e "\n${BOLD}${CYAN}=== JozmozDNS Server IP Management ===${NC}"
     local current_ip
     current_ip=$(get_public_ip)
     echo -e "  Current Configured IP: ${YELLOW}${current_ip}${NC}\n"
@@ -1291,7 +1291,7 @@ change_dns_server_ip() {
         if grep -q -- "-public-ip" "$svc_file"; then
             sed -i -E "s/-public-ip\s+[^ ]+(\s+-bind\s+[^ ]+)?/-public-ip ${new_ip} -bind ${new_ip}/" "$svc_file"
         else
-            sed -i -E "s/(hyperdns\s+-server)/\1 -public-ip ${new_ip} -bind ${new_ip}/" "$svc_file"
+            sed -i -E "s/(JozmozDNS\s+-server)/\1 -public-ip ${new_ip} -bind ${new_ip}/" "$svc_file"
         fi
         systemctl daemon-reload
     fi
@@ -1305,7 +1305,7 @@ change_dns_server_ip() {
         timeout 5 "$BIN_PATH" -server -public-ip "$new_ip" -bind "$new_ip" >/dev/null 2>&1 || true
     fi
 
-    echo -e "${GREEN}Restarting HyperDNS service...${NC}"
+    echo -e "${GREEN}Restarting JozmozDNS service...${NC}"
     free_port_53 "$new_ip"
     systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
     echo -e "\n${GREEN}${BOLD}✓ DNS Server IP updated to ${new_ip}!${NC}"
@@ -1313,7 +1313,7 @@ change_dns_server_ip() {
 }
 
 change_admin_password() {
-    echo -e "\n${BOLD}${CYAN}=== HyperDNS Admin Password Management ===${NC}"
+    echo -e "\n${BOLD}${CYAN}=== JozmozDNS Admin Password Management ===${NC}"
     echo -e "You can set a new custom password for the Web Dashboard.\n"
     read -rp "Enter new Admin Password (or press Enter to generate random): " new_pass
     new_pass=$(echo "$new_pass" | tr -d '[:space:]')
@@ -1352,7 +1352,7 @@ main_menu() {
     while true; do
         show_banner
         echo -e "  ${CYAN}[1]${NC}  📊 وضعیت سرویس (Service Status)"
-        echo -e "  ${CYAN}[2]${NC}  🔄 راه‌اندازی مجدد سرویس (Restart HyperDNS)"
+        echo -e "  ${CYAN}[2]${NC}  🔄 راه‌اندازی مجدد سرویس (Restart JozmozDNS)"
         echo -e "  ${CYAN}[3]${NC}  ⏹️  توقف موقت سرویس (Stop Service)"
         echo -e "  ${CYAN}[4]${NC}  ▶️  روشن کردن سرویس (Start Service)"
         echo -e "  ${CYAN}[5]${NC}  📜 مشاهده لاگ‌های زنده سرور (View Live Logs)"
@@ -1360,13 +1360,13 @@ main_menu() {
         echo -e "  ${CYAN}[7]${NC}  🌐 تغییر دامنه و صدور گواهینامه SSL / Let's Encrypt"
         echo -e "  ${CYAN}[8]${NC}  🧹 پاک‌سازی کش DNS (Flush DNS Cache)"
         echo -e "  ${CYAN}[9]${NC}  🩺 بررسی پورت‌ها و عیب‌یابی (Diagnostics & Port Check)"
-        echo -e "  ${CYAN}[10]${NC} 🚀 آپدیت HyperDNS به آخرین نسخه از گیت‌هاب (Update)"
+        echo -e "  ${CYAN}[10]${NC} 🚀 آپدیت JozmozDNS به آخرین نسخه از گیت‌هاب (Update)"
         echo -e "  ${CYAN}[11]${NC} 💾 ایجاد فایل پشتیبان دیتابیس (Backup Database)"
         echo -e "  ${CYAN}[12]${NC} ♻️  بازیابی نسخه پشتیبان (Restore Database)"
         echo -e "  ${CYAN}[13]${NC} 🤖 مدیریت ربات تلگرام (Telegram Bot)"
         echo -e "  ${CYAN}[14]${NC} 🌐 تغییر IP عمومی سرور DNS (Change DNS Server IP)"
         echo -e "  ${CYAN}[15]${NC} 🔑 تغییر / بازنشانی رمز عبور ادمین (Change Admin Password)"
-        echo -e "  ${RED}[16]${NC} 🗑️  حذف کامل HyperDNS (Uninstall)"
+        echo -e "  ${RED}[16]${NC} 🗑️  حذف کامل JozmozDNS (Uninstall)"
         echo -e "  ${YELLOW}[0]${NC}  🚪 خروج (Exit)"
         echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}"
         read -rp " عدد مورد نظر را وارد کنید [0-16]: " choice
@@ -1378,7 +1378,7 @@ main_menu() {
                 read -rp "Press Enter to continue..."
                 ;;
             2)
-                echo -e "\n${CYAN}Restarting HyperDNS...${NC}"
+                echo -e "\n${CYAN}Restarting JozmozDNS...${NC}"
                 free_port_53
                 systemctl restart "$SERVICE_NAME"
                 sleep 2
@@ -1391,13 +1391,13 @@ main_menu() {
                 sleep 1.5
                 ;;
             3)
-                echo -e "\n${YELLOW}Stopping HyperDNS...${NC}"
+                echo -e "\n${YELLOW}Stopping JozmozDNS...${NC}"
                 systemctl stop "$SERVICE_NAME"
                 echo -e "${YELLOW}✓ Service stopped!${NC}"
                 sleep 1.5
                 ;;
             4)
-                echo -e "\n${CYAN}Starting HyperDNS...${NC}"
+                echo -e "\n${CYAN}Starting JozmozDNS...${NC}"
                 free_port_53
                 systemctl start "$SERVICE_NAME"
                 sleep 2
@@ -1427,7 +1427,7 @@ main_menu() {
                 run_diagnostics
                 ;;
             10)
-                update_hyperdns
+                update_JozmozDNS
                 ;;
             11)
                 backup_database
@@ -1445,7 +1445,7 @@ main_menu() {
                 change_admin_password
                 ;;
             16)
-                uninstall_hyperdns
+                uninstall_JozmozDNS
                 ;;
             0|q|exit)
                 echo -e "\n${GREEN}خداحافظ!${NC}\n"

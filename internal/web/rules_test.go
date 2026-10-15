@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"hyperdns/internal/core/matcher"
+	"jozmozdns/internal/core/matcher"
 )
 
 // rulesFullSave is a save of the shape the dashboard sends: every key present.
@@ -182,3 +182,4 @@ func TestConfigRulesGuards(t *testing.T) {
 		t.Errorf("truncated JSON = %d, want 400", w.Code)
 	}
 }
+

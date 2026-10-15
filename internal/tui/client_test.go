@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"hyperdns/internal/control"
+	"jozmozdns/internal/control"
 )
 
 type controlClientStub struct {
@@ -115,3 +115,4 @@ func TestExitAndEOFRemainClientOnly(t *testing.T) {
 		})
 	}
 }
+

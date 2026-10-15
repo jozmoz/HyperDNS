@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/service"
 )
 
 // bearerFor logs the test admin in and returns the session token.
@@ -161,3 +161,4 @@ func TestMatrixEndpointIsGone(t *testing.T) {
 		t.Errorf("/api/matrix still answers JSON (%d): %s", w.Code, w.Body.String())
 	}
 }
+

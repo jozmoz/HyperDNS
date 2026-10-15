@@ -20,3 +20,4 @@ func TestUsableRcodeRejectsTruncated(t *testing.T) {
 		t.Error("the same answer without TC should be usable")
 	}
 }
+

@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // repairSubscriptionPortDrift re-points the subscription record's seeded copy
@@ -55,3 +55,4 @@ func repairSubscriptionPortDrift(subs *database.SubscriptionSettings, panelDomai
 	}
 	return true
 }
+

@@ -23,11 +23,11 @@ import (
 	"strconv"
 	"strings"
 
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/database"
-	"hyperdns/internal/httpx"
-	"hyperdns/internal/service"
-	"hyperdns/internal/version"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/httpx"
+	"jozmozdns/internal/service"
+	"jozmozdns/internal/version"
 )
 
 // v2LimitMax bounds list sizes; v2LimitDefault applies when the caller asks
@@ -45,7 +45,7 @@ func writeProblem(w http.ResponseWriter, status int, typ, detail string) {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]any{
-		"type":     "https://hyperdns.dev/problems/" + typ,
+		"type":     "https://JozmozDNS.dev/problems/" + typ,
 		"title":    http.StatusText(status),
 		"status":   status,
 		"detail":   detail,
@@ -512,3 +512,4 @@ func firstNonEmpty(ss []string) string {
 	}
 	return ""
 }
+

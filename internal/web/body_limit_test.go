@@ -125,3 +125,4 @@ func TestTighterPerHandlerCapSurvivesTheGlobalOne(t *testing.T) {
 			"should have refused, so the tighter wrap was lost")
 	}
 }
+

@@ -3,8 +3,8 @@ package main
 import (
 	"time"
 
-	"hyperdns/internal/database"
-	"hyperdns/internal/service/acme"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service/acme"
 )
 
 // startACMERenewalLoop runs one renewal pass per day. Each pass persists the
@@ -52,3 +52,4 @@ func startACMERenewalLoop(m *acme.Manager, db *database.DB, renewChecks ...func(
 	}()
 	return stop
 }
+

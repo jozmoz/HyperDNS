@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // LookupByToken is the read-only half of the portal's token resolution: it exists so a
@@ -90,3 +90,4 @@ func TestLookupByTokenReturnsACopy(t *testing.T) {
 			second.Name, second.TrafficLimitGB)
 	}
 }
+

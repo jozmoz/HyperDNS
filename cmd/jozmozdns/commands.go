@@ -8,10 +8,10 @@ import (
 	"os"
 	"strings"
 
-	"hyperdns/internal/bootstrap"
-	"hyperdns/internal/control"
-	"hyperdns/internal/tui"
-	"hyperdns/internal/version"
+	"jozmozdns/internal/bootstrap"
+	"jozmozdns/internal/control"
+	"jozmozdns/internal/tui"
+	"jozmozdns/internal/version"
 )
 
 var errExplicitBootstrapRequired = errors.New("storage is uninitialized; start with -daemon or -server to initialize it")
@@ -121,7 +121,7 @@ func dispatchPreDBCommand(args []string, cfgPath string, out, errOut io.Writer) 
 	switch strings.ToLower(args[0]) {
 	case "help", "-h", "--help":
 		fmt.Fprintln(out, "JozmozDNS - Standalone Next-Gen SmartDNS Controller")
-		fmt.Fprintln(out, "Usage: jozmozdns [flags] [subcommand] (alias: hyperdns)")
+		fmt.Fprintln(out, "Usage: jozmozdns [flags] [subcommand] (alias: JozmozDNS)")
 		fmt.Fprintln(out, "Subcommands:")
 		fmt.Fprintln(out, "  status      live service report (no database needed; works beside the daemon)")
 		fmt.Fprintln(out, "  flush       ask the running daemon to flush its DNS cache")
@@ -142,3 +142,4 @@ func dispatchPreDBCommand(args []string, cfgPath string, out, errOut io.Writer) 
 		return false, nil
 	}
 }
+

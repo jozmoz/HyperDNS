@@ -10,7 +10,7 @@ import (
 
 // ANSI presentation for the console. The constants are inert data; whether
 // they are emitted at all is decided by NewPalette, because a non-terminal
-// consumer (a test harness, `hdns | tee`, a CI pipe) must never receive the
+// consumer (a test harness, `jmdns | tee`, a CI pipe) must never receive the
 // escape sequences — they would corrupt whatever is reading it.
 type palette struct {
 	cyan   string
@@ -120,3 +120,4 @@ func Truncate(s string, max int) string {
 	r := []rune(s)
 	return string(r[:max-1]) + "…"
 }
+

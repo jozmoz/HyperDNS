@@ -31,7 +31,7 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/service/acme"
+	"jozmozdns/internal/service/acme"
 )
 
 // mantisCASignedPair builds a leaf for dnsName signed by a fresh test CA — the
@@ -182,3 +182,4 @@ func TestMantisPanelResaveWithPairOnAcmeDirIsFree(t *testing.T) {
 			"ACME directory without issuing, but issuing=true (%q)", resp.Detail)
 	}
 }
+

@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/database"
 )
 
-// Engine is the central coordinator for HyperDNS Game Intelligence (HGI).
+// Engine is the central coordinator for JozmozDNS Game Intelligence (HGI).
 type Engine struct {
 	store      *Store
 	agent      *DiscoveryAgent
@@ -417,4 +417,5 @@ func (e *Engine) UpdateGameCategoryPolicy(gameID string, category DomainCategory
 
 	return e.SaveGameProfile(*p, actor)
 }
+
 

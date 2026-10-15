@@ -9,10 +9,10 @@ import (
 
 	bolt "go.etcd.io/bbolt"
 
-	"hyperdns/internal/bootstrap"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/web"
+	"jozmozdns/internal/bootstrap"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/web"
 )
 
 func TestUnreadableSettingsAbortBeforeWrites(t *testing.T) {
@@ -185,7 +185,7 @@ func TestMigrateAdminPasswordConvertsPlaintext(t *testing.T) {
 // after hashing, the information is gone for good. So the conversion is the one
 // and only chance to record it.
 func TestMigrateAdminPasswordFlagsWeakPlaintext(t *testing.T) {
-	for _, pw := range []string{"admin", "hyperdns", "12345", "password"} {
+	for _, pw := range []string{"admin", "JozmozDNS", "12345", "password"} {
 		t.Run(pw, func(t *testing.T) {
 			s := &database.ServerSettings{AdminUsername: "admin", AdminPassword: pw}
 			if !migrateAdminPassword(s) {
@@ -381,7 +381,7 @@ func TestStdinIsInteractiveRejectsTheNullDevice(t *testing.T) {
 	}
 }
 
-// `hyperdns < answers.txt` and any wrapper that redirects a file into the daemon.
+// `JozmozDNS < answers.txt` and any wrapper that redirects a file into the daemon.
 // A regular file is not a character device, so this is the easy case — it is here
 // so a future rewrite of the helper cannot regress it silently.
 func TestStdinIsInteractiveRejectsARegularFile(t *testing.T) {
@@ -396,11 +396,11 @@ func TestStdinIsInteractiveRejectsARegularFile(t *testing.T) {
 	defer f.Close()
 
 	if stdinIsInteractive(f) {
-		t.Error("a regular file was reported interactive, so `hyperdns < file` would run the menu instead of serving")
+		t.Error("a regular file was reported interactive, so `JozmozDNS < file` would run the menu instead of serving")
 	}
 }
 
-// A pipe is what `echo 1 | hyperdns` and most process supervisors provide. Same
+// A pipe is what `echo 1 | JozmozDNS` and most process supervisors provide. Same
 // class of mistake as the null device: something that produces one line and then
 // EOF must never be mistaken for an operator.
 func TestStdinIsInteractiveRejectsAPipe(t *testing.T) {
@@ -448,3 +448,4 @@ func TestStdinIsInteractiveRejectsAnUnstatableFile(t *testing.T) {
 // so /dev/zero would pass — no deployment hands a daemon /dev/zero on stdin, and
 // the alternative (build-tagged ioctl probes per OS) cannot be compiled or tested
 // on the Windows workstation this repo is developed on.
+

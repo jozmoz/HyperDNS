@@ -39,3 +39,4 @@ func TestBenchmarkRunnerSharesOneAsynchronousGate(t *testing.T) {
 		t.Fatal("benchmark gate remained claimed after completion")
 	}
 }
+

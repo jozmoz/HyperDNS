@@ -1,6 +1,6 @@
 # 🔐 Security Policy
 
-HyperDNS is a **DNS resolver and TLS relay** — by design it answers queries from
+JozmozDNS is a **DNS resolver and TLS relay** — by design it answers queries from
 the public internet on port 53 and can relay TLS sessions on ports 80/443. That
 places it in a different risk class from an ordinary web application, and this
 document states what the project does about it, what it deliberately does not,
@@ -48,7 +48,7 @@ contact the maintainer through the address on the repository profile.
 
 **What to include.** The more of this you have, the faster the fix:
 
-- The affected version (`hdns -version`).
+- The affected version (`jmdns -version`).
 - Whether the panel is on a domain (HTTPS) or loopback-only, and whether
   `access.allow_all` is on or off — several issues are only reachable in one of
   those states.
@@ -351,11 +351,11 @@ from report to fix.
 
 ## 📐 Standards & RFC Compliance
 
-HyperDNS implements and honours the following IETF specifications. Compliance
+JozmozDNS implements and honours the following IETF specifications. Compliance
 is verified by the test suite and — for the externally observable behaviour —
 by an external-attacker pass against a live deployment.
 
-| RFC | Scope in HyperDNS |
+| RFC | Scope in JozmozDNS |
 | :--- | :--- |
 | [RFC 1035](https://www.rfc-editor.org/rfc/rfc1035) / [RFC 2181](https://www.rfc-editor.org/rfc/rfc2181) | Core DNS message format and transport; the label/hostname rules the ACME and domain validators enforce |
 | [RFC 7766](https://www.rfc-editor.org/rfc/rfc7766) | DNS over TCP: persistent connections, reuse, pipelining, and connection management |
@@ -364,7 +364,7 @@ by an external-attacker pass against a live deployment.
 | [RFC 7828](https://www.rfc-editor.org/rfc/rfc7828) | `edns-tcp-keepalive` on connection-oriented transports, never on UDP, and only when the query asked |
 | [RFC 8914](https://www.rfc-editor.org/rfc/rfc8914) | Extended DNS Errors: unauthorized `REFUSED` responses carry EDE 18 (`Prohibited`) with an explanatory string, where the query carried OPT — on UDP, TCP and DoT alike |
 | [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555) | ACME certificate issuance and HTTP-01 challenge handling |
-| [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238) | TOTP authentication; HyperDNS additionally enforces cross-endpoint single-use of successfully validated codes (see below) |
+| [RFC 6238](https://www.rfc-editor.org/rfc/rfc6238) | TOTP authentication; JozmozDNS additionally enforces cross-endpoint single-use of successfully validated codes (see below) |
 | [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110) | HTTP semantics and method handling, including the HTTPS URI scheme |
 | [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) | `application/problem+json` problem details on the v2 API surface |
 | [RFC 9745](https://www.rfc-editor.org/rfc/rfc9745) | `Deprecation` response header on the v1 API |
@@ -376,7 +376,7 @@ by an external-attacker pass against a live deployment.
 deliberate product choices, stated here so the table above is about the RFCs
 and nothing else: the relay forwards TLS without terminating it and may
 fragment ClientHello records as a traffic-handling technique (not something
-RFC 6066 standardizes); HyperDNS imposes no fixed per-connection DNS-query
+RFC 6066 standardizes); JozmozDNS imposes no fixed per-connection DNS-query
 count limit (RFC 7766 leaves resource policy to the implementation — ours are
 the connection and rate caps above); the ACME client runs issuance and daily
 renewal from the daemon, single-flighted, against Let's Encrypt's production

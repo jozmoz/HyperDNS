@@ -68,3 +68,4 @@ func TestGeneratedAPIKeysDoNotRepeat(t *testing.T) {
 		seen[key] = struct{}{}
 	}
 }
+

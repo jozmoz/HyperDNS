@@ -66,3 +66,4 @@ func TestAccountKeyCopiesUnderLock(t *testing.T) {
 		t.Errorf("AccountKey() on an empty manager = %v, want nil", empty)
 	}
 }
+

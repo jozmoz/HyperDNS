@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // The subject here is the argument handling in tls.go, which exists because this is
@@ -322,3 +322,4 @@ func TestEveryToastToneHasABranchInShowToast(t *testing.T) {
 		}
 	}
 }
+

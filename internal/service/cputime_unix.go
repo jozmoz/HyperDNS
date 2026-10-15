@@ -35,3 +35,4 @@ func processCPUSeconds() (float64, error) {
 	// Clock ticks are typically 100/s; use os.Getpagesize-free standard CLK_TCK assumption.
 	return (utime + stime) / 100.0, nil
 }
+

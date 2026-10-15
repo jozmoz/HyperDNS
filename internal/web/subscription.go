@@ -241,8 +241,8 @@ func (ws *WebServer) validateSubscriptionCertificate() string {
 }
 
 // acmeDir names where this daemon's embedded ACME client stores issued
-// pairs. It mirrors the layout choice in cmd/hyperdns/main.go: under
-// /opt/hyperdns when installed, beside the working directory otherwise.
+// pairs. It mirrors the layout choice in cmd/JozmozDNS/main.go: under
+// /opt/JozmozDNS when installed, beside the working directory otherwise.
 func (ws *WebServer) acmeDir() string {
 	if ws.acmeManager != nil && ws.acmeManager.CertDir != "" {
 		return ws.acmeManager.CertDir
@@ -250,8 +250,8 @@ func (ws *WebServer) acmeDir() string {
 	if _, err := os.Stat("/opt/jozmozdns"); err == nil {
 		return "/opt/jozmozdns/certs/acme"
 	}
-	if _, err := os.Stat("/opt/hyperdns"); err == nil {
-		return "/opt/hyperdns/certs/acme"
+	if _, err := os.Stat("/opt/JozmozDNS"); err == nil {
+		return "/opt/JozmozDNS/certs/acme"
 	}
 	return "certs/acme"
 }
@@ -360,3 +360,4 @@ type SubscriptionSettingsInput struct {
 	// carry it into the snapshot that is persisted.
 	PortExplicit bool `json:"-"`
 }
+

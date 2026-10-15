@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"hyperdns/internal/control"
+	"jozmozdns/internal/control"
 )
 
 // The control plane is a Linux-only, root-local management transport by design:
@@ -13,12 +13,12 @@ import (
 // correct security decision about the CONTROL SOCKET, and it was wrongly applied
 // to the whole process — a non-Linux daemon refused to start at all:
 //
-//	[Main] Failed to start local control server: HyperDNS control server
+//	[Main] Failed to start local control server: JozmozDNS control server
 //	       requires Linux Unix peer credentials
 //
 // The resolver, the SNI relay and the dashboard have nothing to do with that
-// socket. Refusing to boot turns "this host cannot offer the `hdns` console"
-// into "this host cannot run HyperDNS", which is a regression for every
+// socket. Refusing to boot turns "this host cannot offer the `jmdns` console"
+// into "this host cannot run JozmozDNS", which is a regression for every
 // Windows/macOS/BSD install and for the cross-builds this repo ships. The
 // invariant that must hold is narrower: never fall back to a weaker transport.
 func TestControlStartupUnsupportedPlatformIsNotFatal(t *testing.T) {
@@ -53,3 +53,4 @@ func TestControlStartupNilIsNotFatal(t *testing.T) {
 		t.Fatal("controlStartupFatal(nil) = true")
 	}
 }
+

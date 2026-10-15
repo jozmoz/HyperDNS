@@ -1,14 +1,14 @@
 package web
 
 import (
-	"hyperdns/internal/auth"
+	"jozmozdns/internal/auth"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // Regression tests for the findings fixed from REPORT-MANTIS-v2.1.0-26.9.8.
@@ -172,3 +172,4 @@ func newAuthSettings(t *testing.T) *database.AuthSettings {
 	t.Helper()
 	return &database.AuthSettings{}
 }
+

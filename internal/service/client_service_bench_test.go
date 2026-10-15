@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
 )
 
 // Every DNS query from an unknown source address passes through IsIPAllowed
@@ -180,3 +180,4 @@ func benchReload(b *testing.B, n int) {
 		svc.reloadCache()
 	}
 }
+

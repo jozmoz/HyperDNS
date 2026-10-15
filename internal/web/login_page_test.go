@@ -142,3 +142,4 @@ func TestLoginDocumentSurvivesAnEmptyAssetTree(t *testing.T) {
 		t.Fatal("serveLogin reported success with no assets embedded")
 	}
 }
+

@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"hyperdns/internal/core/cache"
-	resolver "hyperdns/internal/core/dns"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/crypto"
-	"hyperdns/internal/database"
-	"hyperdns/internal/service"
+	"jozmozdns/internal/core/cache"
+	resolver "jozmozdns/internal/core/dns"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/crypto"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/service"
 )
 
 // These two assertions are the cheapest lines in the package and half the reason it
@@ -400,3 +400,4 @@ func TestPerClientPoliciesNarrowWhatIsRelayedForThatAccount(t *testing.T) {
 		}
 	}
 }
+

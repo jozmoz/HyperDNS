@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 	ErrPortSyntax    = errors.New("not a number")
 	ErrPortRange     = errors.New("outside the 1-65535 range")
 	ErrPortUnchanged = errors.New("already the current port")
-	ErrPortInUse     = errors.New("port already claimed by another HyperDNS listener")
+	ErrPortInUse     = errors.New("port already claimed by another JozmozDNS listener")
 )
 
 // PortUse is one port this daemon already binds, or would bind if its
@@ -61,7 +61,7 @@ func ListenerPorts(dns *database.DNSSettings, sni *database.SNIProxySettings, tl
 		out = append(out,
 			PortUse{orDefault(dns.Port, 53), dns.Enabled, "plain DNS (UDP and TCP)"},
 			PortUse{orDefault(dns.DoTPort, 853), dns.Enabled, "DNS-over-TLS"},
-			PortUse{orDefault(dns.DoHPort, 8443), dns.Enabled, "DNS-over-HTTPS"},
+			PortUse{orDefault(dns.DoHPort, 9443), dns.Enabled, "DNS-over-HTTPS"},
 		)
 	}
 	if sni != nil {
@@ -89,7 +89,7 @@ func ListenerPorts(dns *database.DNSSettings, sni *database.SNIProxySettings, tl
 // operator has to read before it is stored.
 //
 // The split between an error and a warning is the whole design. An error is a
-// change that would stop the daemon from starting (a port another HyperDNS
+// change that would stop the daemon from starting (a port another JozmozDNS
 // listener binds is fatal in service mode — log.Fatalf takes the resolver
 // down with the panel). A warning is a change that will work and might still
 // surprise. The returned slice is ordered most-consequential first.
@@ -144,14 +144,14 @@ func ValidatePort(raw string, current int, dns *database.DNSSettings, sni *datab
 // installers and drifts with them.
 func InstallerOpensPort(port int) bool {
 	switch port {
-	case 53, 80, 443, 853, 8080, 8443:
+	case 53, 80, 443, 853, 8080, 8443, 9443:
 		return true
 	}
 	return false
 }
 
 // ProbeBind answers the question the settings cannot: is this port free on
-// this host, right now, including to processes HyperDNS knows nothing about?
+// this host, right now, including to processes JozmozDNS knows nothing about?
 // A validator built only on the settings structs sees collisions with our own
 // listeners and nothing else — the common real case is an nginx, a Docker
 // publish, another panel. The listener is closed immediately; one that never
@@ -166,3 +166,4 @@ func ProbeBind(bindHost string, port int) error {
 	}
 	return ln.Close()
 }
+

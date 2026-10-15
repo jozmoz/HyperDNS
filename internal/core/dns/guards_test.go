@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"hyperdns/internal/core/cache"
-	"hyperdns/internal/core/matcher"
-	"hyperdns/internal/core/upstream"
-	"hyperdns/internal/database"
+	"jozmozdns/internal/core/cache"
+	"jozmozdns/internal/core/matcher"
+	"jozmozdns/internal/core/upstream"
+	"jozmozdns/internal/database"
 )
 
 // The guards in ProcessQuery that answer without ever consulting an upstream: the
@@ -453,3 +453,4 @@ func TestOtherRefusalsDoNotClaimProhibited(t *testing.T) {
 		}
 	}
 }
+

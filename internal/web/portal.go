@@ -19,11 +19,11 @@ import (
 	"strings"
 	"time"
 
-	"hyperdns/internal/database"
-	"hyperdns/internal/httpx"
-	"hyperdns/internal/netutil"
-	"hyperdns/internal/service"
-	"hyperdns/internal/version"
+	"jozmozdns/internal/database"
+	"jozmozdns/internal/httpx"
+	"jozmozdns/internal/netutil"
+	"jozmozdns/internal/service"
+	"jozmozdns/internal/version"
 )
 
 // handleSubDataAPI serves the subscriber portal's read-only JSON, keyed by the
@@ -518,7 +518,7 @@ type portalData struct {
 	ClientIP  string
 	ServerDNS string
 	// Title is the operator's brand line from the subscription settings
-	// ("HyperDNS" when they never chose one). It replaces the literal product
+	// ("JozmozDNS" when they never chose one). It replaces the literal product
 	// name in the page title so a reseller's customers see the reseller's name.
 	Title string
 	// Version is the running build, for the footer. It is a field rather than a
@@ -900,7 +900,7 @@ const portalPageHTML = `<!DOCTYPE html>
         <div class="brand-text">
           <div class="brand-row">
             <!-- The operator's brand line, not the generic bundle heading. Title
-                 falls back to "HyperDNS" when unset (see GetTitle), so an install
+                 falls back to "JozmozDNS" when unset (see GetTitle), so an install
                  that never touched the setting still renders a name — but one
                  that did now sees it on the page a subscriber actually opens,
                  not only in the browser tab. -->
@@ -1345,3 +1345,4 @@ func dotPortForDisplay(cfg *database.DNSSettings) int {
 	}
 	return cfg.DoTPort
 }
+

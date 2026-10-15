@@ -67,7 +67,7 @@ func TestPlainPaletteOnNonTerminal(t *testing.T) {
 // version interpolates, and it is sanitized by the caller.
 func TestBannerHasNoInterpolatedBytes(t *testing.T) {
 	b := Banner("2.2.0")
-	if !strings.Contains(b, "HyperDNS") && !strings.Contains(b, "Standalone SmartDNS") {
+	if !strings.Contains(b, "JozmozDNS") && !strings.Contains(b, "Standalone SmartDNS") {
 		t.Errorf("banner lost its wordmark: %q", b)
 	}
 	if strings.ContainsAny(b, "\x1b") {
@@ -165,3 +165,4 @@ func TestMenuRedrawsWithoutAccumulating(t *testing.T) {
 		t.Errorf("flush calls = %d, want 2", client.flushCalls)
 	}
 }
+

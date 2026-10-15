@@ -247,3 +247,4 @@ func assertProtocolError(t *testing.T, w *httptest.ResponseRecorder, status int,
 		t.Fatalf("error code = %q, want %q", payload.Error.Code, code)
 	}
 }
+

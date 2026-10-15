@@ -254,3 +254,4 @@ func EnsureSubscriptionDefaults(s *SubscriptionSettings, panelDomain string, pan
 // ErrSubscriptionSettingsNil is returned by Apply on a nil *SubscriptionSettings,
 // which means the daemon was wired up wrong rather than that the update failed.
 var ErrSubscriptionSettingsNil = errors.New("subscription settings are not initialised")
+

@@ -258,3 +258,4 @@ func TestLegacyRecordHasNoTrafficCycle(t *testing.T) {
 		t.Errorf("legacy quota state changed: used=%d limit=%v", got.TrafficUsedBytes, got.TrafficLimitGB)
 	}
 }
+

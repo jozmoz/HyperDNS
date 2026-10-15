@@ -14,7 +14,7 @@ import (
 // legacy record is a bare JSON document, and no JSON document can begin with 'h'
 // — so the two forms can never be confused, and a database written by an older
 // build stays readable.
-const settingEnvelopePrefix = "hdns:enc:v1:"
+const settingEnvelopePrefix = "jmdns:enc:v1:"
 
 // encodeSetting marshals a value and, when a master key is available, seals it.
 //
@@ -246,3 +246,4 @@ func (db *DB) encryptLegacySettings() (int, error) {
 	})
 	return converted, err
 }
+

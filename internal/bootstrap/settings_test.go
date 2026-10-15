@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"hyperdns/internal/bootstrap"
+	"jozmozdns/internal/bootstrap"
 )
 
 type settingsStoreStub struct {
@@ -141,3 +141,4 @@ func TestLoadPresentSettings(t *testing.T) {
 		}
 	})
 }
+

@@ -1,13 +1,13 @@
-# 📜 HyperDNS Changelog
+# 📜 JozmozDNS Changelog
 
-All notable changes to the **HyperDNS** project will be documented in this file.
+All notable changes to the **JozmozDNS** project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 🎮 [v2.3.0] — HyperDNS Game Intelligence Engine (HGI)
+## 🎮 [v2.3.0] — JozmozDNS Game Intelligence Engine (HGI)
 
 ### ✨ Added
-- **Game Intelligence Engine (HGI):** Complete game-aware intelligence subsystem converting HyperDNS into an enterprise gaming DNS platform. Supports profile management, domain categorization (Auth, Matchmaking, Game Services, CDN, Telemetry), policy enforcement (Direct, Proxy, Block), conflict detection, and history snapshots with rollback.
+- **Game Intelligence Engine (HGI):** Complete game-aware intelligence subsystem converting JozmozDNS into an enterprise gaming DNS platform. Supports profile management, domain categorization (Auth, Matchmaking, Game Services, CDN, Telemetry), policy enforcement (Direct, Proxy, Block), conflict detection, and history snapshots with rollback.
 - **Preloaded Game Profiles:** Out-of-the-box support for *FC 26* (EA Sports), *Counter-Strike 2* (Valve), and *War Thunder* (Gaijin Entertainment), with dynamic API and UI profile extension.
 - **Autonomous Game Discovery Agent:** Real-time DNS query observation, domain candidate discovery, confidence scoring heuristic (publisher/game keyword matching, query frequency, co-occurrence correlation), and safe validation workflows.
 - **3-Tier Learning Mode:** Supports `Observe` (silent monitoring), `Recommend` (actionable rule proposals), and `Auto-Apply` (safe low-risk rule adoption) without disrupting active production traffic.
@@ -26,11 +26,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### ✨ Added
 - **Client Access Whitelist is the default.** An unknown source is refused by DNS (`REFUSED`, with an RFC 8914 *Prohibited* Extended DNS Error for OPT-bearing queries so the client learns *why*) instead of being served for free. Fresh installs ship whitelist-on; existing installs converge through a one-time idempotent migration, and an operator who wants public mode back flips the dashboard toggle (their choice then persists over every default).
-- **Certificates are issued by the daemon itself.** The certbot/acme.sh shells are gone, replaced by an in-process ACME client (`golang.org/x/crypto/acme`, no new dependencies, ships inside the single binary — an offline install can issue the moment it has internet). The HTTP-01 challenge is served out of the port-80 listener that is already running, so issuance and daily renewal happen **while the service runs** — no more stopping HyperDNS so certbot could borrow port 80. Renewed certificates hot-swap into the live listeners without a restart.
+- **Certificates are issued by the daemon itself.** The certbot/acme.sh shells are gone, replaced by an in-process ACME client (`golang.org/x/crypto/acme`, no new dependencies, ships inside the single binary — an offline install can issue the moment it has internet). The HTTP-01 challenge is served out of the port-80 listener that is already running, so issuance and daily renewal happen **while the service runs** — no more stopping JozmozDNS so certbot could borrow port 80. Renewed certificates hot-swap into the live listeners without a restart.
 - **Google, AI and Social service presets.** Three new policy categories: *Google Services* (Search, Gmail, Drive, YouTube — with the shared CDN zones deliberately excluded and the update CDNs forced direct), *AI Assistants & Platforms* (Copilot, Perplexity, Grok, DeepSeek, Mistral, OpenRouter, …), and *Social & Messaging* (X, Instagram, Facebook, WhatsApp, Telegram, Reddit). Default on like every other proxy category, independently toggleable, per-client selectable.
 - **REST API v2.** A versioned successor contract: symmetric field names (`display_name`, `allowed_ips`, `validity_days` — create and update finally agree), cursor-paginated lists (`{items, next_cursor}`, bounded limit), RFC 9457 `application/problem+json` errors, `POST /clients/{id}/actions/{action}` for mutations, and **strict decoding** — an unknown field is a 400, not a silently dropped typo (v1's decoder turned `expires_days` into a lifetime account). v1 keeps working with `Deprecation`/`Sunset` headers.
 - **The created-client credentials popup.** Creating a subscriber now opens a dialog with the register link and the registration secret (masked until revealed, copy buttons on both, focus-managed like every other modal) — the two things the operator needs to hand over at the moment they are minted, instead of hunting through the card's Bot Card afterwards.
-- **A console worth opening.** `hdns` now clears and redraws in place (no more menu-copy-per-action scrolling), carries the banner and ANSI colors (auto-disabled for pipes, `NO_COLOR` and dumb terminals), sanitizes untrusted names against ANSI injection, prints the subscriber list as an aligned table, and — the functional gap — can **stop and start the service**, plus stop demands a typed confirmation.
+- **A console worth opening.** `jmdns` now clears and redraws in place (no more menu-copy-per-action scrolling), carries the banner and ANSI colors (auto-disabled for pipes, `NO_COLOR` and dumb terminals), sanitizes untrusted names against ANSI injection, prints the subscriber list as an aligned table, and — the functional gap — can **stop and start the service**, plus stop demands a typed confirmation.
 - **Configurable game-relay ports and a random management port.** The four extra listeners (5223/5222/2099/8393) are settings, not literals. Fresh installs draw the panel port randomly from 20000–60000 (8080 is everyone's default and collides with half the internet), open it in the firewall, and print it in the banner; upgrades keep their existing port. Every port change — dashboard, TUI or control socket — runs the same shared validator (listener collision, disabled-service warning, privileged-port warning, live bind probe) before anything persists.
 - **DoH URLs tell the truth.** A canonical `doh_url` builder (domain-first, the DoH listener's own port, https) feeds the Connect Guide and `/api/config` — the guide used to print `http://IP:web_port/dns-query`, wrong in scheme, port and host at once. The portal's copy buttons copy the displayed values (they hardcoded 8443/853).
 
@@ -58,7 +58,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **API examples use the configured domain, not the IP.** The panel's curl/Python/Node snippets (and the Node snippet's `window.location.origin` — undefined in Node — replaced by a real `ORIGIN` constant) now speak the domain, the real scheme and the real port, against `/api/v2`.
 - **v1's login-2FA reveal ordering** (carried in this release's baseline): the dashboard login form consumed the response body before reading the `twofactor_required` flag, so the 2FA code field never appeared and a correct password looked like a wrong one.
 - **`allow_all` can no longer be silently overridden by config.json** at every boot (DB-wins precedence restored), and the v2.2.0 migration respects an operator's later explicit choice.
-- **The installer's final banner no longer tells the operator to stop the service before opening the terminal console.** The old wording ("TUI and daemon cannot share the database at once") was stale v2.1.0 guidance: since v2.2.0 the `hdns` console is a pure control-socket client — it talks to the running daemon and never opens the database, so it runs beside the service at any time (`hdns status` and `hdns flush` likewise). Fixed in the online installer, the offline installer and the offline bundle.
+- **The installer's final banner no longer tells the operator to stop the service before opening the terminal console.** The old wording ("TUI and daemon cannot share the database at once") was stale v2.1.0 guidance: since v2.2.0 the `jmdns` console is a pure control-socket client — it talks to the running daemon and never opens the database, so it runs beside the service at any time (`jmdns status` and `jmdns flush` likewise). Fixed in the online installer, the offline installer and the offline bundle.
 
 ### 🧪 Quality gates this release passed
 - `go build ./...`, `go vet ./...`, gofmt clean; **19/19 packages** green with `-count=1`.
@@ -82,7 +82,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **The footer is inside the content column.** The root cause was not CSS: a `<div class="glass-panel">` in the REST API tab was never closed, and an extra `</div>` in the Settings tab balanced the count while closing the layout wrapper early. The HTML parser then reparented the Connect tab, the desktop footer and the mobile nav onto `<body>`, which is a row-wise flex container — so the footer rendered **beside** the content, at the right edge of the page. Both tags are corrected, and `index.html` now carries structural regression tests (per-tab div balance, footer-inside-main, no mojibake, no control bytes) so the next hand-edit that unbalances a tag fails the build instead of reaching a screenshot.
 - **`Reg Link` hands out the subscriber page, not the API.** The button copied `.../ip/<token>` — an API endpoint since Phase B — while `/sub/<token>` is the page a subscriber opens. It now copies `/sub/`, and a separate `data-reg-url` carries the registration API for the Bot Card.
 - **The Bot Card is current.** The Telegram text named the retired `/ip/` link as if it were the subscriber page and printed `دی ان اس اختصاصی شما :` with nothing after it. It now carries the four things the subscriber needs: the `/sub/` portal link, the registration secret, the DNS address, and the automation API URL.
-- **The Portal title reaches the page.** The h1 rendered a translated constant, so the operator's Portal title changed only the browser tab. The heading is now their `Title` (falling back to "HyperDNS"), and the subtitle and footer carry the **running** version instead of a hardcoded `v2.0.0-beta [HyperRAIN]` that had survived two releases.
+- **The Portal title reaches the page.** The h1 rendered a translated constant, so the operator's Portal title changed only the browser tab. The heading is now their `Title` (falling back to "JozmozDNS"), and the subtitle and footer carry the **running** version instead of a hardcoded `v2.0.0-beta [HyperRAIN]` that had survived two releases.
 - **A failed listener bind is reported, not swallowed.** If the portal port is already held, the save persists and the card says so with the reason, rather than claiming success over a port nothing can reach. The card also names the one manual step the panel cannot take for the operator: opening that port in the host firewall.
 
 ### 🧪 Quality gates this hotfix passed
@@ -93,7 +93,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - Served-asset verification over the running daemon: the portal answers 200 on its own port with the operator's brand line, version-correct subtitle and footer; the admin routes answer 404 there; `/css/portal.css`, `/js/portal.js` and the fonts answer 200.
 
 ### 📦 Artifact
-- The offline bundle was rebuilt from the fixed sources. `hyperdns-offline-v2.1.0-beta5-20260910-1701.zip`, sha256 `0a57cb817a7e50a9e7cc5c3c80df07d81798527d5af932ef28585285177a8cee` (the beta4 zip is withdrawn).
+- The offline bundle was rebuilt from the fixed sources. `JozmozDNS-offline-v2.1.0-beta5-20260910-1701.zip`, sha256 `0a57cb817a7e50a9e7cc5c3c80df07d81798527d5af932ef28585285177a8cee` (the beta4 zip is withdrawn).
 
 ---
 
@@ -107,7 +107,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - `go build ./...` clean; **17/17 Go packages** green with `-count=1`.
 - **Playwright E2E 7/7** against the rebuilt demo daemon — the suite now targets that instance's live credentials and re-verified the standalone login, the 2FA hiding, the portal secret gate, and the session-idle card end to end.
 - Served-asset verification over the running daemon: all 6 dashboard assets (CSS/JS) and the admin-rewritten document answer 200 with clean UTF-8; the `/login` page serves with the admin base rewritten and no placeholder leak.
-- The offline bundle was **rebuilt** from the fixed sources — the previous beta4 zip contained the corrupted document. Artifact at the time: `hyperdns-offline-v2.1.0-beta4-20260910-1053.zip` (superseded by Hotfix 5's beta5 bundle, which also carries the footer-structure fix).
+- The offline bundle was **rebuilt** from the fixed sources — the previous beta4 zip contained the corrupted document. Artifact at the time: `JozmozDNS-offline-v2.1.0-beta4-20260910-1053.zip` (superseded by Hotfix 5's beta5 bundle, which also carries the footer-structure fix).
 
 ---
 
@@ -138,7 +138,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### 🔐 Fixed
 - **The "Not secure" panel is gone — root cause closed.** `ValidatePanelCertificate` now refuses a **self-signed** certificate whenever a panel domain is configured. The fallback generator writes the configured domain into its SAN, so the old date-and-hostname-only check treated the self-signed pair as "a usable certificate is already in place" and the ACME paths never fired; the daemon then served the fallback and every browser showed Not secure. The panel now **fails closed** on a domain install without a CA-signed certificate, with an actionable error, instead of serving one no visitor will trust.
 - **The 8443 DoH/DoT listener honors the same policy.** `LoadOrGenerateTLSConfig` no longer generates or accepts a self-signed fallback while a domain is configured — DoT and DoH come up only with a CA-signed certificate, instead of silently answering with one every Android Private DNS client and browser refuses.
-- **ACME issuance order fixed.** The startup issuance used to run *after* the SNI proxy bound ports 80/443, so certbot `--standalone` could never bind the challenge port on a default install. It now runs before any listener binds and before the TLS config is loaded, so a freshly issued certificate is what the listeners serve on their first start — and it no longer runs for one-shot subcommands (`hdns flush`, `uninstall`).
+- **ACME issuance order fixed.** The startup issuance used to run *after* the SNI proxy bound ports 80/443, so certbot `--standalone` could never bind the challenge port on a default install. It now runs before any listener binds and before the TLS config is loaded, so a freshly issued certificate is what the listeners serve on their first start — and it no longer runs for one-shot subcommands (`jmdns flush`, `uninstall`).
 
 ### 🖼 Fixed
 - **Dashboard CSS/JS actually load behind the hidden admin path.** `index.html` was written for the pre-v2.1 root mount and references `/css/…` and `/js/…` absolutely; behind `/<admin-path>/dash/` the browser resolved those against the host root, where nothing has been served since v2.1 — the panel rendered unstyled with every script 404ing. The document is now served with its asset references rewritten below the live admin namespace (per-prefix cached, its own ETag, gzip preserved), and the rewritten references are pinned by regression tests that fetch every one of them through the real handler.
@@ -146,7 +146,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 ### 📦 Changed
 - **Offline installer issues the certificate itself (3x-ui method).** Step 4b runs the bundled `scripts/ssl_issue.sh` (acme.sh, standalone HTTP-01 with the service stopped around the challenge, full chain + key installed, automatic renewal via acme.sh's cron with a restart) while port 80 is still free. It verifies the result is actually CA-signed (issuer ≠ subject) before continuing, retries once for DNS propagation, and **stops with the real cause** (A record not pointing here / port 80 blocked / rate limit) instead of printing a success banner.
 - **The success banner is now earned.** Step 6 polls `is-active` for up to 20 s, then probes the real listener over HTTPS with the system trust store (`--resolve`, no `-k`): the dashboard document, one stylesheet and one script must each return 200 through the hidden path. Any failure exits 1 with diagnostics; the celebration only prints when every check passed.
-- **Installer polish:** the public IP is detected up front (the domain prompt used to print "Point an A record at " with an empty address), the domain prompt defaults to and validates the existing config's domain, `HYPERDNS_DOMAIN`/`HYPERDNS_EMAIL` cover non-interactive provisioning, mangled `??` banner text replaced with readable labels, and `ssl_issue.sh` no longer passes `--force` (a re-run no longer burns one of Let's Encrypt's five duplicate-certificate slots per name per week).
+- **Installer polish:** the public IP is detected up front (the domain prompt used to print "Point an A record at " with an empty address), the domain prompt defaults to and validates the existing config's domain, `JozmozDNS_DOMAIN`/`JozmozDNS_EMAIL` cover non-interactive provisioning, mangled `??` banner text replaced with readable labels, and `ssl_issue.sh` no longer passes `--force` (a re-run no longer burns one of Let's Encrypt's five duplicate-certificate slots per name per week).
 - **Release pipeline:** the offline bundle now ships `version.json` (the daemon's drift check needs it), and `scripts/install-offline.sh` ↔ `offline-bundle/install.sh` are byte-identical canonical copies.
 
 ---
@@ -223,9 +223,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - `GET /api/v1/docs`: Embedded interactive OpenAPI / Swagger API reference.
 - **Installer Auto-Detection & Migration:**
   - Auto-detection of existing installations in `scripts/install.sh` and `install-offline.sh`.
-  - Automatic timestamped backup creation (`/opt/hyperdns/backups/backup_YYYYMMDD_HHMMSS/`).
+  - Automatic timestamped backup creation (`/opt/JozmozDNS/backups/backup_YYYYMMDD_HHMMSS/`).
   - Safe JSON schema migration that preserves 100% of existing accounts, admin credentials, custom rules, and SSL certificates while injecting newly introduced keys.
-  - CLI version flags: `hyperdns -version`, `hdns -version`, `hdns -v`.
+  - CLI version flags: `JozmozDNS -version`, `jmdns -version`, `jmdns -v`.
 - **Documentation:**
   - Added **`docs/PRESET_CATALOG.md`**: Complete categorized directory of all 171+ supported games, publishers, and platforms.
   - Added **`API.md`**: In-depth REST API guide with Python (Telegram Bot integration), Node.js (Provisioner webhook), and cURL integration samples.
@@ -251,14 +251,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Token-based client management allowing individual subscription tokens.
   - 1-Click IP auto-registration URLs (`/r/:token`) for end-users to register their dynamic IP without accessing the admin panel.
   - Granular bandwidth and total query counters per subscriber.
-- **Interactive TUI Utility (`hdns`):**
-  - Global `hdns` terminal management console.
-  - Direct subcommands: `hdns status`, `hdns restart`, `hdns logs`, `hdns flush`, `hdns diag`, `hdns clients`, `hdns uninstall`.
+- **Interactive TUI Utility (`jmdns`):**
+  - Global `jmdns` terminal management console.
+  - Direct subcommands: `jmdns status`, `jmdns restart`, `jmdns logs`, `jmdns flush`, `jmdns diag`, `jmdns clients`, `jmdns uninstall`.
 - **Live Query Telemetry:**
   - Real-time Server-Sent Events (SSE) live query log stream in the Web Dashboard.
   - Live upload (`↑ KB/s`) and download (`↓ KB/s`) bandwidth meters.
 - **100% Offline Installation Package:**
-  - Standalone offline bundle with zero internet access requirement (`hyperdns-offline-bundle.tar.gz`).
+  - Standalone offline bundle with zero internet access requirement (`JozmozDNS-offline-bundle.tar.gz`).
 - **Automated SSL Management:**
   - Let's Encrypt SSL auto-issuance integration via Certbot and ACME scripts.
 

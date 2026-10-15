@@ -10,7 +10,7 @@ import (
 	"errors"
 	"testing"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 func TestListenerPortsIncludesRedirectPort(t *testing.T) {
@@ -50,3 +50,4 @@ func TestValidatePortRefusesTheRedirectListenerPort(t *testing.T) {
 		t.Fatalf("port=%d warnings=%d, want port 80 with at least one warning", port, len(warnings))
 	}
 }
+

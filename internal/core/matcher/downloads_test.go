@@ -247,3 +247,4 @@ func TestForcedDirectOutranksTheDownloadVeto(t *testing.T) {
 		t.Errorf("rule = %q, want %q", rule, RuleUnproxyableDirect)
 	}
 }
+

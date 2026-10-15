@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // bytesPerGB converts the operator-facing TrafficLimitGB into the unit usage is
@@ -243,3 +243,4 @@ func (s *ClientService) StartTrafficFlusher(interval time.Duration) func() {
 		<-done
 	}
 }
+

@@ -3,7 +3,7 @@ package service
 import (
 	"time"
 
-	"hyperdns/internal/database"
+	"jozmozdns/internal/database"
 )
 
 // A subscriber record as a front-end has to show it, rather than as it is stored.
@@ -75,3 +75,4 @@ func (s *ClientService) ListClientViews() ([]ClientView, error) {
 	}
 	return views, nil
 }
+

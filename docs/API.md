@@ -1,6 +1,6 @@
-# 🔌 HyperDNS Developer REST API v1 — Official Specification & Guide
+# 🔌 JozmozDNS Developer REST API v1 — Official Specification & Guide
 
-HyperDNS provides a high-performance, developer-first **REST API v1** designed for bot developers, subscription managers, automated billing systems, Discord/Telegram bots, and enterprise monitoring platforms.
+JozmozDNS provides a high-performance, developer-first **REST API v1** designed for bot developers, subscription managers, automated billing systems, Discord/Telegram bots, and enterprise monitoring platforms.
 
 ---
 
@@ -733,7 +733,7 @@ The password-change endpoint (`POST /api/config/server`) accepts a `code` field 
 ```python
 import requests
 
-HYPERDNS_API = "http://127.0.0.1:8080/api/v1"
+JozmozDNS_API = "http://127.0.0.1:8080/api/v1"
 API_KEY = "hdns_live_your_key_here"
 HEADERS = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 
@@ -748,7 +748,7 @@ def create_gamer_account(telegram_user_id: str, days: int = 30, traffic_gb: floa
         "traffic_reset_cycle": cycle,
         "custom_policies": ["enable_riot", "enable_discord", "enable_steam"]
     }
-    res = requests.post(f"{HYPERDNS_API}/clients", json=payload, headers=HEADERS)
+    res = requests.post(f"{JozmozDNS_API}/clients", json=payload, headers=HEADERS)
     res.raise_for_status()
     client = res.json()
 
@@ -762,7 +762,7 @@ To tell a subscriber where they stand, read the account back and use the daemon'
 
 ```python
 def account_status(client_id: str) -> str:
-    c = requests.get(f"{HYPERDNS_API}/clients/{client_id}", headers=HEADERS).json()
+    c = requests.get(f"{JozmozDNS_API}/clients/{client_id}", headers=HEADERS).json()
     if not c["enabled"]:
         return "suspended"
     if c["quota_exceeded"]:                      # the resolver's verdict, not a percentage
@@ -781,11 +781,11 @@ The shape a checkout page or a payment webhook wants. No dependencies beyond Exp
 import express from "express";
 
 const API = "http://127.0.0.1:8080/api/v1";
-const KEY = process.env.HYPERDNS_API_KEY;          // never hardcode it
+const KEY = process.env.JozmozDNS_API_KEY;          // never hardcode it
 const HOOK_SECRET = process.env.PROVISION_SECRET;  // your own shared secret
 const PORTAL = process.env.PORTAL_BASE ?? "http://YOUR_SERVER_IP:8080";
 
-async function hdns(path, method = "GET", body) {
+async function jmdns(path, method = "GET", body) {
   const res = await fetch(`${API}${path}`, {
     method,
     headers: { "X-API-Key": KEY, ...(body && { "Content-Type": "application/json" }) },
@@ -800,14 +800,14 @@ const app = express();
 app.use(express.json());
 
 // This service mints paid accounts, so it authenticates callers in its own right.
-// The HyperDNS key stays on this side and never reaches a browser.
+// The JozmozDNS key stays on this side and never reaches a browser.
 app.use((req, res, next) =>
   req.get("X-Provision-Secret") === HOOK_SECRET ? next() : res.sendStatus(401));
 
 app.post("/provision", async (req, res) => {
   const { orderId, days = 30, gb = 50 } = req.body;
   try {
-    const c = await hdns("/clients", "POST", {
+    const c = await jmdns("/clients", "POST", {
       name: `order_${orderId}`,
       days,
       traffic_limit_gb: gb,
@@ -825,7 +825,7 @@ app.post("/provision", async (req, res) => {
 app.post("/renew/:id", async (req, res) => {
   // enabled:true as well as the extension — an account suspended for non-payment
   // stays suspended, and a renewal that only moves the date leaves it dead.
-  const c = await hdns(`/clients/${req.params.id}`, "PUT",
+  const c = await jmdns(`/clients/${req.params.id}`, "PUT",
     { days_to_add: 30, enabled: true });
   res.json({ expires_at: c.expires_at, quota_exceeded: c.quota_exceeded });
 });
@@ -833,7 +833,7 @@ app.post("/renew/:id", async (req, res) => {
 app.listen(3000);
 ```
 
-This service runs **on the HyperDNS host**, which is what lets it reach `127.0.0.1:8080` with nothing exposed: the `403` gate is decided by the address that opened the connection, so a same-host caller passes it without **Public API** ever being turned on. Keep it that way if you can — a provisioning key is an admin key.
+This service runs **on the JozmozDNS host**, which is what lets it reach `127.0.0.1:8080` with nothing exposed: the `403` gate is decided by the address that opened the connection, so a same-host caller passes it without **Public API** ever being turned on. Keep it that way if you can — a provisioning key is an admin key.
 
 The renewal route returns `quota_exceeded` because the two ledgers are independent, and on a plan with no `traffic_reset_cycle` a paid renewal can come back with it still `true`. If that is your product, call `reset-traffic` in the same handler.
 

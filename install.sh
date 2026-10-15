@@ -2,10 +2,10 @@
 # ==============================================================================
 # JozmozDNS — 1-Line Quick Installer for Linux (Ubuntu, Debian, CentOS, AlmaLinux, Rocky)
 # Next-Gen Standalone SmartDNS & Anti-Sanction Gaming Gateway
-# GitHub: https://github.com/jozmoz/HyperDNS
+# GitHub: https://github.com/jozmoz/JozmozDNS
 #
 # Quick 1-Line Installation Command:
-#   bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
+#   bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/JozmozDNS/main/install.sh)
 # ==============================================================================
 
 set +e
@@ -18,9 +18,9 @@ PURPLE='\033[0;35m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-INSTALL_DIR="/opt/hyperdns"
-REPO_RAW="https://raw.githubusercontent.com/jozmoz/HyperDNS/main"
-SERVICE_NAME="hyperdns"
+INSTALL_DIR="/opt/JozmozDNS"
+REPO_RAW="https://raw.githubusercontent.com/jozmoz/JozmozDNS/main"
+SERVICE_NAME="JozmozDNS"
 
 # 1. Root verification
 if [ "$EUID" -ne 0 ]; then
@@ -46,7 +46,7 @@ echo "  ██║██║   ██║ ███╔╝  ██║╚██╔╝
 echo "  ██║╚██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║ ╚████║███████║"
 echo "  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
 echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
-echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/HyperDNS${NC}"
+echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/JozmozDNS${NC}"
 echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}\n"
 
 # Helper: Detect if Port is occupied on a specific IP or wildcard
@@ -202,13 +202,13 @@ EOF
             sed -i -E 's/^#?DNS=.*/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf 2>/dev/null || true
         fi
         mkdir -p /etc/systemd/resolved.conf.d/
-        cat <<EOF > /etc/systemd/resolved.conf.d/hyperdns.conf
+        cat <<EOF > /etc/systemd/resolved.conf.d/JozmozDNS.conf
 [Resolve]
 DNS=1.1.1.1 8.8.8.8
 DNSStubListener=no
 EOF
         chmod 755 /etc/systemd/resolved.conf.d 2>/dev/null || true
-        chmod 644 /etc/systemd/resolved.conf.d/hyperdns.conf 2>/dev/null || true
+        chmod 644 /etc/systemd/resolved.conf.d/JozmozDNS.conf 2>/dev/null || true
 
         if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
             systemctl restart systemd-resolved 2>/dev/null || true
@@ -264,7 +264,7 @@ EOF
     fi
 }
 
-# Helper: Install verified certificate files into HyperDNS directories
+# Helper: Install verified certificate files into JozmozDNS directories
 install_cert_files() {
     local cert_src="$1"
     local key_src="$2"
@@ -465,9 +465,9 @@ manual_ssl_wizard() {
                         if [ -f "$cb_live_cert" ] && [ -f "$cb_live_key" ]; then
                             install_cert_files "$cb_live_cert" "$cb_live_key" "$domain"
                             echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت دریافت و نصب شد!${NC}"
-                        elif [ -f "${INSTALL_DIR}/hyperdns" ]; then
-                            echo -e "  تلاش صدور از طریق موتور داخلی HyperDNS..."
-                            timeout 20 "${INSTALL_DIR}/hyperdns" -server -domain "${domain}" -email "${email}" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
+                        elif [ -f "${INSTALL_DIR}/JozmozDNS" ]; then
+                            echo -e "  تلاش صدور از طریق موتور داخلی JozmozDNS..."
+                            timeout 20 "${INSTALL_DIR}/JozmozDNS" -server -domain "${domain}" -email "${email}" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
                             if [ -f "${INSTALL_DIR}/certs/acme/${domain}.crt" ]; then
                                 install_cert_files "${INSTALL_DIR}/certs/acme/${domain}.crt" "${INSTALL_DIR}/certs/acme/${domain}.key" "$domain"
                                 echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت صادر و ذخیره شد!${NC}"
@@ -549,7 +549,7 @@ manual_ssl_wizard() {
                     echo "$key_content" > "$tmp_k"
                     install_cert_files "$tmp_c" "$tmp_k" "$domain"
                     rm -f "$tmp_c" "$tmp_k"
-                    echo -e "  ${GREEN}✓ سرتیفیکیت و کلید با موفقیت در HyperDNS ذخیره شدند!${NC}"
+                    echo -e "  ${GREEN}✓ سرتیفیکیت و کلید با موفقیت در JozmozDNS ذخیره شدند!${NC}"
                     return 0
                 else
                     echo -e "  ${RED}خطا: محتوای پیست‌شده ساختار استاندارد Certificate یا Private Key را ندارد.${NC}"
@@ -559,8 +559,8 @@ manual_ssl_wizard() {
                 echo -e "\n  ${YELLOW}حالت دامنه لغو شد و سرور به حالت IP مستقیم (${public_ip}) تغییر یافت.${NC}"
                 USER_DOMAIN=""
                 USER_EMAIL=""
-                if [ -f "${INSTALL_DIR}/hyperdns" ]; then
-                    "${INSTALL_DIR}/hyperdns" -domain "none" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
+                if [ -f "${INSTALL_DIR}/JozmozDNS" ]; then
+                    "${INSTALL_DIR}/JozmozDNS" -domain "none" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
                 fi
                 return 0
                 ;;
@@ -707,7 +707,7 @@ echo -e "\n  ${GREEN}✓ Confirmed DNS Server IP:${NC} ${CYAN}${BOLD}${PUBLIC_IP
 # Interactive Domain & SSL Configuration
 echo ""
 echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
-echo -e "${YELLOW}${BOLD}  ⚡ HyperDNS Domain & SSL Configuration${NC}"
+echo -e "${YELLOW}${BOLD}  ⚡ JozmozDNS Domain & SSL Configuration${NC}"
 echo -e "  Configured Server IP: ${GREEN}${PUBLIC_IP}${NC}"
 echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
 echo -e "  💡 You can enter a domain (with free Let's Encrypt SSL),"
@@ -753,9 +753,9 @@ elif command -v yum >/dev/null 2>&1; then
     yum install -y -q curl openssl lsof systemd iptables net-tools psmisc || true
 fi
 
-# Stop existing HyperDNS instance so it does not falsely occupy ports or trigger conflicts
+# Stop existing JozmozDNS instance so it does not falsely occupy ports or trigger conflicts
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 
 # Check if Port 80 is occupied only when a domain was selected AND we don't already have a valid certificate
 if [ -n "$USER_DOMAIN" ] && ! is_valid_domain_cert "$USER_DOMAIN"; then
@@ -783,7 +783,7 @@ mkdir -p "$INSTALL_DIR/rules"
 mkdir -p "$INSTALL_DIR/backups"
 
 IS_UPDATE=false
-if [ -f "$INSTALL_DIR/hyperdns" ] || [ -f "$INSTALL_DIR/data.db" ]; then
+if [ -f "$INSTALL_DIR/JozmozDNS" ] || [ -f "$INSTALL_DIR/data.db" ]; then
     IS_UPDATE=true
 fi
 
@@ -791,23 +791,23 @@ fi
 echo -e "\n${CYAN}[3/5] Installing JozmozDNS binary and Terminal Console...${NC}"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
 pkill -9 -f "${INSTALL_DIR}/jozmozdns" 2>/dev/null || true
-pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 
 CACHE_BUSTER=$(date +%s)
 echo -e "  Downloading latest JozmozDNS binary from GitHub..."
 curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/jozmozdns-linux?t=${CACHE_BUSTER}" || \
-curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/hyperdns-linux?t=${CACHE_BUSTER}"
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/JozmozDNS-linux?t=${CACHE_BUSTER}"
 chmod +x "$INSTALL_DIR/jozmozdns"
-ln -sf "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/hyperdns" 2>/dev/null || true
+ln -sf "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/JozmozDNS" 2>/dev/null || true
 ln -sf "$INSTALL_DIR" "/opt/jozmozdns" 2>/dev/null || true
 
 # Install management CLI menu
 curl -fsSL -o "/usr/local/bin/jozmozdns" "${REPO_RAW}/scripts/jozmozdns-menu.sh?t=${CACHE_BUSTER}" || \
-curl -fsSL -o "/usr/local/bin/jozmozdns" "${REPO_RAW}/scripts/hyperdns-menu.sh?t=${CACHE_BUSTER}"
+curl -fsSL -o "/usr/local/bin/jozmozdns" "${REPO_RAW}/scripts/JozmozDNS-menu.sh?t=${CACHE_BUSTER}"
 chmod +x "/usr/local/bin/jozmozdns"
 ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/jdns" 2>/dev/null || true
-ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/hyperdns" 2>/dev/null || true
-ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/hdns" 2>/dev/null || true
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/JozmozDNS" 2>/dev/null || true
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/jmdns" 2>/dev/null || true
 
 # 7. Generate dedicated SSL Certificate (covering IP and localhost)
 echo -e "\n${CYAN}[4/5] Configuring SSL Certificate and systemd service...${NC}"
@@ -819,7 +819,7 @@ fi
 if [ -n "$USER_DOMAIN" ] && is_valid_domain_cert "$USER_DOMAIN"; then
     echo -e "  ${GREEN}✓ Valid CA-signed certificate found for ${USER_DOMAIN}!${NC}"
 else
-    OPENSSL_CNF="/tmp/openssl_hyperdns_$$.cnf"
+    OPENSSL_CNF="/tmp/openssl_JozmozDNS_$$.cnf"
     cat <<EOF > "$OPENSSL_CNF"
 [req]
 default_bits = 2048
@@ -830,7 +830,7 @@ x509_extensions = v3_req
 
 [dn]
 C = US
-O = HyperDNS
+O = JozmozDNS
 CN = ${USER_DOMAIN:-$PUBLIC_IP}
 
 [v3_req]
@@ -855,28 +855,28 @@ EOF
     openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
         -keyout "$INSTALL_DIR/certs/key.pem" \
         -out "$INSTALL_DIR/certs/cert.pem" \
-        -subj "/CN=${USER_DOMAIN:-$PUBLIC_IP}/O=HyperDNS" 2>/dev/null || true
+        -subj "/CN=${USER_DOMAIN:-$PUBLIC_IP}/O=JozmozDNS" 2>/dev/null || true
 
     rm -f "$OPENSSL_CNF"
     chmod 600 "$INSTALL_DIR/certs/key.pem" "$INSTALL_DIR/certs/cert.pem" 2>/dev/null || true
     echo -e "  ${GREEN}✓ Dedicated SSL certificate generated for IP ${PUBLIC_IP}!${NC}"
 fi
 
-# Enable nonlocal bind in kernel so HyperDNS can bind to any designated IP address cleanly
+# Enable nonlocal bind in kernel so JozmozDNS can bind to any designated IP address cleanly
 sysctl -w net.ipv4.ip_nonlocal_bind=1 >/dev/null 2>&1 || true
 mkdir -p /etc/sysctl.d 2>/dev/null || true
-echo "net.ipv4.ip_nonlocal_bind=1" > /etc/sysctl.d/99-hyperdns.conf 2>/dev/null || true
+echo "net.ipv4.ip_nonlocal_bind=1" > /etc/sysctl.d/99-JozmozDNS.conf 2>/dev/null || true
 
 # Ensure systemd service configuration (strictly bound to selected PUBLIC_IP)
-cat <<EOF > /etc/systemd/system/hyperdns.service
+cat <<EOF > /etc/systemd/system/JozmozDNS.service
 [Unit]
-Description=HyperDNS Standalone SmartDNS & Gaming Gateway
+Description=JozmozDNS Standalone SmartDNS & Gaming Gateway
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/hyperdns -server -public-ip ${PUBLIC_IP} -bind ${PUBLIC_IP}
+ExecStart=${INSTALL_DIR}/JozmozDNS -server -public-ip ${PUBLIC_IP} -bind ${PUBLIC_IP}
 Restart=always
 RestartSec=3
 LimitNOFILE=65535
@@ -890,9 +890,9 @@ EOF
 systemctl daemon-reload
 
 # 8. Initial Bootstrap & Service Startup
-echo -e "\n${CYAN}[5/5] Initializing HyperDNS and starting background engine...${NC}"
+echo -e "\n${CYAN}[5/5] Initializing JozmozDNS and starting background engine...${NC}"
 systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 free_port_53 "$PUBLIC_IP"
 
 BOOTSTRAP_LOG="$INSTALL_DIR/install.log"
@@ -900,13 +900,13 @@ rm -f "$BOOTSTRAP_LOG"
 
 if [ -n "$USER_DOMAIN" ]; then
     if is_valid_domain_cert "$USER_DOMAIN"; then
-        echo -e "  Starting HyperDNS engine with verified certificate for ${GREEN}${USER_DOMAIN}${NC}..."
-        timeout 10 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
-        pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+        echo -e "  Starting JozmozDNS engine with verified certificate for ${GREEN}${USER_DOMAIN}${NC}..."
+        timeout 10 "$INSTALL_DIR/JozmozDNS" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
+        pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
     else
         echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and setting up Let's Encrypt SSL..."
-        timeout 20 "$INSTALL_DIR/hyperdns" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
-        pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+        timeout 20 "$INSTALL_DIR/JozmozDNS" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
+        pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 
         # If automated issuance failed or timed out:
         if ! is_valid_domain_cert "$USER_DOMAIN"; then
@@ -920,16 +920,16 @@ if [ -n "$USER_DOMAIN" ]; then
     fi
 else
     echo -e "  Configuring direct IP mode with dedicated SSL..."
-    timeout 10 "$INSTALL_DIR/hyperdns" -server -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
-    pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+    timeout 10 "$INSTALL_DIR/JozmozDNS" -server -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
+    pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 fi
 
 # Enable and start the permanent background service safely
-pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 free_port_53 "$PUBLIC_IP"
 systemctl daemon-reload || true
 systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
-echo -e "  Starting HyperDNS background service via systemd..."
+echo -e "  Starting JozmozDNS background service via systemd..."
 systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME" 2>/dev/null || true
 
 # Wait for service to become active
@@ -943,7 +943,7 @@ for i in 1 2 3 4 5 6 7; do
 done
 
 if [ "$SVC_ACTIVE" = true ]; then
-    echo -e "  ${GREEN}✓ HyperDNS service is active and running!${NC}"
+    echo -e "  ${GREEN}✓ JozmozDNS service is active and running!${NC}"
 fi
 
 # Verify service is running, handle potential startup failure
@@ -958,7 +958,7 @@ if [ "$SVC_ACTIVE" = false ]; then
         for i in 1 2 3 4 5; do
             if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
                 SVC_ACTIVE=true
-                echo -e "  ${GREEN}✓ سرویس HyperDNS با موفقیت شروع به کار کرد!${NC}"
+                echo -e "  ${GREEN}✓ سرویس JozmozDNS با موفقیت شروع به کار کرد!${NC}"
                 break
             fi
             sleep 1
@@ -967,7 +967,7 @@ if [ "$SVC_ACTIVE" = false ]; then
 
     # If still not active after port 53 retry
     if [ "$SVC_ACTIVE" = false ]; then
-        echo -e "\n${RED}⚠️  سرویس HyperDNS فعال نشد! در حال بررسی لاگ‌های سیستم...${NC}"
+        echo -e "\n${RED}⚠️  سرویس JozmozDNS فعال نشد! در حال بررسی لاگ‌های سیستم...${NC}"
         echo "$SVC_ERR_LOG" | tail -15
         echo ""
         if echo "$SVC_ERR_LOG" | grep -iqE "tls:|certificate|x509|acme" && [ -n "$USER_DOMAIN" ] && [ -t 0 -o -e /dev/tty ]; then
@@ -980,8 +980,8 @@ if [ "$SVC_ACTIVE" = false ]; then
             fi
             if [[ "$fb_mode" =~ ^[yY] ]]; then
                 USER_DOMAIN=""
-                "$INSTALL_DIR/hyperdns" -domain "none" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null >/dev/null 2>&1 || true
-                pkill -9 -f "${INSTALL_DIR}/hyperdns" 2>/dev/null || true
+                "$INSTALL_DIR/JozmozDNS" -domain "none" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null >/dev/null 2>&1 || true
+                pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
                 free_port_53 "$PUBLIC_IP"
                 systemctl restart "$SERVICE_NAME" 2>/dev/null || true
                 sleep 2
@@ -1008,7 +1008,7 @@ if [ -f "$INSTALL_DIR/credentials.txt" ]; then
     SAVED_URL=$(grep -E "^admin_url\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | sed -e 's/^admin_url\s*:\s*//' | tr -d '[:space:]' || true)
 fi
 
-DASH_URL=$(echo "$FULL_LOG" | grep -iE "(JozmozDNS|HyperDNS) Dashboard" | tail -1 | sed -e 's/.*Dashboard : //I' | tr -d '[:space:]' || true)
+DASH_URL=$(echo "$FULL_LOG" | grep -iE "(JozmozDNS|JozmozDNS) Dashboard" | tail -1 | sed -e 's/.*Dashboard : //I' | tr -d '[:space:]' || true)
 if [ -z "$DASH_URL" ]; then
     ADMIN_PATH=$(echo "$FULL_LOG" | grep -oE "https?://[^ ]+/[a-f0-9]{16}/dash/login" | tail -1 || true)
     if [ -n "$ADMIN_PATH" ]; then
@@ -1032,7 +1032,7 @@ fi
 if [ -z "$PASSWORD" ]; then
     PASSWORD=$(openssl rand -hex 12 2>/dev/null || date +%s%N | sha256sum | head -c 24)
     systemctl stop "$SERVICE_NAME" 2>/dev/null || true
-    "$INSTALL_DIR/hyperdns" -password "$PASSWORD" < /dev/null >/dev/null 2>&1 || true
+    "$INSTALL_DIR/JozmozDNS" -password "$PASSWORD" < /dev/null >/dev/null 2>&1 || true
     systemctl start "$SERVICE_NAME" 2>/dev/null || true
 fi
 
@@ -1070,9 +1070,9 @@ if [ -n "$USER_DOMAIN" ]; then
 else
     echo -e "  ${BOLD}Domain & SSL:${NC}   ${CYAN}${PUBLIC_IP}${NC} (Dedicated IP SSL Certificate)"
 fi
-echo -e "  ${BOLD}Terminal Menu:${NC}  Type ${PURPLE}jdns${NC} or ${PURPLE}jozmozdns${NC} (or ${PURPLE}hdns${NC}) anywhere in your terminal"
+echo -e "  ${BOLD}Terminal Menu:${NC}  Type ${PURPLE}jdns${NC} or ${PURPLE}jozmozdns${NC} (or ${PURPLE}jmdns${NC}) anywhere in your terminal"
 echo -e "${GREEN}========================================================================${NC}"
 echo ""
 echo -e "${CYAN}📌 برای مدیریت سرور، تغییر دامنه، مشاهده مشخصات یا آپدیت دستور زیر را وارد کنید:${NC}"
-echo -e "   ${PURPLE}${BOLD}jdns${NC}   ${NC}(یا ${PURPLE}jozmozdns${NC} / ${PURPLE}hdns${NC})"
+echo -e "   ${PURPLE}${BOLD}jdns${NC}   ${NC}(یا ${PURPLE}jozmozdns${NC} / ${PURPLE}jmdns${NC})"
 echo ""

@@ -239,3 +239,4 @@ func TestIconsAreOnlyEverDrawnThroughTheGuardedHelper(t *testing.T) {
 			"safeFeatherReplace, so the count above is guarding the wrong line.")
 	}
 }
+

@@ -146,3 +146,4 @@ func IsTrustedHop(addr string) bool {
 	}
 	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified()
 }
+
