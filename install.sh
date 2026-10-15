@@ -795,8 +795,29 @@ pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 
 CACHE_BUSTER=$(date +%s)
 echo -e "  Downloading latest JozmozDNS binary from GitHub..."
-curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/jozmozdns-linux?t=${CACHE_BUSTER}" || \
-curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/JozmozDNS-linux?t=${CACHE_BUSTER}"
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "https://github.com/jozmoz/HyperDNS/releases/latest/download/jozmozdns-linux" 2>/dev/null || \
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/jozmozdns-linux?t=${CACHE_BUSTER}" 2>/dev/null || \
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/JozmozDNS-linux?t=${CACHE_BUSTER}" 2>/dev/null || true
+
+if [ ! -s "$INSTALL_DIR/jozmozdns" ] || [ ! -x "$INSTALL_DIR/jozmozdns" ]; then
+    echo -e "  ${YELLOW}Notice: Pre-built binary not found. Building directly from source via Go...${NC}"
+    if ! command -v go >/dev/null 2>&1; then
+        echo -e "  Installing Go build toolchain..."
+        if command -v apt-get >/dev/null 2>&1; then
+            apt-get update -y -q && apt-get install -y -q golang git
+        elif command -v dnf >/dev/null 2>&1; then
+            dnf install -y -q golang git
+        elif command -v yum >/dev/null 2>&1; then
+            yum install -y -q golang git
+        fi
+    fi
+    TMP_BUILD=$(mktemp -d)
+    echo -e "  Fetching repository sources..."
+    git clone --depth 1 https://github.com/jozmoz/HyperDNS.git "$TMP_BUILD"
+    (cd "$TMP_BUILD" && go build -trimpath -ldflags="-s -w" -o "$INSTALL_DIR/jozmozdns" ./cmd/jozmozdns)
+    rm -rf "$TMP_BUILD"
+fi
+
 chmod +x "$INSTALL_DIR/jozmozdns"
 ln -sf "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/JozmozDNS" 2>/dev/null || true
 ln -sf "$INSTALL_DIR" "/opt/jozmozdns" 2>/dev/null || true

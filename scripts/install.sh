@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# JozmozDNS — 100% Offline Standalone Installer
-# Works with ZERO internet connection using pre-packaged binary & assets.
-# Supported OS: Ubuntu 20.04+, Debian 11+, CentOS/RHEL/Alma/Rocky 8+
+# JozmozDNS — 1-Line Quick Installer for Linux (Ubuntu, Debian, CentOS, AlmaLinux, Rocky)
+# Next-Gen Standalone SmartDNS & Anti-Sanction Gaming Gateway
+# GitHub: https://github.com/jozmoz/HyperDNS
+#
+# Quick 1-Line Installation Command:
+#   bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
 # ==============================================================================
 
-set -e
+set +e
 
-# Terminal Colors & Styling
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 CYAN='\033[0;36m'
@@ -16,939 +18,1082 @@ PURPLE='\033[0;35m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# Clear screen & display Cyberpunk ASCII Banner.
-# Guarded because this script runs under `set -e` and clear exits non-zero when
-# TERM is unset or unknown to terminfo -- which is exactly the case for
-# `ssh host 'bash install.sh'`, cron, CI and setsid, none of which allocate a
-# terminal. Unguarded, the offline installer died on line 20 with
-# "TERM environment variable not set." and installed nothing.
+INSTALL_DIR="/opt/JozmozDNS"
+REPO_RAW="https://raw.githubusercontent.com/jozmoz/HyperDNS/main"
+SERVICE_NAME="JozmozDNS"
+
+# 1. Root verification
+if [ "$EUID" -ne 0 ]; then
+    echo -e "${RED}[ERROR] Please run this installer as root (e.g. sudo bash ...)${NC}"
+    exit 1
+fi
+
+# 2. Architecture Check
+ARCH=$(uname -m)
+if [ "$ARCH" != "x86_64" ] && [ "$ARCH" != "amd64" ]; then
+    echo -e "${RED}[ERROR] Currently pre-built JozmozDNS supports x86_64 (amd64) architecture.${NC}"
+    echo -e "Detected architecture: $ARCH"
+    exit 1
+fi
+
+# Banner
 clear 2>/dev/null || true
 echo -e "${CYAN}${BOLD}"
-echo "  ██╗  ██╗██╗   ██╗██████╗ ███████╗██████╗ ██████╗ ███╗   ██╗███████╗"
-echo "  ██║  ██║╚██╗ ██╔╝██╔══██╗██╔════╝██╔══██╗██╔══██╗████╗  ██║██╔════╝"
-echo "  ███████║ ╚████╔╝ ██████╔╝█████╗  ██████╔╝██║  ██║██╔██╗ ██║███████╗"
-echo "  ██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══╝  ██╔══██╗██║  ██║██║╚██╗██║╚════██║"
-echo "  ██║  ██║   ██║   ██║     ███████╗██║  ██║██████╔╝██║ ╚████║███████║"
-echo "  ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
-echo -e "       ${PURPLE}⚡ Standalone Low-Latency SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
-echo -e "       ${YELLOW}Package: ONLINE INSTALLER · Single Binary · Go 1.26 · OWASP Hardened${NC}"
-echo ""
+echo "  ██╗ ██████╗ ███████╗███╗   ███╗ ██████╗ ███████╗██████╗ ███╗   ██╗███████╗"
+echo "  ██║██╔═══██╗╚══███╔╝████╗ ████║██╔═══██╗╚══███╔╝██╔══██╗████╗  ██║██╔════╝"
+echo "  ██║██║   ██║  ███╔╝ ██╔████╔██║██║   ██║  ███╔╝ ██║  ██║██╔██╗ ██║███████╗"
+echo "  ██║██║   ██║ ███╔╝  ██║╚██╔╝██║██║   ██║ ███╔╝  ██║  ██║██║╚██╗██║╚════██║"
+echo "  ██║╚██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║ ╚████║███████║"
+echo "  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
+echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
+echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/JozmozDNS${NC}"
+echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}\n"
 
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}[Error] Please run this installer as root (or use sudo).${NC}"
-    exit 1
-fi
+# Helper: Detect if Port is occupied on a specific IP or wildcard
+# Usage: is_port_busy <port> [ip]
+is_port_busy() {
+    local port="$1"
+    local ip="${2:-}"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_DIR="/opt/JozmozDNS"
-
-# Progress spinner. The HTTPS certificate is issued by the daemon itself at
-# first start (embedded Let's Encrypt client, ~7s observed, up to 5m advertised),
-# and the panel listener only binds AFTER that issuance completes. The whole
-# window used to show a frozen yellow line, which read as a hung install — the
-# single most reported "did it crash?" moment. This animates the wait instead.
-#
-# Safety: the animation is skipped when stdout is not a terminal, so it never
-# pollutes logs/CI/captures with frames, and a trap makes the background loop
-# die with the installer rather than outlive it.
-SPINNER_PID=""
-SPINNER_MSG=""
-SPINNER_LAST_LEN=0
-_spin_frames=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
-_spin_idx=0
-_spinner_tick() {
-    # Advance one frame and re-render the message line in place. Writes a CR
-    # first and pads with spaces so a shorter message than the previous one
-    # does not leave trailing characters on the line.
-    #
-    # The loop key is SPINNER_ALIVE, not SPINNER_PID: the background tick is a
-    # forked subshell that copies the parent's variables AT FORK TIME, which is
-    # before the parent assigns SPINNER_PID=$!. Keying the loop on the PID would
-    # read a pre-assignment (stale or empty) value and exit immediately, so the
-    # animation would never run. SPINNER_ALIVE is set BEFORE the fork, so the
-    # copy the subshell takes is the live one.
-    while [ "${SPINNER_ALIVE:-0}" = "1" ]; do
-        _spin_idx=$(( (_spin_idx + 1) % ${#_spin_frames[@]} ))
-        # SPINNER_MSG is read fresh each iteration so spinner_msg can change
-        # the stage text while the animation keeps running.
-        local line="${_spin_frames[$_spin_idx]}  ${SPINNER_MSG}"
-        printf '\r\033[0;36m%s\033[0m' "$line"
-        # Pad to the previous line's width to fully overwrite it.
-        local pad=$(( SPINNER_LAST_LEN - ${#line} ))
-        [ "$pad" -gt 0 ] && printf '%*s' "$pad" ''
-        SPINNER_LAST_LEN=${#line}
-        # The cadence is slow enough to read but fast enough to look alive;
-        # a faster tick makes the spinner a distraction on a slow terminal.
-        sleep 0.25
-    done
-}
-spinner_start() {
-    # Only animate on a real terminal — never in CI, ssh -T or a redirected log.
-    if [ ! -t 1 ]; then
-        # Still print the message once, so a captured log explains the wait.
-        # Record it as the last-seen stage too: spinner_msg dedupes against
-        # this, so the initial message is not immediately re-printed by the
-        # first retry iteration of the calling loop.
-        if [ -n "$1" ]; then
-            echo -e "  ${CYAN}$1...${NC}"
-            SPINNER_LAST_MSG="$1"
+    if [ -n "$ip" ] && [ "$ip" != "0.0.0.0" ] && [ "$ip" != "::" ]; then
+        local esc_ip
+        esc_ip=$(echo "$ip" | sed 's/\./\\./g')
+        local pattern="(0\.0\.0\.0|\[::\]|:::?|\*|${esc_ip}):${port}([[:space:]]|$)"
+        if command -v ss >/dev/null 2>&1; then
+            if ss -tuln 2>/dev/null | grep -E "$pattern" >/dev/null 2>&1; then
+                return 0
+            fi
+            return 1
         fi
-        return 0
-    fi
-    SPINNER_MSG="${1:-Working...}"
-    SPINNER_LAST_LEN=0
-    SPINNER_LAST_MSG="${1:-}"
-    # Set the liveness flag BEFORE the fork so the subshell's copy is live
-    # (see _spinner_tick for why the PID cannot be the loop key).
-    SPINNER_ALIVE=1
-    _spinner_tick &
-    SPINNER_PID=$!
-    # If the installer dies while a spin is live, take the spinner with it —
-    # a leak would keep printing frames into the user's next prompt.
-    trap 'spinner_stop' EXIT
-}
-spinner_msg() {
-    # Update the message under a live spinner (e.g. "issuing certificate..."
-    # -> "binding listeners...").
-    if [ -z "$SPINNER_PID" ]; then
-        # No spinner (non-tty): print each DISTINCT stage once on its own line
-        # so a captured log still narrates the wait — but never repeat the same
-        # message, which the retry loops would otherwise spam every 3 seconds.
-        if [ -n "$1" ] && [ "$1" != "${SPINNER_LAST_MSG:-}" ]; then
-            echo -e "  ${CYAN}$1...${NC}"
-            SPINNER_LAST_MSG="$1"
+        if command -v netstat >/dev/null 2>&1; then
+            if netstat -tuln 2>/dev/null | grep -E "$pattern" >/dev/null 2>&1; then
+                return 0
+            fi
+            return 1
         fi
-        return 0
+        if command -v lsof >/dev/null 2>&1; then
+            if lsof -i "TCP@${ip}:${port}" >/dev/null 2>&1 || lsof -i "UDP@${ip}:${port}" >/dev/null 2>&1 || \
+               lsof -i "TCP@0.0.0.0:${port}" >/dev/null 2>&1 || lsof -i "UDP@0.0.0.0:${port}" >/dev/null 2>&1; then
+                return 0
+            fi
+            return 1
+        fi
+    else
+        if command -v ss >/dev/null 2>&1; then
+            if ss -tuln 2>/dev/null | grep -qE ":(${port})[[:space:]]"; then
+                return 0
+            fi
+        fi
+        if command -v lsof >/dev/null 2>&1; then
+            if lsof -i ":${port}" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
+        if command -v netstat >/dev/null 2>&1; then
+            if netstat -tuln 2>/dev/null | grep -qE ":(${port})[[:space:]]"; then
+                return 0
+            fi
+        fi
+        if command -v fuser >/dev/null 2>&1; then
+            if fuser "${port}/tcp" >/dev/null 2>&1 || fuser "${port}/udp" >/dev/null 2>&1; then
+                return 0
+            fi
+        fi
     fi
-    SPINNER_MSG="${1:-$SPINNER_MSG}"
-}
-spinner_stop() {
-    # Drop the liveness flag first so the background loop exits on its next
-    # tick even if the kill below does not reach it.
-    SPINNER_ALIVE=0
-    if [ -n "$SPINNER_PID" ]; then
-        kill "$SPINNER_PID" 2>/dev/null || true
-        wait "$SPINNER_PID" 2>/dev/null || true
-        SPINNER_PID=""
-        # Clear the spinner line so the next output starts clean.
-        printf '\r%*s\r' "$SPINNER_LAST_LEN" ''
-        SPINNER_LAST_LEN=0
-    fi
-}
-# Progress spinner functions end here.
-
-# ==============================================================================
-# PUBLIC IP DETECTION (used by the domain prompt and the closing banner)
-# ==============================================================================
-# Detected once, up front. It used to be fetched after the banner — which is
-# why the domain prompt printed "Point an A record at  first" with an empty
-# address: the prompt runs in step 4 and the variable did not exist yet.
-PUBLIC_IP=""
-for _ip_ep in https://api.ipify.org https://ifconfig.me/ip https://icanhazip.com https://checkip.amazonaws.com; do
-    _ip_val=$(curl -fsS --connect-timeout 3 --max-time 5 "${_ip_ep}" 2>/dev/null | tr -d '[:space:]')
-    if [ -n "${_ip_val}" ]; then
-        PUBLIC_IP="${_ip_val}"
-        break
-    fi
-done
-if [ -z "${PUBLIC_IP}" ]; then
-    PUBLIC_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
-fi
-if [ -z "${PUBLIC_IP}" ]; then
-    PUBLIC_IP="YOUR_SERVER_IP"
-fi
-
-# Domain validation. The value is fed to sed against config.json, so a name
-# with a slash or ampersand in it corrupts the expression instead of failing;
-# it is also what the certificate is issued for. Anything that is not
-# a bare hostname is rejected before any of that happens.
-validate_domain() {
-    case "$1" in
-        *[!a-zA-Z0-9.-]* | .* | *. | *..* | -* | "" ) return 1 ;;
-    esac
-    case "$1" in
-        *.*) return 0 ;;
-        *)   return 1 ;;
-    esac
+    return 1
 }
 
-# ==============================================================================
-# STEP 1: FETCH THE LATEST RELEASE BINARY
-# ==============================================================================
-echo -e "${CYAN}${BOLD}[1/6] Downloading the latest JozmozDNS release binary...${NC}"
+# Helper: Identify process occupying a port on a specific IP or wildcard
+get_port_process() {
+    local port="$1"
+    local ip="${2:-}"
+    local proc=""
 
-ARCH=$(uname -m)
-case "${ARCH}" in
-    x86_64|amd64) BIN_ARCH="amd64" ;;
-    aarch64|arm64) BIN_ARCH="arm64" ;;
-    *)
-        echo -e "${RED}[Error] Unsupported architecture: ${ARCH}${NC}"
-        exit 1
-        ;;
-esac
-echo -e "  ${GREEN}✓ Architecture detected: ${ARCH} (${BIN_ARCH})${NC}"
-
-# The online installer must bring the SAME inputs the offline bundle ships:
-# the binary, the config template the fresh-config branch seeds from, and
-# version.json for the daemon's startup drift check. All pinned to this
-# installer's own release ref — never a moving branch, and never
-# releases/latest: GitHub's "latest" follows the newest non-prerelease, so a
-# beta installer pulling from it silently fetches the older stable binary and
-# the install fails deep in the v2.2.0 flow. Both URLs derive from the single
-# ref so the binary and the auxiliary files can never disagree.
-JozmozDNS_REF="${JozmozDNS_REF:-v2.2.0-beta.1}"
-RAW_BASE="https://raw.githubusercontent.com/IzumiRain/JozmozDNS/${JozmozDNS_REF}"
-RELEASE_BASE="https://github.com/IzumiRain/JozmozDNS/releases/download/${JozmozDNS_REF}"
-
-DL_BIN="$(mktemp /tmp/JozmozDNS-bin.XXXXXX)"
-if curl -fL --retry 3 --connect-timeout 10 "${RELEASE_BASE}/JozmozDNS-linux-${BIN_ARCH}" -o "${DL_BIN}" 2>/dev/null && [ -s "${DL_BIN}" ]; then
-    chmod +x "${DL_BIN}"
-    SRC_BIN="${DL_BIN}"
-    echo -e "  ${GREEN}✓ Downloaded release binary (${BIN_ARCH}): $(( $(stat -c%s "${DL_BIN}" 2>/dev/null || echo 0) / 1024 / 1024 )) MB${NC}"
-else
-    echo -e "${RED}[Error] Could not download the JozmozDNS binary from GitHub Releases.${NC}"
-    echo -e "Check this server's internet access, or run the offline bundle instead."
-    exit 1
-fi
-
-ONLINE_CONFIG_EXAMPLE="$(mktemp /tmp/JozmozDNS-cfg.XXXXXX)"
-if ! curl -fsL --retry 3 "${RAW_BASE}/config.example.json" -o "${ONLINE_CONFIG_EXAMPLE}" || [ ! -s "${ONLINE_CONFIG_EXAMPLE}" ]; then
-    echo -e "${RED}[Error] Could not download config.example.json from ${JozmozDNS_REF}.${NC}"
-    exit 1
-fi
-
-ONLINE_RESTORE="$(mktemp /tmp/JozmozDNS-restore.XXXXXX)"
-if ! curl -fsL --retry 3 "${RAW_BASE}/scripts/restore.sh" -o "${ONLINE_RESTORE}" || [ ! -s "${ONLINE_RESTORE}" ]; then
-    echo -e "${RED}[Error] Could not download restore.sh from ${JozmozDNS_REF}.${NC}"
-    exit 1
-fi
-
-ONLINE_VERSION_JSON="$(mktemp /tmp/JozmozDNS-ver.XXXXXX)"
-curl -fsL --retry 3 "${RAW_BASE}/offline-bundle/version.json" -o "${ONLINE_VERSION_JSON}" 2>/dev/null || true
-
-install -d -o root -g root -m 0755 "${INSTALL_DIR}"
-install -d -o root -g root -m 0700 "${INSTALL_DIR}/certs"
-
-# ==============================================================================
-# SAFE INSTALL: every run of this installer produces a completely fresh
-# install. An existing installation is archived to /root (that archive is the
-# only copy of the old data — the old database is not v2-compatible), then
-# REPLACED, and every step below runs from the beginning: fresh config, fresh
-# credentials, fresh admin path, fresh certificates. No upgrade path, no
-# half-migrated state — that is what "safe" means here: the installer can
-# never leave an old record behind to drift.
-# ==============================================================================
-IS_UPGRADE=false
-PREV_VERSION=""
-
-if [ -f "${INSTALL_DIR}/JozmozDNS" ] || [ -f "${INSTALL_DIR}/config.json" ] || [ -f "${INSTALL_DIR}/data.db" ] || [ -f "${INSTALL_DIR}/master.key" ] || systemctl is-active --quiet JozmozDNS 2>/dev/null || systemctl is-enabled --quiet JozmozDNS 2>/dev/null; then
-    IS_UPGRADE=true
-    if [ -x "${INSTALL_DIR}/JozmozDNS" ]; then
-        PREV_VERSION="$("${INSTALL_DIR}/JozmozDNS" -version 2>/dev/null | head -n1 || true)"
-    fi
-    [ -z "${PREV_VERSION}" ] && PREV_VERSION="unknown (pre-2.2.0)"
-
-    echo -e "${YELLOW}${BOLD}\u250c${NC}"
-    echo -e "${YELLOW}│ SAFE INSTALL — an existing JozmozDNS installation was detected${NC}"
-    echo -e "${YELLOW}│ • Installed Version : ${CYAN}${PREV_VERSION}${NC}"
-    echo -e "${YELLOW}│ • Target Version    : ${GREEN}v2.2.0 (this package)${NC}"
-    echo -e "${YELLOW}│ • Mode              : ${GREEN}Fresh install — old data ARCHIVED, then REPLACED${NC}"
-    echo -e "${YELLOW}\u2514${NC}"
-    echo ""
-
-    # Archive the WHOLE install tree to /root — outside /opt/JozmozDNS, so it
-    # survives the wipe below. data.db + master.key + config.json + certs are
-    # one unit; the archive keeps them together. 600 on the archive: it holds
-    # master.key and plaintext credentials.
-    if systemctl is-active --quiet JozmozDNS 2>/dev/null; then
-        echo -e "  ${CYAN}Gracefully stopping the running service...${NC}"
-        systemctl stop JozmozDNS || true
-    fi
-
-    ARCHIVE="/root/JozmozDNS-preinstall-$(date +%Y%m%d_%H%M%S).tar.gz"
-    tar czf "${ARCHIVE}" -C / opt/JozmozDNS 2>/dev/null || true
-    chmod 600 "${ARCHIVE}" 2>/dev/null || true
-    if [ -s "${ARCHIVE}" ]; then
-        echo -e "  ${GREEN}\u2713 Previous install archived to: ${ARCHIVE}${NC}"
-        echo -e "  ${GREEN}  archive sha256: $(sha256sum "${ARCHIVE}" | awk '{print $1}')${NC}"
-        echo -e "  ${YELLOW}  This is the ONLY copy of the old data once this installer finishes.${NC}"
+    if [ -n "$ip" ] && [ "$ip" != "0.0.0.0" ] && [ "$ip" != "::" ]; then
+        local esc_ip
+        esc_ip=$(echo "$ip" | sed 's/\./\\./g')
+        local pattern="(0\.0\.0\.0|\[::\]|:::?|\*|${esc_ip}):${port}([[:space:]]|$)"
+        if command -v ss >/dev/null 2>&1; then
+            proc=$(ss -tulpn 2>/dev/null | grep -E "$pattern" | grep -oP 'users:\(\("\K[^"]+' | head -n1)
+        fi
+        if [ -z "$proc" ] && command -v lsof >/dev/null 2>&1; then
+            proc=$(lsof -i "TCP@${ip}:${port}" -sTCP:LISTEN -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
+            [ -z "$proc" ] && proc=$(lsof -i "TCP@0.0.0.0:${port}" -sTCP:LISTEN -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
+        fi
     else
-        echo -e "  ${RED}✗ ARCHIVE FAILED — ${ARCHIVE} is empty or missing.${NC}"
-        echo -e "  ${RED}  The old install was NOT touched and will NOT be wiped.${NC}"
-        echo -e "  ${RED}  Free space in /root (or investigate the tar error) and re-run.${NC}"
-        exit 1
+        if command -v ss >/dev/null 2>&1; then
+            proc=$(ss -tulpn 2>/dev/null | grep -E ":(${port})[[:space:]]" | grep -oP 'users:\(\("\K[^"]+' | head -n1)
+        fi
+        if [ -z "$proc" ] && command -v lsof >/dev/null 2>&1; then
+            proc=$(lsof -i ":${port}" -sTCP:LISTEN -t 2>/dev/null | head -n1 | xargs -r ps -o comm= 2>/dev/null)
+        fi
+        if [ -z "$proc" ] && command -v fuser >/dev/null 2>&1; then
+            local pid
+            pid=$(fuser "${port}/tcp" 2>/dev/null | tr -d ' ' | head -n1)
+            [ -z "$pid" ] && pid=$(fuser "${port}/udp" 2>/dev/null | tr -d ' ' | head -n1)
+            [ -n "$pid" ] && proc=$(ps -o comm= -p "$pid" 2>/dev/null)
+        fi
     fi
+    if [ -z "$proc" ]; then
+        if [ "$port" -eq 80 ]; then
+            if systemctl is-active --quiet nginx 2>/dev/null; then proc="nginx"; fi
+            if systemctl is-active --quiet apache2 2>/dev/null; then proc="apache2"; fi
+            if systemctl is-active --quiet httpd 2>/dev/null; then proc="httpd"; fi
+            if systemctl is-active --quiet caddy 2>/dev/null; then proc="caddy"; fi
+        fi
+    fi
+    echo "${proc:-unknown}"
+}
 
-    # The wipe is destructive and must never happen silently: an interactive
-    # run types FRESH, an unattended run (piped stdin) sets JozmozDNS_FRESH=1.
-    if [ "${JozmozDNS_FRESH:-0}" = "1" ]; then
-        echo -e "  ${CYAN}JozmozDNS_FRESH=1 — wipe confirmed by environment.${NC}"
-    elif [ -t 0 ]; then
-        printf "%b" "${YELLOW}Type ${RED}FRESH${YELLOW} to wipe the existing install and reinstall: ${NC}"
-        read -r CONFIRM
-        [ "${CONFIRM}" = "FRESH" ] || { echo -e "  ${YELLOW}Cancelled — the existing install is untouched (archive kept).${NC}"; exit 0; }
+# Helper: Detect if Port 80 is occupied (optionally on target IP)
+is_port_80_busy() {
+    is_port_busy 80 "${1:-$PUBLIC_IP}"
+}
+
+# Helper: Find the process occupying Port 80 (optionally on target IP)
+get_port_80_process() {
+    get_port_process 80 "${1:-$PUBLIC_IP}"
+}
+
+# Helper: Check if Port 53 is occupied (optionally on target IP)
+is_port_53_busy() {
+    is_port_busy 53 "${1:-$PUBLIC_IP}"
+}
+
+# Helper: Identify process listening on Port 53 (optionally on target IP)
+get_port_53_process() {
+    get_port_process 53 "${1:-$PUBLIC_IP}"
+}
+
+# Helper: Safely release Port 53 and preserve upstream DNS resolution
+free_port_53() {
+    local target_ip="${1:-$PUBLIC_IP}"
+    if [ -n "$target_ip" ] && [ "$target_ip" != "0.0.0.0" ]; then
+        echo -e "  ${CYAN}Verifying and freeing DNS Port 53 for IP ${target_ip}...${NC}"
     else
-        echo -e "  ${RED}\u2717 Non-interactive run detected and JozmozDNS_FRESH=1 is not set.${NC}"
-        echo -e "  ${RED}  Refusing to wipe an existing install silently. Re-run with:${NC}"
-        echo -e "  ${RED}    JozmozDNS_FRESH=1 bash install.sh${NC}"
-        exit 1
+        echo -e "  ${CYAN}Freeing DNS Port 53 (disabling conflicting stub listeners & services)...${NC}"
     fi
 
-    rm -rf "${INSTALL_DIR}"
-    echo -e "  ${GREEN}\u2713 Previous install fully removed — installing from scratch${NC}"
-fi
-
-# The wipe above may have taken the whole tree with it; the directories the
-# rest of this script writes into must exist either way.
-install -d -o root -g root -m 0755 "${INSTALL_DIR}"
-install -d -o root -g root -m 0700 "${INSTALL_DIR}/certs"
-
-# Copy binary atomically
-cp -f "${SRC_BIN}" "${INSTALL_DIR}/JozmozDNS.new"
-chmod +x "${INSTALL_DIR}/JozmozDNS.new"
-mv -f "${INSTALL_DIR}/JozmozDNS.new" "${INSTALL_DIR}/JozmozDNS"
-ln -sf "${INSTALL_DIR}/JozmozDNS" /usr/local/bin/jmdns
-
-
-install -d -o root -g root -m 0755 "${INSTALL_DIR}/scripts"
-# v2.2.0: ssl_issue.sh no longer ships. The daemon issues its own certificate
-# (embedded ACME client) at first start and renews daily — there is no
-# stop-the-service issuance step for an operator to run by hand either.
-
-if [ -f "${SCRIPT_DIR}/scripts/uninstall.sh" ]; then
-    cp -f "${SCRIPT_DIR}/scripts/uninstall.sh" "${INSTALL_DIR}/scripts/uninstall.sh"
-    chmod +x "${INSTALL_DIR}/scripts/uninstall.sh"
-elif [ -f "./scripts/uninstall.sh" ]; then
-    cp -f ./scripts/uninstall.sh "${INSTALL_DIR}/scripts/uninstall.sh"
-    chmod +x "${INSTALL_DIR}/scripts/uninstall.sh"
-fi
-
-install -o root -g root -m 0755 "${ONLINE_RESTORE}" "${INSTALL_DIR}/scripts/restore.sh"
-rm -f "${ONLINE_RESTORE}"
-
-# Ship version.json so the binary's startup drift check has a matching file
-if [ -n "${ONLINE_VERSION_JSON:-}" ] && [ -s "${ONLINE_VERSION_JSON}" ]; then
-    cp -f "${ONLINE_VERSION_JSON}" "${INSTALL_DIR}/version.json"
-elif [ -f "${SCRIPT_DIR}/version.json" ]; then
-    cp -f "${SCRIPT_DIR}/version.json" "${INSTALL_DIR}/version.json"
-elif [ -f "./version.json" ]; then
-    cp -f ./version.json "${INSTALL_DIR}/version.json"
-fi
-
-# Provide a starting config on a fresh install (used as defaults by -config)
-FRESH_CONFIG_SOURCE=""
-if [ -n "${ONLINE_CONFIG_EXAMPLE:-}" ] && [ -f "${ONLINE_CONFIG_EXAMPLE}" ]; then
-    FRESH_CONFIG_SOURCE="${ONLINE_CONFIG_EXAMPLE}"
-elif [ ! -f "${INSTALL_DIR}/config.json" ] && [ -f "${SCRIPT_DIR}/config.example.json" ]; then
-    FRESH_CONFIG_SOURCE="${SCRIPT_DIR}/config.example.json"
-elif [ ! -f "${INSTALL_DIR}/config.json" ] && [ -f "./config.example.json" ]; then
-    FRESH_CONFIG_SOURCE="./config.example.json"
-fi
-
-if [ -n "${FRESH_CONFIG_SOURCE}" ]; then
-    cp -f "${FRESH_CONFIG_SOURCE}" "${INSTALL_DIR}/config.json"
-
-    # config.example.json is a public template, so its placeholder credentials are
-    # public too. Replace them with per-install random values before the daemon
-    # ever reads the file. The password is printed once in the closing banner.
-    # Both values are hex-only, so they are safe inside the sed replacement.
-    GENERATED_ADMIN_PASSWORD="$(openssl rand -hex 12 2>/dev/null || tr -dc 'a-f0-9' < /dev/urandom | head -c 24)"
-    GENERATED_API_KEY="hdns_live_$(openssl rand -hex 16 2>/dev/null || tr -dc 'a-f0-9' < /dev/urandom | head -c 32)"
-    sed -i "s|\"admin_password\": \"[^\"]*\"|\"admin_password\": \"${GENERATED_ADMIN_PASSWORD}\"|" "${INSTALL_DIR}/config.json"
-    sed -i "s|\"api_key\": \"[^\"]*\"|\"api_key\": \"${GENERATED_API_KEY}\"|" "${INSTALL_DIR}/config.json"
-
-    # v2.2.0: a random management (panel) port for fresh installs. 8080 is
-    # everyone's default — panels, dev servers, proxies — and the dashboard
-    # landing on it collides with whatever the operator already runs far more
-    # often than chance. A random high port, drawn once here and written into
-    # the fresh config, sidesteps the whole class; the standard data-plane
-    # ports (53/80/443/853) stay exactly where the protocols say they are.
-    # Every install takes this branch now: a safe install always generates
-    # a fresh config, so every install also draws a fresh panel port.
-    PANEL_PORT="$(shuf -i 20000-60000 -n 1 2>/dev/null || awk 'BEGIN{srand();print int(20000+rand()*40000)}')"
-    # Avoid the handful of high ports with common occupants: nothing exotic,
-    # just the ones a default VPS image tends to run.
-    for _busy in 27017 3306 5432 6379 8080 8443 9000 10000; do
-        if [ "${PANEL_PORT}" = "${_busy}" ]; then PANEL_PORT=28443; break; fi
-    done
-    sed -i "s|\"web_port\": [0-9]*|\"web_port\": ${PANEL_PORT}|" "${INSTALL_DIR}/config.json"
-    echo -e "  ${CYAN}Panel management port for this install: ${BOLD}${PANEL_PORT}${NC}"
-
-    if grep -q 'CHANGE-ME-BEFORE-FIRST-RUN' "${INSTALL_DIR}/config.json"; then
-        # sed did not take. Warn loudly rather than silently shipping the public
-        # placeholder as a working login.
-        GENERATED_ADMIN_PASSWORD=""
-        echo -e "  ${RED}✗ Could not inject a per-install admin password.${NC}"
-        echo -e "  ${YELLOW}    Set server.admin_password in ${INSTALL_DIR}/config.json before exposing the dashboard.${NC}"
-    else
-        echo -e "  ${GREEN}✓ Fresh config created at ${INSTALL_DIR}/config.json with per-install credentials${NC}"
+    # 1. Back up and replace /etc/resolv.conf so host resolution stays working
+    if [ ! -f "${INSTALL_DIR}/.resolv-backup" ] && [ -d "${INSTALL_DIR}" ]; then
+        if [ -L /etc/resolv.conf ]; then
+            printf 'symlink\n%s\n' "$(readlink /etc/resolv.conf)" > "${INSTALL_DIR}/.resolv-backup" 2>/dev/null || true
+        elif [ -f /etc/resolv.conf ]; then
+            { printf 'file\n'; cat /etc/resolv.conf; } > "${INSTALL_DIR}/.resolv-backup" 2>/dev/null || true
+        else
+            printf 'absent\n' > "${INSTALL_DIR}/.resolv-backup" 2>/dev/null || true
+        fi
+        chmod 600 "${INSTALL_DIR}/.resolv-backup" 2>/dev/null || true
     fi
-fi
 
-# config.json holds server.admin_password and server.api_key in plaintext, so it must
-# not be world-readable. `cp -f` above inherits 644 from config.example.json, which is a
-# public template and rightly readable, and the copy then keeps that mode through both
-# sed passes. This runs outside the fresh-config branch on purpose: a box installed
-# before this line still has a 644 file on disk, and an upgrade is the only run that can
-# repair it. Guarded by -f because a migration that bailed out leaves the file exactly as
-# it found it, and chmod on a missing path is not worth aborting for.
-if [ -f "${INSTALL_DIR}/config.json" ]; then
-    chmod 600 "${INSTALL_DIR}/config.json" 2>/dev/null || true
-fi
+    rm -f /etc/resolv.conf 2>/dev/null || true
+    cat <<EOF > /etc/resolv.conf
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+nameserver 9.9.9.9
+options timeout:2 attempts:2
+EOF
+    chmod 644 /etc/resolv.conf 2>/dev/null || true
 
-echo -e "  ${GREEN}✓ Binary installed to ${INSTALL_DIR}/JozmozDNS${NC}"
-echo -e "  ${GREEN}✓ Global CLI command installed: 'jmdns'${NC}"
-
-# ==============================================================================
-# STEP 2: RESOLVE PORT 53 CONFLICTS (SYSTEMD-RESOLVED)
-# ==============================================================================
-echo -e "${CYAN}${BOLD}[2/6] Freeing Port 53 (systemd-resolved resolver)...${NC}"
-if systemctl is-active --quiet systemd-resolved; then
-    echo -e "  ${YELLOW}Configuring systemd-resolved to release port 53 listener...${NC}"
-    mkdir -p /etc/systemd/resolved.conf.d/
-    cat << 'EOF' > /etc/systemd/resolved.conf.d/JozmozDNS.conf
+    # 2. Disable systemd-resolved stub listener if conflict exists on target_ip
+    if is_port_53_busy "$target_ip"; then
+        if [ -f /etc/systemd/resolved.conf ]; then
+            sed -i -E 's/^#?DNSStubListener=.*/DNSStubListener=no/' /etc/systemd/resolved.conf 2>/dev/null || true
+            sed -i -E 's/^#?DNS=.*/DNS=1.1.1.1 8.8.8.8/' /etc/systemd/resolved.conf 2>/dev/null || true
+        fi
+        mkdir -p /etc/systemd/resolved.conf.d/
+        cat <<EOF > /etc/systemd/resolved.conf.d/JozmozDNS.conf
 [Resolve]
+DNS=1.1.1.1 8.8.8.8
 DNSStubListener=no
 EOF
-    # The drop-in is read by systemd-resolved, which runs as its own unprivileged
-    # user — not root. The redirect above inherits the caller's umask, so an
-    # installer run under a restrictive umask (077, common in hardened setups)
-    # writes a file resolved cannot read at all: the drop-in is silently ignored,
-    # the stub listener on 127.0.0.53:53 stays bound, and the daemon then fails
-    # to bind port 53 with an error that points at a conflict the operator just
-    # told the installer to resolve. Both the directory and the file are pinned
-    # to world-readable explicitly, as the unit file already is below.
-    chmod 755 /etc/systemd/resolved.conf.d
-    chmod 644 /etc/systemd/resolved.conf.d/JozmozDNS.conf
-    systemctl restart systemd-resolved || true
+        chmod 755 /etc/systemd/resolved.conf.d 2>/dev/null || true
+        chmod 644 /etc/systemd/resolved.conf.d/JozmozDNS.conf 2>/dev/null || true
 
-    # /etc/resolv.conf is a symlink to /run/systemd/resolve/stub-resolv.conf on a stock
-    # Ubuntu, and every nameserver in that file is 127.0.0.53 — the address of the stub
-    # listener just disabled. It has to be repointed or the host stops resolving names.
-    #
-    # Redirecting into the symlink would follow it and rewrite resolved's own generated
-    # file, which resolved regenerates on the next restart, so the link itself is replaced.
-    # The marker records what was there beforehand; scripts/uninstall.sh reads it to put
-    # the original resolver back.
-    RESOLV_MARKER="${INSTALL_DIR}/.resolv-backup"
-    if [ ! -f "${RESOLV_MARKER}" ]; then
-        if [ -L /etc/resolv.conf ]; then
-            printf 'symlink\n%s\n' "$(readlink /etc/resolv.conf)" > "${RESOLV_MARKER}"
-        elif [ -f /etc/resolv.conf ]; then
-            { printf 'file\n'; cat /etc/resolv.conf; } > "${RESOLV_MARKER}"
-        else
-            printf 'absent\n' > "${RESOLV_MARKER}"
+        if systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+            systemctl restart systemd-resolved 2>/dev/null || true
+            sleep 1
         fi
-        chmod 600 "${RESOLV_MARKER}" 2>/dev/null || true
-    fi
-    rm -f /etc/resolv.conf
-    printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\noptions timeout:2 attempts:2\n' > /etc/resolv.conf
-
-    # Stop any conflicting standalone DNS services
-    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor; do
-        if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
-            systemctl stop "$d_svc" 2>/dev/null || true
-            systemctl disable "$d_svc" 2>/dev/null || true
-        fi
-    done
-    if command -v fuser >/dev/null 2>&1; then
-        fuser -k 53/udp 2>/dev/null || true
-        fuser -k 53/tcp 2>/dev/null || true
     fi
 
-    echo -e "  ${GREEN}✓ Port 53 released successfully!${NC}"
-    echo -e "  ${CYAN}  Previous resolver configuration recorded for uninstall.${NC}"
-else
-    # Even if systemd-resolved was inactive, stop any competing DNS services
-    for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor; do
-        if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
-            systemctl stop "$d_svc" 2>/dev/null || true
-            systemctl disable "$d_svc" 2>/dev/null || true
-        fi
-    done
-    if command -v fuser >/dev/null 2>&1; then
-        fuser -k 53/udp 2>/dev/null || true
-        fuser -k 53/tcp 2>/dev/null || true
-    fi
-    echo -e "  ${GREEN}✓ Port 53 is clear.${NC}"
-fi
-
-# ==============================================================================
-# STEP 3: FIREWALL RULES CONFIGURATION
-# ==============================================================================
-echo -e "${CYAN}${BOLD}[3/6] Configuring Firewall Rules for Gaming & DNS...${NC}"
-PORTS=(53 80 443 853 2099 5222 5223 8393 9443)
-# The panel's port joins the fixed set when this install chose one at random
-# (v2.2.0). An upgrade with no PANEL_PORT (or the default 8080, already in the
-# installed set from before) adds nothing. The rule is recorded like the
-# others, so the uninstaller removes exactly what it opened.
-if [ -n "${PANEL_PORT:-}" ] && [ "${PANEL_PORT}" != "8080" ]; then
-    PORTS+=("${PANEL_PORT}")
-fi
-
-# Every rule this step creates is recorded, and the uninstaller removes only what it finds
-# recorded. Closing all ten unconditionally on uninstall would take down whatever was
-# already listening on 80, 443 or 8080 before JozmozDNS was installed here.
-FIREWALL_MARKER="${INSTALL_DIR}/.firewall-backup"
-
-if command -v ufw >/dev/null 2>&1; then
-    # `ufw status` is the wrong question, and it fails in the state that is by far the
-    # most common: on a stock Ubuntu box ufw is installed but inactive, and while it is
-    # inactive `ufw status` prints "Status: inactive" and nothing else — no rules at all.
-    # The guard that used to be here grepped that output, so it could never match. Every
-    # port looked new on every run, each install re-recorded all ten, and — the part that
-    # actually hurts — a port the operator had opened themselves was invisible to it, got
-    # recorded as ours, and was then closed by the uninstaller: exactly the outcome the
-    # comment above promises will not happen.
-    #
-    # `ufw show added` prints the rule definitions whether or not the firewall is running,
-    # in the same "ufw allow <spec>" form used to create them, so one snapshot taken before
-    # the loop is enough to tell someone else's rule from the ones opened here.
-    UFW_ADDED="$(ufw show added 2>/dev/null || true)"
-    for p in "${PORTS[@]}"; do
-        # Only an exact match counts as "already allowed". ufw keeps "allow 53" and
-        # "allow 53/tcp" as two separate rules, and `ufw delete allow 53` removes just the
-        # bare one, so adding the bare form alongside an operator's proto-qualified rule is
-        # safe — the delete on uninstall cannot reach theirs. Skipping on a partial match
-        # would be the unsafe choice: a host with only 53/tcp allowed would never get
-        # 53/udp, and the resolver would go deaf the moment the operator enables ufw.
-        if printf '%s\n' "${UFW_ADDED}" | grep -qxF "ufw allow ${p}"; then
-            continue
-        fi
-        if ufw allow "${p}" >/dev/null 2>&1; then
-            # `ufw allow` on a rule that already exists prints "Skipping adding existing
-            # rule" and still exits 0, so a repeat install must not read that as licence to
-            # append a second identical line. The uninstaller would then run the same delete
-            # twice and report double the rules it really removed.
-            if ! grep -qxF "ufw ${p}" "${FIREWALL_MARKER}" 2>/dev/null; then
-                echo "ufw ${p}" >> "${FIREWALL_MARKER}"
-            fi
-        fi
-    done
-    echo -e "  ${GREEN}✓ UFW firewall rules configured for all gaming & DNS ports.${NC}"
-elif command -v firewall-cmd >/dev/null 2>&1; then
-    # No equivalent fix is needed here: --query-port reads the permanent configuration
-    # directly and answers correctly whether or not firewalld is running, so a port the
-    # operator already opened is seen, skipped, and never recorded as ours.
-    for p in "${PORTS[@]}"; do
-        for proto in tcp udp; do
-            if firewall-cmd --permanent --query-port="${p}/${proto}" >/dev/null 2>&1; then
-                continue
-            fi
-            if firewall-cmd --permanent --add-port="${p}/${proto}" >/dev/null 2>&1; then
-                echo "firewalld ${p}/${proto}" >> "${FIREWALL_MARKER}"
+    # 3. Stop traditional competing DNS services ONLY if Port 53 on target_ip is occupied
+    if is_port_53_busy "$target_ip"; then
+        for d_svc in bind9 named dnsmasq unbound pdns pdns-recursor knot-resolver; do
+            if systemctl is-active --quiet "$d_svc" 2>/dev/null; then
+                echo -e "    ${YELLOW}Stopping competing DNS service: ${d_svc}...${NC}"
+                systemctl stop "$d_svc" 2>/dev/null || true
+                systemctl disable "$d_svc" 2>/dev/null || true
             fi
         done
-    done
-    firewall-cmd --reload >/dev/null 2>&1 || true
-    echo -e "  ${GREEN}✓ Firewalld rules configured.${NC}"
-else
-    echo -e "  ${YELLOW}No active firewall detected (skipping).${NC}"
-fi
-
-# ==============================================================================
-# STEP 4: DOMAIN & SSL (HTTPS) CONFIGURATION PROMPT
-# ==============================================================================
-echo ""
-echo -e "${CYAN}${BOLD}[4/6] Domain & HTTPS Security Setup...${NC}"
-echo -e "${YELLOW}┌────────────────────────────────────────────────────────────────────────┐${NC}"
-echo -e "${YELLOW}│ A panel domain with HTTPS is REQUIRED (Let's Encrypt).                 │${NC}"
-echo -e "${YELLOW}│ The dashboard is NOT reachable as a bare IP over plain HTTP.           │${NC}"
-echo -e "${YELLOW}└────────────────────────────────────────────────────────────────────────┘${NC}"
-
-# Helper for reading user input cleanly in piped or interactive bash.
-# Order: real terminal → /dev/tty → plain stdin. The plain-stdin fallback is
-# what keeps `curl | bash` and other non-tty runs from looping forever on a
-# mandatory question: without it, every read returns "" and a required-input
-# while-loop spins eternally (the exact failure seen in the field).
-ask_user() {
-    local prompt_msg="$1"
-    local default_val="$2"
-    local user_var=""
-
-    printf "%b" "${prompt_msg}" >&2
-    if [ -t 0 ]; then
-        read -r user_var || user_var=""
-    elif (exec </dev/tty) 2>/dev/null; then
-        read -r user_var </dev/tty 2>/dev/null || user_var=""
-    else
-        read -r user_var || user_var=""
     fi
 
-    if [ -z "${user_var}" ]; then
-        echo "${default_val}"
+    # 4. If Port 53 is still held on target_ip, terminate the specific occupying process
+    if is_port_53_busy "$target_ip"; then
+        local p53_owner
+        p53_owner=$(get_port_53_process "$target_ip")
+        echo -e "    ${YELLOW}Port 53 on ${target_ip:-system} is still held by '${p53_owner}'. Terminating listener...${NC}"
+
+        if [ "$p53_owner" = "systemd-resolve" ] || [ "$p53_owner" = "systemd-resolved" ]; then
+            systemctl stop systemd-resolved 2>/dev/null || true
+            systemctl disable systemd-resolved 2>/dev/null || true
+        fi
+
+        if command -v fuser >/dev/null 2>&1; then
+            fuser -k 53/udp >/dev/null 2>&1 || true
+            fuser -k 53/tcp >/dev/null 2>&1 || true
+        fi
+        if command -v lsof >/dev/null 2>&1; then
+            lsof -i :53 -t 2>/dev/null | xargs -r kill -9 >/dev/null 2>&1 || true
+        fi
+        sleep 1
+    fi
+
+    # 5. Guarantee /etc/resolv.conf is still valid
+    if ! grep -q "nameserver" /etc/resolv.conf 2>/dev/null; then
+        cat <<EOF > /etc/resolv.conf
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+options timeout:2 attempts:2
+EOF
+    fi
+
+    if is_port_53_busy "$target_ip"; then
+        echo -e "    ${YELLOW}⚠️  Warning: Port 53 is still occupied by $(get_port_53_process "$target_ip").${NC}"
     else
-        echo "${user_var}"
+        echo -e "    ${GREEN}✓ Port 53 successfully freed for ${target_ip:-all}!${NC}"
     fi
 }
 
-USER_DOMAIN=""
-USER_EMAIL=""
-IS_HTTPS=false
+# Helper: Install verified certificate files into JozmozDNS directories
+install_cert_files() {
+    local cert_src="$1"
+    local key_src="$2"
+    local domain="$3"
 
-# Panel exposure policy (mandatory): the dashboard is an admin surface and is
-# never served as a bare IP over plain HTTP. A domain + Let's Encrypt is
-# REQUIRED; the installer loops until a domain is provided. Skipping is not
-# offered (v2.2.0 installer contract).
-#
-# The existing config's domain is offered as the default so an upgrade only
-# needs Enter, and JozmozDNS_DOMAIN covers every shell with no terminal — an
-# offline bundle is often run from a provisioning script.
-EXISTING_DOMAIN=""
-if [ -f "${INSTALL_DIR}/config.json" ]; then
-    EXISTING_DOMAIN=$(sed -n 's/.*"domain":[[:space:]]*"\([^"]*\)".*/\1/p' "${INSTALL_DIR}/config.json" | head -1)
+    mkdir -p "${INSTALL_DIR}/certs/acme"
+    cp -L "$cert_src" "${INSTALL_DIR}/certs/cert.pem" 2>/dev/null || true
+    cp -L "$key_src" "${INSTALL_DIR}/certs/key.pem" 2>/dev/null || true
+    if [ -n "$domain" ]; then
+        cp -L "$cert_src" "${INSTALL_DIR}/certs/acme/${domain}.crt" 2>/dev/null || true
+        cp -L "$key_src" "${INSTALL_DIR}/certs/acme/${domain}.key" 2>/dev/null || true
+    fi
+    chmod 600 "${INSTALL_DIR}/certs/"*.pem "${INSTALL_DIR}/certs/acme/"* 2>/dev/null || true
+}
+
+# Helper: Verify if a domain has a valid, CA-signed certificate (not self-signed)
+is_valid_domain_cert() {
+    local domain="$1"
+    [ -z "$domain" ] && return 1
+
+    local c_path="${INSTALL_DIR}/certs/acme/${domain}.crt"
+    local k_path="${INSTALL_DIR}/certs/acme/${domain}.key"
+
+    if [ ! -s "$c_path" ] || [ ! -s "$k_path" ]; then
+        if [ -s "/etc/letsencrypt/live/${domain}/fullchain.pem" ] && [ -s "/etc/letsencrypt/live/${domain}/privkey.pem" ]; then
+            install_cert_files "/etc/letsencrypt/live/${domain}/fullchain.pem" "/etc/letsencrypt/live/${domain}/privkey.pem" "$domain"
+            c_path="${INSTALL_DIR}/certs/acme/${domain}.crt"
+            k_path="${INSTALL_DIR}/certs/acme/${domain}.key"
+        else
+            c_path="${INSTALL_DIR}/certs/cert.pem"
+            k_path="${INSTALL_DIR}/certs/key.pem"
+        fi
+    fi
+
+    [ ! -s "$c_path" ] && return 1
+    [ ! -s "$k_path" ] && return 1
+
+    # Check validity dates (at least 1 day left)
+    if ! openssl x509 -in "$c_path" -noout -checkend 86400 >/dev/null 2>&1; then
+        return 1
+    fi
+
+    # Check hostname covers domain in SAN or CN
+    if ! openssl x509 -in "$c_path" -noout -text 2>/dev/null | grep -E "DNS:${domain}([ ,]|$)|CN\s*=\s*${domain}([ ,]|$)" >/dev/null 2>&1; then
+        return 1
+    fi
+
+    # Check NOT self-signed (issuer != subject)
+    local subj iss
+    subj=$(openssl x509 -in "$c_path" -noout -subject 2>/dev/null | sed -e 's/^[[:space:]]*//' -e 's/subject= *//')
+    iss=$(openssl x509 -in "$c_path" -noout -issuer 2>/dev/null | sed -e 's/^[[:space:]]*//' -e 's/issuer= *//')
+    if [ -n "$subj" ] && [ "$subj" = "$iss" ]; then
+        return 1
+    fi
+
+    return 0
+}
+
+# Helper: Interactive Guided Wizard for manual SSL when Port 80 is occupied
+manual_ssl_wizard() {
+    local domain="$1"
+    local email="$2"
+    local public_ip="$3"
+    local reason="${4:-Port 80 is occupied}"
+
+    local TTY_DEV=""
+    if [ -t 0 ]; then
+        TTY_DEV=""
+    elif [ -e /dev/tty ]; then
+        TTY_DEV="/dev/tty"
+    else
+        echo -e "${YELLOW}  [!] Non-interactive session: Switching to Direct IP mode...${NC}"
+        USER_DOMAIN=""
+        USER_EMAIL=""
+        return 0
+    fi
+
+    while true; do
+        local occ_proc
+        occ_proc=$(get_port_80_process)
+        [ -z "$occ_proc" ] && occ_proc="unknown"
+
+        echo ""
+        echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
+        echo -e "${RED}${BOLD}  ⚠️  اخطار: صدور خودکار SSL روی پورت ۸۰ امکان‌پذیر نیست!${NC}"
+        echo -e "${YELLOW}      دلیل / Reason: ${reason}${NC}"
+        if [ "$occ_proc" != "unknown" ]; then
+            echo -e "${YELLOW}      پروسه اشغال‌کننده پورت ۸۰: ${CYAN}${BOLD}${occ_proc}${NC}"
+        fi
+        echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
+        echo -e "  دامنه: ${CYAN}${domain}${NC}"
+        echo -e "  پروتکل Let's Encrypt برای صدور خودکار (HTTP-01) به پورت 80 آزاد نیاز دارد."
+        echo -e "  لطفاً یکی از روش‌های زیر را برای دریافت یا تنظیم دستی سرتیفیکیت انتخاب کنید:\n"
+        echo -e "  ${CYAN}[1]${NC} ${GREEN}${BOLD}دریافت دستی با چالش DNS در Certbot (بدون نیاز به پورت ۸۰)${NC} ${YELLOW}★ توصیه می‌شود${NC}"
+        echo -e "      Certbot DNS-01 Challenge (با افزودن یک رکورد TXT در پنل کلودفلر/DNS دامنه)"
+        echo -e "  ${CYAN}[2]${NC} ${BOLD}توقف موقت پروسه اشغال‌کننده (${occ_proc}) و صدور خودکار SSL${NC}"
+        echo -e "      Temporarily stop '${occ_proc}', issue certificate, and restart it"
+        echo -e "  ${CYAN}[3]${NC} ${BOLD}معرفی مسیر فایل‌های سرتیفیکیت موجود روی سرور (.crt/.pem و .key)${NC}"
+        echo -e "      Specify paths to existing certificate and private key files on disk"
+        echo -e "  ${CYAN}[4]${NC} ${BOLD}پیست کردن مستقیم محتوای سرتیفیکیت و کلید در ترمینال${NC}"
+        echo -e "      Paste Certificate & Private Key PEM text directly into terminal"
+        echo -e "  ${CYAN}[5]${NC} ${YELLOW}${BOLD}انصراف از دامنه و استفاده از حالت IP مستقیم (Direct IP Mode)${NC}"
+        echo -e "      Switch to Direct IP mode with dedicated SSL certificate"
+        echo -e "  ${CYAN}[6]${NC} ${BOLD}بررسی مجدد وضعیت پورت ۸۰ (Retry)${NC}\n"
+
+        local wiz_choice=""
+        if [ -n "$TTY_DEV" ]; then
+            read -rp "  شماره گزینه مورد نظر را انتخاب کنید [1-6] (پیش‌فرض: 1): " wiz_choice < "$TTY_DEV" || true
+        else
+            read -rp "  شماره گزینه مورد نظر را انتخاب کنید [1-6] (پیش‌فرض: 1): " wiz_choice
+        fi
+        wiz_choice=$(echo "$wiz_choice" | tr -d '[:space:]')
+        [ -z "$wiz_choice" ] && wiz_choice="1"
+
+        case "$wiz_choice" in
+            1)
+                echo -e "\n${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}${BOLD}  دریافت سرتیفیکیت از طریق چالش DNS (Certbot DNS-01)${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "  راهنمای گام به گام:"
+                echo -e "  ۱. ابزار Certbot اجرا شده و یک نام و مقدار رکورد ${YELLOW}TXT${NC} تولید می‌کند."
+                echo -e "  ۲. وارد پنل مدیریت دامنه خود (مثلاً Cloudflare یا Arvan) شوید."
+                echo -e "  ۳. یک رکورد از نوع ${GREEN}TXT${NC} بسازید:"
+                echo -e "     - Name / Host:  ${GREEN}_acme-challenge.${domain}${NC} (یا فقط _acme-challenge)"
+                echo -e "     - Value / Text: (مقداری که Certbot در ادامه روی صفحه می‌نویسد)"
+                echo -e "     - TTL:          Auto یا 1 minute"
+                echo -e "  ۴. بعد از ذخیره رکورد در پنل، در همین ترمینال دکمه ${YELLOW}Enter${NC} را بزنید.\n"
+
+                # Ensure certbot is installed
+                if ! command -v certbot >/dev/null 2>&1; then
+                    echo -e "  ${YELLOW}در حال نصب ابزار Certbot...${NC}"
+                    if command -v apt-get >/dev/null 2>&1; then
+                        apt-get update -y -q || true
+                        apt-get install -y -q certbot || true
+                    elif command -v dnf >/dev/null 2>&1; then
+                        dnf install -y -q epel-release 2>/dev/null || true
+                        dnf install -y -q certbot || true
+                    elif command -v yum >/dev/null 2>&1; then
+                        yum install -y -q epel-release 2>/dev/null || true
+                        yum install -y -q certbot || true
+                    fi
+                fi
+
+                if ! command -v certbot >/dev/null 2>&1; then
+                    echo -e "  ${RED}خطا: امکان نصب خودکار Certbot فراهم نشد. لطفاً گزینه دیگری را انتخاب کنید.${NC}"
+                    continue
+                fi
+
+                local cb_mail="--register-unsafely-without-email"
+                if [ -n "$email" ]; then
+                    cb_mail="--email ${email} --no-eff-email"
+                fi
+
+                echo -e "  ${GREEN}در حال اجرای Certbot... لطفاً مراحل روی صفحه را دنبال کنید:${NC}\n"
+                if [ -n "$TTY_DEV" ]; then
+                    certbot certonly --manual --preferred-challenges dns -d "${domain}" ${cb_mail} --agree-tos < "$TTY_DEV" || true
+                else
+                    certbot certonly --manual --preferred-challenges dns -d "${domain}" ${cb_mail} --agree-tos || true
+                fi
+
+                local cb_live_cert="/etc/letsencrypt/live/${domain}/fullchain.pem"
+                local cb_live_key="/etc/letsencrypt/live/${domain}/privkey.pem"
+                if [ -f "$cb_live_cert" ] && [ -f "$cb_live_key" ]; then
+                    install_cert_files "$cb_live_cert" "$cb_live_key" "$domain"
+                    echo -e "\n  ${GREEN}✓ سرتیفیکیت Let's Encrypt با موفقیت صادر و نصب گردید!${NC}"
+                    return 0
+                else
+                    echo -e "\n  ${RED}سرتیفیکیت صادر نشد یا فرآیند توسط کاربر لغو گردید.${NC}"
+                fi
+                ;;
+            2)
+                echo -e "\n${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}${BOLD}  توقف موقت پروسه اشغال‌کننده (${occ_proc})${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                local stop_ok=""
+                if [ -n "$TTY_DEV" ]; then
+                    read -rp "  آیا اجازه می‌دهید پروسه '${occ_proc}' موقتاً متوقف شود؟ [y/N]: " stop_ok < "$TTY_DEV" || true
+                else
+                    read -rp "  آیا اجازه می‌دهید پروسه '${occ_proc}' موقتاً متوقف شود؟ [y/N]: " stop_ok
+                fi
+                if [[ "$stop_ok" =~ ^[yY] ]]; then
+                    systemctl stop "$occ_proc" 2>/dev/null || pkill -15 "$occ_proc" 2>/dev/null || true
+                    sleep 1
+                    if is_port_80_busy "$public_ip"; then
+                        echo -e "  ${RED}پورت ۸۰ روی ${public_ip} هنوز اشغال است! توقف سرویس انجام نشد.${NC}"
+                    else
+                        echo -e "  ${GREEN}✓ پورت ۸۰ روی ${public_ip} آزاد شد.${NC}"
+                        echo -e "  در حال صدور سرتیفیکیت Standalone..."
+
+                        if command -v certbot >/dev/null 2>&1; then
+                            local cb_mail="--register-unsafely-without-email"
+                            [ -n "$email" ] && cb_mail="--email ${email} --no-eff-email"
+                            certbot certonly --standalone --http-01-address "${public_ip}" -d "${domain}" ${cb_mail} --agree-tos --non-interactive 2>/dev/null || true
+                        fi
+
+                        local cb_live_cert="/etc/letsencrypt/live/${domain}/fullchain.pem"
+                        local cb_live_key="/etc/letsencrypt/live/${domain}/privkey.pem"
+                        if [ -f "$cb_live_cert" ] && [ -f "$cb_live_key" ]; then
+                            install_cert_files "$cb_live_cert" "$cb_live_key" "$domain"
+                            echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت دریافت و نصب شد!${NC}"
+                        elif [ -f "${INSTALL_DIR}/JozmozDNS" ]; then
+                            echo -e "  تلاش صدور از طریق موتور داخلی JozmozDNS..."
+                            timeout 20 "${INSTALL_DIR}/JozmozDNS" -server -domain "${domain}" -email "${email}" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
+                            if [ -f "${INSTALL_DIR}/certs/acme/${domain}.crt" ]; then
+                                install_cert_files "${INSTALL_DIR}/certs/acme/${domain}.crt" "${INSTALL_DIR}/certs/acme/${domain}.key" "$domain"
+                                echo -e "  ${GREEN}✓ سرتیفیکیت با موفقیت صادر و ذخیره شد!${NC}"
+                            fi
+                        fi
+
+                        echo -e "  در حال راه‌اندازی مجدد پروسه ${occ_proc}..."
+                        systemctl start "$occ_proc" 2>/dev/null || true
+
+                        if [ -f "${INSTALL_DIR}/certs/acme/${domain}.crt" ] || [ -f "${INSTALL_DIR}/certs/cert.pem" ]; then
+                            return 0
+                        else
+                            echo -e "  ${RED}صدور خودکار ناموفق بود.${NC}"
+                        fi
+                    fi
+                fi
+                ;;
+            3)
+                echo -e "\n${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}${BOLD}  معرفی مسیر فایل‌های سرتیفیکیت موجود روی سرور${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                local in_cert="" in_key=""
+                if [ -n "$TTY_DEV" ]; then
+                    read -rp "  مسیر فایل Certificate (.crt یا .pem یا fullchain.pem): " in_cert < "$TTY_DEV" || true
+                    read -rp "  مسیر فایل Private Key (.key یا privkey.pem): " in_key < "$TTY_DEV" || true
+                else
+                    read -rp "  مسیر فایل Certificate (.crt یا .pem یا fullchain.pem): " in_cert
+                    read -rp "  مسیر فایل Private Key (.key یا privkey.pem): " in_key
+                fi
+                in_cert=$(echo "$in_cert" | tr -d '[:space:]"'\''')
+                in_key=$(echo "$in_key" | tr -d '[:space:]"'\''')
+
+                if [ ! -f "$in_cert" ] || [ ! -f "$in_key" ]; then
+                    echo -e "  ${RED}خطا: فایل‌های مشخص‌شده یافت نشدند!${NC}"
+                else
+                    install_cert_files "$in_cert" "$in_key" "$domain"
+                    echo -e "  ${GREEN}✓ سرتیفیکیت و کلید اختصاصی با موفقیت اعمال شدند!${NC}"
+                    return 0
+                fi
+                ;;
+            4)
+                echo -e "\n${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}${BOLD}  پیست کردن مستقیم سرتیفیکیت و کلید در ترمینال${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════════════════${NC}"
+                echo -e "  متن کامل Certificate خود را پیست کنید (از -----BEGIN CERTIFICATE----- تا -----END CERTIFICATE-----)."
+                echo -e "  پس از پیست کردن، در خط جدید کلمه ${YELLOW}EOF${NC} را تایپ کرده و Enter بزنید:\n"
+                local cert_content=""
+                if [ -n "$TTY_DEV" ]; then
+                    while IFS= read -r line < "$TTY_DEV"; do
+                        [ "$line" = "EOF" ] && break
+                        cert_content="${cert_content}${line}"$'\n'
+                    done
+                else
+                    while IFS= read -r line; do
+                        [ "$line" = "EOF" ] && break
+                        cert_content="${cert_content}${line}"$'\n'
+                    done
+                fi
+
+                echo -e "\n  متن کامل Private Key خود را پیست کنید (از -----BEGIN PRIVATE KEY----- تا -----END PRIVATE KEY-----)."
+                echo -e "  پس از پیست کردن، در خط جدید کلمه ${YELLOW}EOF${NC} را تایپ کرده و Enter بزنید:\n"
+                local key_content=""
+                if [ -n "$TTY_DEV" ]; then
+                    while IFS= read -r line < "$TTY_DEV"; do
+                        [ "$line" = "EOF" ] && break
+                        key_content="${key_content}${line}"$'\n'
+                    done
+                else
+                    while IFS= read -r line; do
+                        [ "$line" = "EOF" ] && break
+                        key_content="${key_content}${line}"$'\n'
+                    done
+                fi
+
+                if echo "$cert_content" | grep -q "BEGIN CERTIFICATE" && echo "$key_content" | grep -q "PRIVATE KEY"; then
+                    local tmp_c="/tmp/pasted_cert_$$.crt"
+                    local tmp_k="/tmp/pasted_key_$$.key"
+                    echo "$cert_content" > "$tmp_c"
+                    echo "$key_content" > "$tmp_k"
+                    install_cert_files "$tmp_c" "$tmp_k" "$domain"
+                    rm -f "$tmp_c" "$tmp_k"
+                    echo -e "  ${GREEN}✓ سرتیفیکیت و کلید با موفقیت در JozmozDNS ذخیره شدند!${NC}"
+                    return 0
+                else
+                    echo -e "  ${RED}خطا: محتوای پیست‌شده ساختار استاندارد Certificate یا Private Key را ندارد.${NC}"
+                fi
+                ;;
+            5)
+                echo -e "\n  ${YELLOW}حالت دامنه لغو شد و سرور به حالت IP مستقیم (${public_ip}) تغییر یافت.${NC}"
+                USER_DOMAIN=""
+                USER_EMAIL=""
+                if [ -f "${INSTALL_DIR}/JozmozDNS" ]; then
+                    "${INSTALL_DIR}/JozmozDNS" -domain "none" -public-ip "${public_ip}" -bind "${public_ip}" >/dev/null 2>&1 || true
+                fi
+                return 0
+                ;;
+            6)
+                echo -e "\n  در حال بررسی مجدد پورت ۸۰ روی ${public_ip}..."
+                if ! is_port_80_busy "$public_ip"; then
+                    echo -e "  ${GREEN}✓ پورت ۸۰ روی ${public_ip} آزاد است!${NC}"
+                    return 0
+                else
+                    echo -e "  ${RED}پورت ۸۰ روی ${public_ip} هنوز اشغال است.${NC}"
+                fi
+                ;;
+            *)
+                echo -e "  ${RED}گزینه نامعتبر است.${NC}"
+                ;;
+        esac
+    done
+}
+
+# 3. Detect & Configure DNS Server Public IP
+echo -e "${CYAN}[1/5] Detecting server environment and all IP addresses...${NC}"
+
+# Detect existing IP in systemd service if available
+EXISTING_IP=""
+if [ -f "/etc/systemd/system/${SERVICE_NAME}.service" ]; then
+    EXISTING_IP=$(grep -oE -- '-public-ip\s+[^ ]+' "/etc/systemd/system/${SERVICE_NAME}.service" 2>/dev/null | awk '{print $2}' | tr -d '[:space:]' || true)
 fi
 
-echo ""
-echo -e "${BOLD}${YELLOW}Panel domain + HTTPS is REQUIRED.${NC}"
-echo -e "${YELLOW}The dashboard will NOT be reachable as a bare IP over plain HTTP.${NC}"
-echo -e "${YELLOW}Point an A record at ${PUBLIC_IP} first, then enter the domain.${NC}"
-echo ""
+# Collect all available server IPs
+declare -a DETECTED_IPS=()
+declare -a IP_LABELS=()
 
-if [ -n "${JozmozDNS_DOMAIN:-}" ]; then
-    if validate_domain "${JozmozDNS_DOMAIN}"; then
-        USER_DOMAIN="${JozmozDNS_DOMAIN}"
-        echo -e "  ${GREEN}✓ Using domain from JozmozDNS_DOMAIN: ${USER_DOMAIN}${NC}"
-    else
-        echo -e "${RED}[Error] JozmozDNS_DOMAIN='${JozmozDNS_DOMAIN}' is not a valid hostname.${NC}" >&2
-        echo -e "${YELLOW}Expected a bare name such as dns.example.com -- no scheme, port or path.${NC}" >&2
-        exit 1
-    fi
-else
-    _askTries=0
-    while [ -z "$USER_DOMAIN" ]; do
-        _askTries=$((_askTries + 1))
-        if [ "$_askTries" -gt 5 ]; then
-            echo -e "${RED}[Error] No panel domain provided after 5 attempts.${NC}" >&2
-            echo -e "${YELLOW}The panel cannot run without a domain (HTTPS is mandatory).${NC}" >&2
-            echo -e "${YELLOW}Point an A record at this server, then re-run: sudo ./install.sh${NC}" >&2
-            exit 1
+# 1. External Public WAN IPv4
+WAN_IP=$(curl -4 -s --connect-timeout 4 https://api.ipify.org 2>/dev/null || \
+         curl -4 -s --connect-timeout 4 https://ifconfig.me 2>/dev/null || true)
+WAN_IP=$(echo "$WAN_IP" | tr -d '[:space:]')
+if [[ "$WAN_IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && [ "$WAN_IP" != "127.0.0.1" ]; then
+    DETECTED_IPS+=("$WAN_IP")
+    IP_LABELS+=("Public WAN")
+fi
+
+# 2. Local interface IPs via 'ip -4 -o addr show'
+if command -v ip >/dev/null 2>&1; then
+    while IFS= read -r line; do
+        ip_cand=$(echo "$line" | awk '{print $4}' | cut -d/ -f1)
+        if_cand=$(echo "$line" | awk '{print $2}')
+        if [ -z "$ip_cand" ] || [[ "$ip_cand" =~ ^127\. ]]; then
+            continue
         fi
-        _default=""
-        [ -n "${EXISTING_DOMAIN}" ] && _default="${EXISTING_DOMAIN}"
-        USER_DOMAIN=$(ask_user " ${BOLD}${CYAN}? Panel domain (A record -> ${PUBLIC_IP}) e.g. dns.example.com${_default:+ [$_default]}: ${NC}" "${_default}")
-        if [ -z "$USER_DOMAIN" ]; then
-            echo -e "${RED}  A domain is required to continue. The panel cannot run on HTTP/IP.${NC}"
-        elif ! validate_domain "$USER_DOMAIN"; then
-            echo -e "${RED}  '${USER_DOMAIN}' is not a valid hostname.${NC}"
-            echo -e "${YELLOW}  Enter a bare name such as dns.example.com -- no https://, no port, no path.${NC}"
-            USER_DOMAIN=""
+        is_dup=false
+        for cur in "${DETECTED_IPS[@]}"; do
+            if [ "$cur" = "$ip_cand" ]; then
+                is_dup=true
+                break
+            fi
+        done
+        if [ "$is_dup" = false ] && [[ "$ip_cand" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+            DETECTED_IPS+=("$ip_cand")
+            IP_LABELS+=("Interface: $if_cand")
+        fi
+    done < <(ip -4 -o addr show scope global 2>/dev/null || true)
+fi
+
+# 3. Fallback via hostname -I if no IPs found yet
+if [ ${#DETECTED_IPS[@]} -eq 0 ] && command -v hostname >/dev/null 2>&1; then
+    for hip in $(hostname -I 2>/dev/null || true); do
+        if [[ "$hip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] && [ "$hip" != "127.0.0.1" ]; then
+            DETECTED_IPS+=("$hip")
+            IP_LABELS+=("Local IP")
         fi
     done
 fi
-USER_EMAIL="${JozmozDNS_EMAIL:-}"
-if [ -z "${USER_EMAIL}" ]; then
-    USER_EMAIL=$(ask_user " ${BOLD}${CYAN}? Admin email for Let's Encrypt (optional, press Enter to skip): ${NC}" "")
+
+# 4. Fallback if still empty
+if [ ${#DETECTED_IPS[@]} -eq 0 ]; then
+    DETECTED_IPS+=("127.0.0.1")
+    IP_LABELS+=("Loopback")
 fi
 
-if [ -f "${INSTALL_DIR}/config.json" ]; then
-    sed -i "s/\"domain\": .*/\"domain\": \"${USER_DOMAIN}\",/" "${INSTALL_DIR}/config.json" || true
-    sed -i "s/\"email\": .*/\"email\": \"${USER_EMAIL}\",/" "${INSTALL_DIR}/config.json" || true
-    sed -i "s/\"auto_cert\": .*/\"auto_cert\": true,/" "${INSTALL_DIR}/config.json" || true
+# Determine default choice
+DEFAULT_IDX=1
+if [ -n "$EXISTING_IP" ]; then
+    for idx in "${!DETECTED_IPS[@]}"; do
+        if [ "${DETECTED_IPS[$idx]}" = "$EXISTING_IP" ]; then
+            DEFAULT_IDX=$((idx + 1))
+            break
+        fi
+    done
 fi
-IS_HTTPS=true
-echo -e "  ${GREEN}? Custom domain '${USER_DOMAIN}' configured with HTTPS (mandatory).${NC}"
+DEFAULT_IP="${DETECTED_IPS[$((DEFAULT_IDX - 1))]}"
 
-# ==============================================================================
-# STEP 4b: CERTIFICATE — ISSUED BY THE DAEMON AT FIRST START (v2.2.0)
-# ==============================================================================
-# The installer contract is an HTTPS-only panel, and the daemon refuses to
-# serve a self-signed fallback on a configured domain. v2.1 met that contract
-# by running acme.sh here, before the service started — because a standalone
-# client needs port 80 free, which the daemon's own SNI proxy would take.
-#
-# v2.2.0 removes that whole dance: the daemon carries its own ACME client
-# (embedded in the binary — nothing to install, works on an offline host the
-# moment it has internet) and serves the HTTP-01 challenge out of its own
-# running port-80 listener. Issuance therefore happens at first start, in
-# StartACMEIfNeeded, and renews itself daily from then on. This step is now
-# only the DNS propagation pre-check, so the operator learns about a missing
-# A record NOW rather than from a daemon that fail-closed at boot.
-echo ""
-echo -e "${CYAN}${BOLD}[4b/6] Verifying DNS for ${USER_DOMAIN} (the daemon issues its certificate at first start)...${NC}"
-if command -v dig >/dev/null 2>&1; then
-    _resolved=$(dig +short "${USER_DOMAIN}" A 2>/dev/null | tail -1)
-    if [ -n "${_resolved}" ] && [ "${_resolved}" != "${PUBLIC_IP}" ]; then
-        echo -e "${YELLOW}  Note: ${USER_DOMAIN} currently resolves to ${_resolved}, not ${PUBLIC_IP}.${NC}"
-        echo -e "${YELLOW}  The certificate cannot be issued until the A record points here; the daemon will keep retrying daily.${NC}"
-    elif [ -z "${_resolved}" ]; then
-        echo -e "${YELLOW}  Note: no A record found yet for ${USER_DOMAIN}.${NC}"
-        echo -e "${YELLOW}  Point it at ${PUBLIC_IP}; the daemon issues the certificate on its next start or daily retry.${NC}"
-    else
-        echo -e "  ${GREEN}✓ ${USER_DOMAIN} resolves to ${PUBLIC_IP}.${NC}"
-    fi
+if [ -n "$DNS_SERVER_IP" ]; then
+    PUBLIC_IP="$DNS_SERVER_IP"
+    echo -e "  Using DNS Server IP from environment: ${GREEN}${PUBLIC_IP}${NC}"
+elif [ -n "$CUSTOM_IP" ]; then
+    PUBLIC_IP="$CUSTOM_IP"
+    echo -e "  Using DNS Server IP from environment: ${GREEN}${PUBLIC_IP}${NC}"
 else
-    echo -e "${YELLOW}  dig not available — skipping the A-record check. The daemon will verify at issuance time.${NC}"
+    echo -e "\n  ${BOLD}Detected Server IP Addresses:${NC}"
+    for idx in "${!DETECTED_IPS[@]}"; do
+        num=$((idx + 1))
+        ip_val="${DETECTED_IPS[$idx]}"
+        ip_lbl="${IP_LABELS[$idx]}"
+        if [ "$num" -eq "$DEFAULT_IDX" ]; then
+            echo -e "    ${CYAN}[$num]${NC} ${GREEN}${BOLD}${ip_val}${NC} (${ip_lbl} - ${YELLOW}Default${NC})"
+        else
+            echo -e "    ${CYAN}[$num]${NC} ${GREEN}${BOLD}${ip_val}${NC} (${ip_lbl})"
+        fi
+    done
+    echo -e "    ${CYAN}[c]${NC} ${YELLOW}Enter custom IP manually (ورود دستی)${NC}\n"
+
+    USER_CHOICE=""
+    if [ -t 0 ]; then
+        read -rp "  Select an IP [1-${#DETECTED_IPS[@]}, or 'c' for manual] (Default: [${DEFAULT_IDX}] ${DEFAULT_IP}): " USER_CHOICE
+    elif [ -e /dev/tty ]; then
+        read -rp "  Select an IP [1-${#DETECTED_IPS[@]}, or 'c' for manual] (Default: [${DEFAULT_IDX}] ${DEFAULT_IP}): " USER_CHOICE < /dev/tty || true
+    fi
+
+    USER_CHOICE=$(echo "$USER_CHOICE" | tr -d '[:space:]"'\''')
+
+    if [ -z "$USER_CHOICE" ]; then
+        PUBLIC_IP="$DEFAULT_IP"
+    elif [[ "$USER_CHOICE" =~ ^[0-9]+$ ]] && [ "$USER_CHOICE" -ge 1 ] && [ "$USER_CHOICE" -le "${#DETECTED_IPS[@]}" ]; then
+        PUBLIC_IP="${DETECTED_IPS[$((USER_CHOICE - 1))]}"
+    elif [ "$USER_CHOICE" = "c" ] || [ "$USER_CHOICE" = "C" ] || [ "$USER_CHOICE" = "manual" ]; then
+        MANUAL_IP=""
+        if [ -t 0 ]; then
+            read -rp "  Enter custom DNS Server IP: " MANUAL_IP
+        elif [ -e /dev/tty ]; then
+            read -rp "  Enter custom DNS Server IP: " MANUAL_IP < /dev/tty || true
+        fi
+        MANUAL_IP=$(echo "$MANUAL_IP" | tr -d '[:space:]"'\''')
+        PUBLIC_IP="${MANUAL_IP:-$DEFAULT_IP}"
+    elif [[ "$USER_CHOICE" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        PUBLIC_IP="$USER_CHOICE"
+    else
+        echo -e "  ${YELLOW}Invalid selection, using default:${NC} ${DEFAULT_IP}"
+        PUBLIC_IP="$DEFAULT_IP"
+    fi
 fi
 
-# ==============================================================================
-# STEP 5: SYSTEMD SERVICE SETUP
-# ==============================================================================
-echo -e "${CYAN}${BOLD}[5/6] Creating & Starting Systemd Background Service...${NC}"
-cat << 'EOF' > /etc/systemd/system/JozmozDNS.service
+echo -e "\n  ${GREEN}✓ Confirmed DNS Server IP:${NC} ${CYAN}${BOLD}${PUBLIC_IP}${NC}"
+
+# Interactive Domain & SSL Configuration
+echo ""
+echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
+echo -e "${YELLOW}${BOLD}  ⚡ JozmozDNS Domain & SSL Configuration${NC}"
+echo -e "  Configured Server IP: ${GREEN}${PUBLIC_IP}${NC}"
+echo -e "${YELLOW}──────────────────────────────────────────────────────────${NC}"
+echo -e "  💡 You can enter a domain (with free Let's Encrypt SSL),"
+echo -e "     or press Enter to use the IP directly (Direct HTTPS on IP).\n"
+
+USER_DOMAIN=""
+if [ -t 0 ]; then
+    read -rp "  Enter Panel Domain (e.g. dns.example.com) [Press Enter for IP: ${PUBLIC_IP}]: " USER_DOMAIN
+elif [ -e /dev/tty ]; then
+    read -rp "  Enter Panel Domain (e.g. dns.example.com) [Press Enter for IP: ${PUBLIC_IP}]: " USER_DOMAIN < /dev/tty || true
+fi
+USER_DOMAIN=$(echo "$USER_DOMAIN" | tr -d '[:space:]')
+
+USER_EMAIL=""
+if [ -n "$USER_DOMAIN" ]; then
+    if [ -t 0 ]; then
+        read -rp "  Enter Admin Email for Let's Encrypt [admin@${USER_DOMAIN}]: " USER_EMAIL
+    elif [ -e /dev/tty ]; then
+        read -rp "  Enter Admin Email for Let's Encrypt [admin@${USER_DOMAIN}]: " USER_EMAIL < /dev/tty || true
+    fi
+    USER_EMAIL=$(echo "$USER_EMAIL" | tr -d '[:space:]')
+    if [ -z "$USER_EMAIL" ]; then
+        USER_EMAIL="admin@${USER_DOMAIN}"
+    fi
+    echo -e "  ${GREEN}✓ Domain configured:${NC} ${CYAN}${USER_DOMAIN}${NC} (${USER_EMAIL})"
+else
+    echo -e "  ${GREEN}✓ Direct IP Mode selected:${NC} ${CYAN}${PUBLIC_IP}${NC}"
+fi
+
+# 4. System dependencies
+echo -e "\n${CYAN}[2/5] Installing dependencies and freeing Port 53...${NC}"
+if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -y -q || true
+    apt-get install -y -q curl openssl lsof systemd iptables net-tools certbot psmisc 2>/dev/null || \
+    apt-get install -y -q curl openssl lsof systemd iptables net-tools psmisc || true
+elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y -q epel-release 2>/dev/null || true
+    dnf install -y -q curl openssl lsof systemd iptables net-tools certbot psmisc 2>/dev/null || \
+    dnf install -y -q curl openssl lsof systemd iptables net-tools psmisc || true
+elif command -v yum >/dev/null 2>&1; then
+    yum install -y -q epel-release 2>/dev/null || true
+    yum install -y -q curl openssl lsof systemd iptables net-tools certbot psmisc 2>/dev/null || \
+    yum install -y -q curl openssl lsof systemd iptables net-tools psmisc || true
+fi
+
+# Stop existing JozmozDNS instance so it does not falsely occupy ports or trigger conflicts
+systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
+
+# Check if Port 80 is occupied only when a domain was selected AND we don't already have a valid certificate
+if [ -n "$USER_DOMAIN" ] && ! is_valid_domain_cert "$USER_DOMAIN"; then
+    if is_port_80_busy "$PUBLIC_IP"; then
+        OCC_PROC=$(get_port_80_process "$PUBLIC_IP")
+        echo ""
+        echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
+        echo -e "${RED}${BOLD}  ⚠️  اخطار: پورت ۸۰ روی ${PUBLIC_IP} اشغال است! / Warning: Port 80 on ${PUBLIC_IP} is occupied!${NC}"
+        echo -e "${YELLOW}      پروسه در حال استفاده / Occupying Process: ${CYAN}${BOLD}${OCC_PROC}${NC}"
+        echo -e "${RED}${BOLD}────────────────────────────────────────────────────────────────────────${NC}"
+        echo -e "  پروتکل Let's Encrypt برای صدور خودکار SSL به پورت ۸۰ آزاد روی ${PUBLIC_IP} نیاز دارد."
+        echo -e "  چون این پورت اشغال است، لطفاً روش دریافت یا تنظیم دستی سرتیفیکیت را مشخص کنید.\n"
+
+        manual_ssl_wizard "$USER_DOMAIN" "$USER_EMAIL" "$PUBLIC_IP" "Port 80 on ${PUBLIC_IP} is occupied by ${OCC_PROC}"
+    fi
+fi
+
+# Free Port 53 for chosen IP
+free_port_53 "$PUBLIC_IP"
+
+# 5. Setup Installation Directories
+mkdir -p "$INSTALL_DIR"
+mkdir -p "$INSTALL_DIR/certs"
+mkdir -p "$INSTALL_DIR/rules"
+mkdir -p "$INSTALL_DIR/backups"
+
+IS_UPDATE=false
+if [ -f "$INSTALL_DIR/JozmozDNS" ] || [ -f "$INSTALL_DIR/data.db" ]; then
+    IS_UPDATE=true
+fi
+
+# 6. Install JozmozDNS Binary and Terminal Console
+echo -e "\n${CYAN}[3/5] Installing JozmozDNS binary and Terminal Console...${NC}"
+systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/jozmozdns" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
+
+CACHE_BUSTER=$(date +%s)
+echo -e "  Downloading latest JozmozDNS binary from GitHub..."
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "https://github.com/jozmoz/HyperDNS/releases/latest/download/jozmozdns-linux" 2>/dev/null || \
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/jozmozdns-linux?t=${CACHE_BUSTER}" 2>/dev/null || \
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/JozmozDNS-linux?t=${CACHE_BUSTER}" 2>/dev/null || true
+
+if [ ! -s "$INSTALL_DIR/jozmozdns" ] || [ ! -x "$INSTALL_DIR/jozmozdns" ]; then
+    echo -e "  ${YELLOW}Notice: Pre-built binary not found. Building directly from source via Go...${NC}"
+    if ! command -v go >/dev/null 2>&1; then
+        echo -e "  Installing Go build toolchain..."
+        if command -v apt-get >/dev/null 2>&1; then
+            apt-get update -y -q && apt-get install -y -q golang git
+        elif command -v dnf >/dev/null 2>&1; then
+            dnf install -y -q golang git
+        elif command -v yum >/dev/null 2>&1; then
+            yum install -y -q golang git
+        fi
+    fi
+    TMP_BUILD=$(mktemp -d)
+    echo -e "  Fetching repository sources..."
+    git clone --depth 1 https://github.com/jozmoz/HyperDNS.git "$TMP_BUILD"
+    (cd "$TMP_BUILD" && go build -trimpath -ldflags="-s -w" -o "$INSTALL_DIR/jozmozdns" ./cmd/jozmozdns)
+    rm -rf "$TMP_BUILD"
+fi
+
+chmod +x "$INSTALL_DIR/jozmozdns"
+ln -sf "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/JozmozDNS" 2>/dev/null || true
+ln -sf "$INSTALL_DIR" "/opt/jozmozdns" 2>/dev/null || true
+
+# Install management CLI menu
+curl -fsSL -o "/usr/local/bin/jozmozdns" "${REPO_RAW}/scripts/jozmozdns-menu.sh?t=${CACHE_BUSTER}" || \
+curl -fsSL -o "/usr/local/bin/jozmozdns" "${REPO_RAW}/scripts/JozmozDNS-menu.sh?t=${CACHE_BUSTER}"
+chmod +x "/usr/local/bin/jozmozdns"
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/jdns" 2>/dev/null || true
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/JozmozDNS" 2>/dev/null || true
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/jmdns" 2>/dev/null || true
+
+# 7. Generate dedicated SSL Certificate (covering IP and localhost)
+echo -e "\n${CYAN}[4/5] Configuring SSL Certificate and systemd service...${NC}"
+# Clean up any stale self-signed or invalid certs for domain so they don't block fresh ACME
+if [ -n "$USER_DOMAIN" ] && ! is_valid_domain_cert "$USER_DOMAIN"; then
+    rm -f "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.crt" "$INSTALL_DIR/certs/acme/${USER_DOMAIN}.key" 2>/dev/null || true
+fi
+
+if [ -n "$USER_DOMAIN" ] && is_valid_domain_cert "$USER_DOMAIN"; then
+    echo -e "  ${GREEN}✓ Valid CA-signed certificate found for ${USER_DOMAIN}!${NC}"
+else
+    OPENSSL_CNF="/tmp/openssl_JozmozDNS_$$.cnf"
+    cat <<EOF > "$OPENSSL_CNF"
+[req]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+x509_extensions = v3_req
+
+[dn]
+C = US
+O = JozmozDNS
+CN = ${USER_DOMAIN:-$PUBLIC_IP}
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = ${PUBLIC_IP}
+IP.2 = 127.0.0.1
+DNS.1 = localhost
+EOF
+
+    if [ -n "$USER_DOMAIN" ]; then
+        echo "DNS.2 = ${USER_DOMAIN}" >> "$OPENSSL_CNF"
+    fi
+
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout "$INSTALL_DIR/certs/key.pem" \
+        -out "$INSTALL_DIR/certs/cert.pem" \
+        -config "$OPENSSL_CNF" 2>/dev/null || \
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout "$INSTALL_DIR/certs/key.pem" \
+        -out "$INSTALL_DIR/certs/cert.pem" \
+        -subj "/CN=${USER_DOMAIN:-$PUBLIC_IP}/O=JozmozDNS" 2>/dev/null || true
+
+    rm -f "$OPENSSL_CNF"
+    chmod 600 "$INSTALL_DIR/certs/key.pem" "$INSTALL_DIR/certs/cert.pem" 2>/dev/null || true
+    echo -e "  ${GREEN}✓ Dedicated SSL certificate generated for IP ${PUBLIC_IP}!${NC}"
+fi
+
+# Enable nonlocal bind in kernel so JozmozDNS can bind to any designated IP address cleanly
+sysctl -w net.ipv4.ip_nonlocal_bind=1 >/dev/null 2>&1 || true
+mkdir -p /etc/sysctl.d 2>/dev/null || true
+echo "net.ipv4.ip_nonlocal_bind=1" > /etc/sysctl.d/99-JozmozDNS.conf 2>/dev/null || true
+
+# Ensure systemd service configuration (strictly bound to selected PUBLIC_IP)
+cat <<EOF > /etc/systemd/system/JozmozDNS.service
 [Unit]
-Description=JozmozDNS — Standalone SmartDNS & Gaming Gateway
-Documentation=https://github.com/IzumiRain/JozmozDNS
-After=network.target network-online.target
-Wants=network-online.target
+Description=JozmozDNS Standalone SmartDNS & Gaming Gateway
+After=network.target
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory=/opt/JozmozDNS
-RuntimeDirectory=JozmozDNS
-RuntimeDirectoryMode=0700
-
-# The daemon binds its root-local control socket at /run/JozmozDNS/control.sock.
-
-# Every path is named explicitly. The daemon can work them out on its own — it
-# probes for /opt/JozmozDNS and otherwise falls back to the working directory — but
-# a unit that states them is a unit an operator can read the state locations out
-# of, and it keeps being correct if the binary is ever installed elsewhere.
-ExecStart=/opt/JozmozDNS/JozmozDNS -daemon \
-    -config /opt/JozmozDNS/config.json \
-    -db /opt/JozmozDNS/data.db \
-    -key /opt/JozmozDNS/master.key
-
+WorkingDirectory=${INSTALL_DIR}
+ExecStart=${INSTALL_DIR}/JozmozDNS -server -public-ip ${PUBLIC_IP} -bind ${PUBLIC_IP}
 Restart=always
-RestartSec=3s
-TimeoutStopSec=15s
-SyslogIdentifier=JozmozDNS
-
-# 65535 because connection caps are what bound this daemon's stream listeners:
-# 512 on TCP, 1024 on DoT, 512 on HTTPS/DoH — 2048 sockets before UDP, the
-# upstream pool or the SNI relay's two-per-session pairs are counted at all.
-# Against a 1024 soft limit those caps never bind; accepts fail first.
+RestartSec=3
 LimitNOFILE=65535
-
-# Issuance is in-process since v2.2.0 (no certbot child), but the daemon
-# itself is the process most likely to be OOM-pressured on a 1 GB VPS, and the
-# default policy stops the whole unit when any process in its cgroup dies that
-# way. Ignored with a warning on systemd older than 243.
-OOMPolicy=continue
-
-# Deliberately NOT sandboxed further: the daemon binds 53/80/443/853 and now
-# performs its own ACME issuance in-process (writes only under
-# /opt/JozmozDNS/certs). The full note is in scripts/JozmozDNS.service in the
-# repository.
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# The heredoc above inherits the caller's umask, and a unit file is not a place to trust
-# it: under `umask 000` the redirect creates the file 0666, and a world-writable unit means
-# any local user can rewrite ExecStart and have systemd run it as root on the next boot.
-chmod 644 /etc/systemd/system/JozmozDNS.service
-
 systemctl daemon-reload
-systemctl enable JozmozDNS >/dev/null 2>&1
 
-# Mark the journal position BEFORE this start. The health step below reads the
-# daemon's own log lines to find the port and admin path it actually bound,
-# and the journal still carries every previous lifecycle — including a prior
-# install's "Dashboard : ... :<old-port>/" line. Reading -n 120 picked that
-# stale line up while the new daemon was still issuing its certificate, so the
-# probes spent their whole budget hammering a port nothing was listening on
-# (observed: install said 55800, probes targeted 37823 and got 000).
-# The cursor is the exact monotonic position; the timestamp backs it up when a
-# cursor could not be captured. Both exclude a reinstall in the same boot,
-# which -b would not.
-BOOT_TIME=$(date +%s)
-BOOT_CURSOR="$(journalctl -u JozmozDNS -n 0 --show-cursor 2>/dev/null | sed -n 's/^-- cursor: //p')"
-export BOOT_CURSOR BOOT_TIME
+# 8. Initial Bootstrap & Service Startup
+echo -e "\n${CYAN}[5/5] Initializing JozmozDNS and starting background engine...${NC}"
+systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
+free_port_53 "$PUBLIC_IP"
 
-systemctl restart JozmozDNS
+BOOTSTRAP_LOG="$INSTALL_DIR/install.log"
+rm -f "$BOOTSTRAP_LOG"
 
-sleep 2
+if [ -n "$USER_DOMAIN" ]; then
+    if is_valid_domain_cert "$USER_DOMAIN"; then
+        echo -e "  Starting JozmozDNS engine with verified certificate for ${GREEN}${USER_DOMAIN}${NC}..."
+        timeout 10 "$INSTALL_DIR/JozmozDNS" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
+        pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
+    else
+        echo -e "  Configuring domain ${GREEN}${USER_DOMAIN}${NC} and setting up Let's Encrypt SSL..."
+        timeout 20 "$INSTALL_DIR/JozmozDNS" -server -domain "$USER_DOMAIN" -email "$USER_EMAIL" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
+        pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 
-# ==============================================================================
-# STEP 6: VERIFICATION & COMPLETION BANNER
-# ==============================================================================
-echo -e "${CYAN}${BOLD}[6/6] Verifying Service Health...${NC}"
+        # If automated issuance failed or timed out:
+        if ! is_valid_domain_cert "$USER_DOMAIN"; then
+            echo ""
+            echo -e "${YELLOW}────────────────────────────────────────────────────────────────────────${NC}"
+            echo -e "${YELLOW}⚠️  صدور خودکار سرتیفیکیت روی پورت ۸۰ کامل نشد!${NC}"
+            echo -e "    (احتمالاً پورت ۸۰ توسط فایروال مسدود است یا رکورد دامنه هنوز اعمال نشده است)"
+            echo -e "${YELLOW}────────────────────────────────────────────────────────────────────────${NC}"
+            manual_ssl_wizard "$USER_DOMAIN" "$USER_EMAIL" "$PUBLIC_IP" "Automated ACME verification failed on Port 80"
+        fi
+    fi
+else
+    echo -e "  Configuring direct IP mode with dedicated SSL..."
+    timeout 10 "$INSTALL_DIR/JozmozDNS" -server -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null > "$BOOTSTRAP_LOG" 2>&1 || true
+    pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
+fi
 
-# The service may need a few seconds to bind every listener. is-active is
-# polled rather than asked once — a single check two seconds after start
-# reported "ACTIVE" while the panel was still coming up, and on a fail-closed
-# start (no certificate) it reported success for a process systemd was about
-# to restart.
-SERVICE_UP=false
-for _hc in $(seq 1 20); do
-    if systemctl is-active --quiet JozmozDNS; then
-        SERVICE_UP=true
+# Enable and start the permanent background service safely
+pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
+free_port_53 "$PUBLIC_IP"
+systemctl daemon-reload || true
+systemctl enable "$SERVICE_NAME" >/dev/null 2>&1 || true
+echo -e "  Starting JozmozDNS background service via systemd..."
+systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME" 2>/dev/null || true
+
+# Wait for service to become active
+SVC_ACTIVE=false
+for i in 1 2 3 4 5 6 7; do
+    if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+        SVC_ACTIVE=true
         break
     fi
     sleep 1
 done
 
-if [ "${SERVICE_UP}" = true ]; then
-    echo -e "  ${GREEN}✓ JozmozDNS core engine is ACTIVE and RUNNING!${NC}"
-else
-    echo -e "  ${RED}✕ Service failed to start. Run 'journalctl -u JozmozDNS -n 50' to inspect.${NC}"
-    echo -e "  ${YELLOW}If the journal says the HTTPS certificate is not usable, the domain has no${NC}"
-    echo -e "  ${YELLOW}CA-signed certificate yet — see the issuance step above for the fix.${NC}"
-    exit 1
+if [ "$SVC_ACTIVE" = true ]; then
+    echo -e "  ${GREEN}✓ JozmozDNS service is active and running!${NC}"
 fi
 
-# Pull the hidden admin path AND the actual panel port out of the journal so
-# the banner and the health probes address the real listener. v2.2.0 draws a
-# random management port per install — probing a hardcoded 8443 reported a
-# healthy daemon as failed (curl 000, connection refused) on the first v2.2.0
-# field install.
-#
-# The dashboard line only prints AFTER the ACME issuance completes and the
-# listener binds — observed ~7s on a cold install, and the daemon advertises up
-# to 5m. A 5-second window therefore expired before the line existed, and the
-# port fell through to the config.json web_port below — which is the port the
-# install intended, not necessarily the one a restarted daemon actually bound
-# (a restart can re-draw it). Waiting for the real line is what keeps the
-# probes aimed at the live listener.
-ADMIN_PATH=""
-PANEL_PORT_LIVE=""
-# The wait below is exactly the ACME issuance window: the daemon requests a
-# Let's Encrypt certificate for the domain, completes the HTTP-01 challenge on
-# port 80, writes the pair, and only then binds the panel listener and prints
-# its "Dashboard :" line. That is the whole ~7s (up to 5m) the user stares at a
-# frozen prompt, so animate it and narrate the stage.
-spinner_start "Starting the daemon and issuing the ${USER_DOMAIN} certificate (Let's Encrypt)..."
-for _ in $(seq 1 40); do
-    _JOURNAL=""
-    if [ -n "${BOOT_CURSOR}" ]; then
-        _JOURNAL=$(journalctl -u JozmozDNS --no-pager --after-cursor="${BOOT_CURSOR}" 2>/dev/null)
-    fi
-    # Fall back to a time bound — never back to -n 120, which would re-read a
-    # previous install's port from this same boot.
-    if [ -z "${_JOURNAL}" ]; then
-        _JOURNAL=$(journalctl -u JozmozDNS --no-pager --since "@${BOOT_TIME}" 2>/dev/null)
-    fi
-    ADMIN_PATH=$(printf '%s' "${_JOURNAL}" | grep -oE "/[0-9a-f]{16}/dash/login" | tail -1 | cut -d'/' -f2)
-    PANEL_PORT_LIVE=$(printf '%s' "${_JOURNAL}" | grep -oE "Dashboard : https://0\.0\.0\.0:[0-9]+/" | grep -oE "[0-9]+" | tail -1)
-    [ -n "$ADMIN_PATH" ] && [ -n "$PANEL_PORT_LIVE" ] && break
-    # Narrate the issuance stage once the daemon has logged which one it is in,
-    # so the wait reads as progress rather than a hang.
-    case "$_" in
-        3)  spinner_msg "Requesting a certificate for ${USER_DOMAIN} (Let's Encrypt)...";;
-        10) spinner_msg "Completing the HTTP-01 challenge and validating the domain...";;
-        25) spinner_msg "Still issuing the certificate — Let's Encrypt can take up to 5 minutes...";;
-    esac
-    sleep 1
-done
-spinner_stop
-if [ -z "$PANEL_PORT_LIVE" ]; then
-    # Fall back to the stored config's web_port; the journal line only prints
-    # once per boot and an upgrade may have missed it in the window above.
-    PANEL_PORT_LIVE=$(python3 -c "import json;print(json.load(open('${INSTALL_DIR}/config.json'))['server'].get('web_port',''))" 2>/dev/null || true)
-fi
-[ -n "$PANEL_PORT_LIVE" ] && [ -n "${PANEL_PORT:-}" ] && PANEL_PORT="${PANEL_PORT_LIVE}"
+# Verify service is running, handle potential startup failure
+if [ "$SVC_ACTIVE" = false ]; then
+    SVC_ERR_LOG=$(journalctl -u "$SERVICE_NAME" -n 35 --no-pager 2>/dev/null || true)
 
-# End-to-end HTTPS health gate. Everything below is verified against the real
-# listener with the system trust store — no -k, no shortcuts. A 000 from curl
-# means the connection itself failed; a non-200 on the assets is the hidden-
-# namespace asset regression this gate exists to catch.
-HEALTH_OK=true
-HEALTH_DETAIL=""
-# One shared deadline for every probe below. The HTTPS listener is not up the
-# moment systemd reports the process active: on a cold install the daemon first
-# issues its Let's Encrypt certificate through the built-in ACME client
-# (observed ~7s, advertised up to 5m) and only then binds the panel port. A
-# single probe fired inside that window gets 000 — connection refused — and
-# reports an install that actually succeeded as a failure. That false negative
-# is what made the v2.2.0 install look broken while the daemon ran fine for
-# fifteen minutes behind it. Retrying until the listener answers fixes it: a
-# refused port returns in ~0ms, so a ready install pays no penalty, and a
-# genuinely broken one is held to this single budget instead of N x it.
-HEALTH_DEADLINE=$(( $(date +%s) + 120 ))
-if [ "$IS_HTTPS" = true ] && [ -n "$USER_DOMAIN" ] && [ -n "$ADMIN_PATH" ] && [ -n "$PANEL_PORT_LIVE" ]; then
-    _resolve="--resolve ${USER_DOMAIN}:${PANEL_PORT_LIVE}:127.0.0.1"
-    for _probe in "dash:${ADMIN_PATH}/dash/" "css:${ADMIN_PATH}/css/tailwind.purged.css" "js:${ADMIN_PATH}/js/app.js"; do
-        _name="${_probe%%:*}"
-        _path="${_probe#*:}"
-        _code=000
-        spinner_start "Verifying the HTTPS endpoint: ${_name} (https://${USER_DOMAIN}:${PANEL_PORT_LIVE}/${_path})"
-        while [ "$(date +%s)" -lt "${HEALTH_DEADLINE}" ]; do
-            # curl's -w already prints 000 on a connection failure, so a
-            # trailing `|| echo 000` only concatenates a second one and the
-            # failure line read "returned 000000". `|| true` keeps set -e
-            # quiet; the guard covers curl being absent entirely. A real
-            # 404/503 is left intact — that is the asset regression this gate
-            # exists to catch, and collapsing it to 000 would hide it.
-            _code=$(curl -sS ${_resolve} --connect-timeout 4 --max-time 8 -o /dev/null -w '%{http_code}' "https://${USER_DOMAIN}:${PANEL_PORT_LIVE}/${_path}" 2>/dev/null || true)
-            [ -n "${_code}" ] || _code=000
-            [ "${_code}" = "200" ] && break
-            # Narrate the wait: a 000 here is the normal pre-listener window,
-            # not a failure, and this is exactly where the user decides the
-            # install hung. Name the reason so it reads as progress.
-            case "${_code}" in
-                000) spinner_msg "Waiting for the HTTPS listener (the certificate is being issued for ${USER_DOMAIN})...";;
-                *)   spinner_msg "Endpoint returned ${_code}, expected 200 — re-checking...";;
-            esac
-            sleep 3
+    # Check if the failure was caused by Port 53 collision
+    if echo "$SVC_ERR_LOG" | grep -iqE "bind: address already in use|bind DNS UDP.*:53|bind DNS TCP.*:53"; then
+        echo -e "\n${YELLOW}⚠️  تشخیص: پورت ۵۳ هنوز آزاد نشده بود. در حال آزادسازی اجباری و راه‌اندازی مجدد...${NC}"
+        free_port_53 "$PUBLIC_IP"
+        systemctl restart "$SERVICE_NAME" 2>/dev/null || true
+        for i in 1 2 3 4 5; do
+            if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+                SVC_ACTIVE=true
+                echo -e "  ${GREEN}✓ سرویس JozmozDNS با موفقیت شروع به کار کرد!${NC}"
+                break
+            fi
+            sleep 1
         done
-        spinner_stop
-        if [ "${_code}" = "200" ]; then
-            echo -e "  ${GREEN}✓ HTTPS ${_name} endpoint verified on port ${PANEL_PORT_LIVE} (200, trusted certificate).${NC}"
-        else
-            echo -e "  ${RED}✕ HTTPS ${_name} endpoint returned ${_code} (expected 200, port ${PANEL_PORT_LIVE}).${NC}"
-            HEALTH_OK=false
-            HEALTH_DETAIL="https://${USER_DOMAIN}:${PANEL_PORT_LIVE}/${_path}"
+    fi
+
+    # If still not active after port 53 retry
+    if [ "$SVC_ACTIVE" = false ]; then
+        echo -e "\n${RED}⚠️  سرویس JozmozDNS فعال نشد! در حال بررسی لاگ‌های سیستم...${NC}"
+        echo "$SVC_ERR_LOG" | tail -15
+        echo ""
+        if echo "$SVC_ERR_LOG" | grep -iqE "tls:|certificate|x509|acme" && [ -n "$USER_DOMAIN" ] && [ -t 0 -o -e /dev/tty ]; then
+            echo -e "${YELLOW}به دلیل خطای تایید سرتیفیکیت دامنه، آیا مایلید موقتاً با IP مستقیم (${PUBLIC_IP}) و SSL اختصاصی IP راه‌اندازی شود؟ [y/N]: ${NC}"
+            fb_mode="N"
+            if [ -t 0 ]; then
+                read -rp "  انتخاب [y/N]: " fb_mode
+            elif [ -e /dev/tty ]; then
+                read -rp "  انتخاب [y/N]: " fb_mode < /dev/tty || true
+            fi
+            if [[ "$fb_mode" =~ ^[yY] ]]; then
+                USER_DOMAIN=""
+                "$INSTALL_DIR/JozmozDNS" -domain "none" -public-ip "$PUBLIC_IP" -bind "$PUBLIC_IP" < /dev/null >/dev/null 2>&1 || true
+                pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
+                free_port_53 "$PUBLIC_IP"
+                systemctl restart "$SERVICE_NAME" 2>/dev/null || true
+                sleep 2
+            fi
         fi
-    done
-elif [ "$IS_HTTPS" = true ] && [ -n "$USER_DOMAIN" ] && [ -z "$PANEL_PORT_LIVE" ]; then
-    echo -e "  ${YELLOW}⚠ Could not read the panel port from the journal — skipping the URL probes.${NC}"
-elif [ "$IS_HTTPS" = true ] && [ -n "$USER_DOMAIN" ]; then
-    echo -e "  ${YELLOW}⚠ Could not read the admin path from the journal — skipping the URL probes.${NC}"
+    fi
+fi
+sleep 1
+
+# Read Credentials and Dashboard Link
+echo -e "  Reading credentials and dashboard access information..."
+LOG_CONTENT=$(cat "$BOOTSTRAP_LOG" 2>/dev/null || true)
+SYSTEMD_LOG=$(journalctl -u "$SERVICE_NAME" -n 80 --no-pager 2>/dev/null || true)
+FULL_LOG="${LOG_CONTENT}
+${SYSTEMD_LOG}"
+
+# Check previously saved credentials if any
+SAVED_USER=""
+SAVED_PASS=""
+SAVED_URL=""
+if [ -f "$INSTALL_DIR/credentials.txt" ]; then
+    SAVED_USER=$(grep -E "^username\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+    SAVED_PASS=$(grep -E "^password\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+    SAVED_URL=$(grep -E "^admin_url\s*:" "$INSTALL_DIR/credentials.txt" 2>/dev/null | sed -e 's/^admin_url\s*:\s*//' | tr -d '[:space:]' || true)
 fi
 
-if [ "${HEALTH_OK}" != true ]; then
-    echo ""
-    echo -e "${RED}${BOLD}  ✕ HEALTH CHECK FAILED — the install is NOT complete.${NC}"
-    echo -e "${YELLOW}  Failing probe: ${HEALTH_DETAIL:-see above}${NC}"
-    echo -e "${YELLOW}  Inspect:  journalctl -u JozmozDNS -n 80 --no-pager${NC}"
-    echo -e "${YELLOW}  The most likely cause is a DNS record that has not reached this server yet:${NC}"
-    echo -e "${YELLOW}  the daemon issues its own certificate at first start and retries daily.${NC}"
-    echo -e "${YELLOW}  Verify the A record for ${USER_DOMAIN} points at ${PUBLIC_IP} and that port 80${NC}"
-    echo -e "${YELLOW}  is open to the internet, then:  systemctl restart JozmozDNS${NC}"
-    exit 1
-fi
-
-echo ""
-echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN}${BOLD}       🎉 JozmozDNS OFFLINE INSTALLATION COMPLETED SUCCESSFULLY!       ${NC}"
-echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${NC}"
-echo ""
-
-if [ "$IS_HTTPS" = true ] && [ -n "$USER_DOMAIN" ]; then
+DASH_URL=$(echo "$FULL_LOG" | grep -iE "(JozmozDNS|JozmozDNS) Dashboard" | tail -1 | sed -e 's/.*Dashboard : //I' | tr -d '[:space:]' || true)
+if [ -z "$DASH_URL" ]; then
+    ADMIN_PATH=$(echo "$FULL_LOG" | grep -oE "https?://[^ ]+/[a-f0-9]{16}/dash/login" | tail -1 || true)
     if [ -n "$ADMIN_PATH" ]; then
-        echo -e "  ${BOLD}?? Web Dashboard (HTTPS):${NC}  ${CYAN}https://${USER_DOMAIN}:${PANEL_PORT:-8443}/${ADMIN_PATH}/dash/${NC}"
-        echo -e "  ${BOLD}?? Hidden admin path:${NC}      ${YELLOW}${ADMIN_PATH}${NC}  ${YELLOW}(recovered: journalctl -u JozmozDNS | grep 'admin panel path')${NC}"
-    else
-        echo -e "  ${BOLD}?? Web Dashboard (HTTPS):${NC}  ${CYAN}https://${USER_DOMAIN}:${PANEL_PORT:-8443}/<admin-path>/dash/${NC}"
-        echo -e "  ${BOLD}?? Hidden admin path:${NC}      read it with: ${YELLOW}journalctl -u JozmozDNS | grep 'admin panel path'${NC}"
+        DASH_URL="$ADMIN_PATH"
+    elif [ -n "$SAVED_URL" ]; then
+        DASH_URL="$SAVED_URL"
     fi
-    echo -e "  ${BOLD}?? Private DNS (DoT):${NC}      ${CYAN}${USER_DOMAIN}:853${NC}"
-    echo -e "  ${BOLD}?? DNS-over-HTTPS (DoH):${NC}   ${CYAN}https://${USER_DOMAIN}:9443/dns-query${NC}"
-else
-    _display_port="${PANEL_PORT:-8080}"
-    echo -e "  ${BOLD}?? Web Dashboard:${NC}          ${CYAN}bound to 127.0.0.1:${_display_port} ONLY (no domain configured)${NC}"
-    echo -e "  ${BOLD}?? Reach it via tunnel:${NC}    ${CYAN}ssh -L ${_display_port}:127.0.0.1:${_display_port} root@${PUBLIC_IP}${NC} then open http://127.0.0.1:${_display_port}/<admin-path>/dash/"
-    echo -e "${YELLOW}  ??  Panel is NOT exposed publicly without a domain+HTTPS - by design.${NC}"
 fi
 
-echo ""
-echo -e "  ${BOLD}👤 Default Username:${NC}       ${YELLOW}admin${NC}"
-if [ -n "${GENERATED_ADMIN_PASSWORD:-}" ]; then
-    echo -e "  ${BOLD}🔑 Generated Password:${NC}     ${YELLOW}${GENERATED_ADMIN_PASSWORD}${NC}"
-    echo -e "${YELLOW}     ⚠️  Shown once only — save it now, then change it in the Web UI.${NC}"
-    if [ -n "${GENERATED_API_KEY:-}" ]; then
-        echo -e "  ${BOLD}🗝️  Master API Key:${NC}        ${YELLOW}${GENERATED_API_KEY}${NC}"
-    fi
-else
-    echo -e "  ${BOLD}🔑 Password:${NC}               ${YELLOW}(unchanged — your existing password)${NC}"
+USERNAME=$(echo "$FULL_LOG" | grep -E "username\s*:" | tail -1 | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+if [ -z "$USERNAME" ]; then
+    USERNAME="${SAVED_USER:-admin}"
 fi
+
+PASSWORD=$(echo "$FULL_LOG" | grep -E "password\s*:" | tail -1 | awk -F':' '{print $2}' | tr -d '[:space:]' || true)
+if [ -z "$PASSWORD" ]; then
+    PASSWORD="$SAVED_PASS"
+fi
+
+# If password is still unknown (e.g. legacy upgrade where logs rotated), generate and apply a secure password
+if [ -z "$PASSWORD" ]; then
+    PASSWORD=$(openssl rand -hex 12 2>/dev/null || date +%s%N | sha256sum | head -c 24)
+    systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+    "$INSTALL_DIR/JozmozDNS" -password "$PASSWORD" < /dev/null >/dev/null 2>&1 || true
+    systemctl start "$SERVICE_NAME" 2>/dev/null || true
+fi
+
+# Persist credentials securely
+cat <<CREDEOF > "$INSTALL_DIR/credentials.txt"
+username: ${USERNAME}
+password: ${PASSWORD}
+admin_url: ${DASH_URL}
+CREDEOF
+chmod 600 "$INSTALL_DIR/credentials.txt"
+
+# 10. Installation Success Banner
 echo ""
-echo -e "  ${BOLD}🎮 Dedicated Primary DNS IP:${NC} ${CYAN}${PUBLIC_IP}${NC}"
-echo -e "  ${BOLD}🖥️  Terminal console:${NC}       run ${PURPLE}jmdns${NC} anytime — it talks to the running service over its control socket (live telemetry, stop/start/uninstall included); ${PURPLE}jmdns status${NC} and ${PURPLE}jmdns flush${NC} also work beside the daemon"
-echo -e "  ${BOLD}📂 Config File Location:${NC}   ${YELLOW}/opt/JozmozDNS/config.json${NC}"
+echo -e "${GREEN}${BOLD}========================================================================${NC}"
+if [ "$IS_UPDATE" = true ]; then
+    echo -e "${GREEN}${BOLD}       🎉 JozmozDNS Successfully Updated & Configured!                  ${NC}"
+else
+    echo -e "${GREEN}${BOLD}          🎉 JozmozDNS Successfully Installed and Running!             ${NC}"
+fi
+echo -e "${GREEN}${BOLD}========================================================================${NC}"
 echo ""
-echo -e "${GREEN}${BOLD}══════════════════════════════════════════════════════════════════════${NC}"
+echo -e "  ${BOLD}Status:${NC}        ${GREEN}● ONLINE (Active)${NC}"
+if [ -n "$DASH_URL" ]; then
+    echo -e "  ${BOLD}Web Dashboard:${NC}  ${CYAN}${DASH_URL}${NC}"
+else
+    echo -e "  ${BOLD}Web Dashboard:${NC}  ${CYAN}https://${USER_DOMAIN:-$PUBLIC_IP}:8080/<admin-path>/dash/login${NC}"
+fi
+
+echo -e "  ${BOLD}Admin Username:${NC} ${YELLOW}${USERNAME}${NC}"
+echo -e "  ${BOLD}Admin Password:${NC} ${YELLOW}${BOLD}${PASSWORD}${NC}"
+echo ""
+echo -e "  ${BOLD}DNS Server IP:${NC}  ${GREEN}${PUBLIC_IP}${NC}"
+if [ -n "$USER_DOMAIN" ]; then
+    echo -e "  ${BOLD}Domain & SSL:${NC}   ${CYAN}${USER_DOMAIN}${NC} (Let's Encrypt)"
+else
+    echo -e "  ${BOLD}Domain & SSL:${NC}   ${CYAN}${PUBLIC_IP}${NC} (Dedicated IP SSL Certificate)"
+fi
+echo -e "  ${BOLD}Terminal Menu:${NC}  Type ${PURPLE}jdns${NC} or ${PURPLE}jozmozdns${NC} (or ${PURPLE}jmdns${NC}) anywhere in your terminal"
+echo -e "${GREEN}========================================================================${NC}"
+echo ""
+echo -e "${CYAN}📌 برای مدیریت سرور، تغییر دامنه، مشاهده مشخصات یا آپدیت دستور زیر را وارد کنید:${NC}"
+echo -e "   ${PURPLE}${BOLD}jdns${NC}   ${NC}(یا ${PURPLE}jozmozdns${NC} / ${PURPLE}jmdns${NC})"
 echo ""

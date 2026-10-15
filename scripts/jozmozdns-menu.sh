@@ -826,37 +826,74 @@ EOF
 
 update_JozmozDNS() {
     echo -e "\n${BOLD}${CYAN}=== Update JozmozDNS from GitHub ===${NC}"
-    echo -e "Downloading latest release from: ${YELLOW}${REPO_RAW_URL}/JozmozDNS-linux${NC}..."
+    echo -e "Checking for latest release or building from repository..."
     
     local cache_buster
     cache_buster=$(date +%s)
     local tmp_file="/tmp/JozmozDNS_update_$$"
-    if curl -fsSL -o "$tmp_file" "${REPO_RAW_URL}/JozmozDNS-linux?t=${cache_buster}"; then
+    local updated=false
+
+    if curl -fsSL -o "$tmp_file" "https://github.com/jozmoz/HyperDNS/releases/latest/download/jozmozdns-linux" 2>/dev/null || \
+       curl -fsSL -o "$tmp_file" "${REPO_RAW_URL}/jozmozdns-linux?t=${cache_buster}" 2>/dev/null || \
+       curl -fsSL -o "$tmp_file" "${REPO_RAW_URL}/JozmozDNS-linux?t=${cache_buster}" 2>/dev/null; then
         chmod +x "$tmp_file"
+        updated=true
+    else
+        echo -e "${YELLOW}Pre-built binary not found. Compiling latest version from GitHub source...${NC}"
+        if ! command -v go >/dev/null 2>&1; then
+            echo -e "${CYAN}Installing Go toolchain...${NC}"
+            if command -v apt-get >/dev/null 2>&1; then
+                apt-get update -y -q && apt-get install -y -q golang git
+            elif command -v dnf >/dev/null 2>&1; then
+                dnf install -y -q golang git
+            elif command -v yum >/dev/null 2>&1; then
+                yum install -y -q golang git
+            fi
+        fi
+        local tmp_build="/tmp/jozmoz_build_$$"
+        rm -rf "$tmp_build"
+        if git clone --depth 1 https://github.com/jozmoz/HyperDNS.git "$tmp_build" 2>/dev/null; then
+            echo -e "${CYAN}Compiling binary with Go...${NC}"
+            if (cd "$tmp_build" && go build -trimpath -ldflags="-s -w" -o "$tmp_file" ./cmd/jozmozdns); then
+                chmod +x "$tmp_file"
+                updated=true
+            fi
+            rm -rf "$tmp_build"
+        fi
+    fi
+
+    if [ "$updated" = true ] && [ -s "$tmp_file" ]; then
         echo -e "${CYAN}Stopping JozmozDNS service...${NC}"
         systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+        pkill -9 -f "${INSTALL_DIR}/jozmozdns" 2>/dev/null || true
+        pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 
         echo -e "${CYAN}Replacing binary at ${BIN_PATH}...${NC}"
         cp "$tmp_file" "$BIN_PATH"
         chmod +x "$BIN_PATH"
         rm -f "$tmp_file"
 
-        if [ "$BIN_PATH" != "/opt/JozmozDNS/JozmozDNS" ] && [ -d "/opt/JozmozDNS" ]; then
-            cp "$BIN_PATH" "/opt/JozmozDNS/JozmozDNS" 2>/dev/null || true
+        if [ "$BIN_PATH" != "/opt/JozmozDNS/jozmozdns" ] && [ -d "/opt/JozmozDNS" ]; then
+            cp "$BIN_PATH" "/opt/JozmozDNS/jozmozdns" 2>/dev/null || true
+            chmod +x "/opt/JozmozDNS/jozmozdns" 2>/dev/null || true
         fi
+        ln -sf "$BIN_PATH" "/opt/JozmozDNS/JozmozDNS" 2>/dev/null || true
 
         # Also update the menu script itself
         echo -e "${CYAN}Updating management menu script...${NC}"
-        curl -fsSL -o /usr/local/bin/JozmozDNS "${REPO_RAW_URL}/scripts/JozmozDNS-menu.sh?t=${cache_buster}" 2>/dev/null || true
-        chmod +x /usr/local/bin/JozmozDNS 2>/dev/null || true
-        ln -sf /usr/local/bin/JozmozDNS /usr/local/bin/jmdns 2>/dev/null || true
+        curl -fsSL -o /usr/local/bin/jozmozdns "${REPO_RAW_URL}/scripts/jozmozdns-menu.sh?t=${cache_buster}" 2>/dev/null || \
+        curl -fsSL -o /usr/local/bin/jozmozdns "${REPO_RAW_URL}/scripts/JozmozDNS-menu.sh?t=${cache_buster}" 2>/dev/null || true
+        chmod +x /usr/local/bin/jozmozdns 2>/dev/null || true
+        ln -sf /usr/local/bin/jozmozdns /usr/local/bin/jdns 2>/dev/null || true
+        ln -sf /usr/local/bin/jozmozdns /usr/local/bin/jmdns 2>/dev/null || true
+        ln -sf /usr/local/bin/jozmozdns /usr/local/bin/JozmozDNS 2>/dev/null || true
 
         echo -e "${CYAN}Restarting JozmozDNS service...${NC}"
         free_port_53
-        systemctl restart "$SERVICE_NAME" || systemctl start "$SERVICE_NAME"
+        systemctl restart "$SERVICE_NAME" 2>/dev/null || systemctl start "$SERVICE_NAME" 2>/dev/null || true
         echo -e "\n${GREEN}${BOLD}✓ JozmozDNS and Management Menu updated to the latest version successfully!${NC}"
     else
-        echo -e "\n${RED}Failed to download updated binary from GitHub.${NC}"
+        echo -e "\n${RED}Failed to build or update binary from GitHub.${NC}"
         rm -f "$tmp_file"
     fi
     read -rp "Press Enter to continue..."
