@@ -403,6 +403,8 @@ func (h *Handler) ProcessQuery(r *dns.Msg, clientIP string, protocol ...string) 
 		if allowed && client != nil {
 			activeClient = client
 			accountName = client.Name
+		} else if clientIP == "127.0.0.1" || clientIP == "::1" || (h.publicIP != "" && clientIP == h.publicIP) {
+			accountName = "Localhost"
 		} else if !h.access.IsAllowAll() {
 			m := new(dns.Msg)
 			m.SetRcode(r, dns.RcodeRefused)

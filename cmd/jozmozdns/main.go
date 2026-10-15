@@ -62,6 +62,7 @@ func main() {
 	daemonMode := flag.Bool("daemon", false, "Run as background server engine (for systemd)")
 	serverMode := flag.Bool("server", false, "Run as background server engine")
 	showVersion := flag.Bool("version", false, "Print version information")
+	allowAllFlag := flag.Bool("allow-all", false, "Enable open public DNS resolver mode (allow all client IPs)")
 	flag.Parse()
 
 	if *showVersion {
@@ -282,6 +283,11 @@ func main() {
 		if err := db.GetSetting("allow_all", &allowAll); err != nil {
 			log.Fatalf("[Main] Could not read the persisted access mode: %v", err)
 		}
+	}
+	if *allowAllFlag {
+		allowAll = true
+		_ = db.SetSetting("allow_all", true)
+		log.Printf("[Main] Open public mode activated via -allow-all flag")
 	}
 
 	// Local-plaintext hygiene (v2.1.0 A-04 remediation): a backup of the master
