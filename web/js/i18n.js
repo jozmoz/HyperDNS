@@ -725,7 +725,7 @@
     'Choose': 'انتخاب کنید',
     'Custom': 'سفارشی',
     'and paste your DoH URL:': 'و آدرس DoH خود را بچسبانید:',
-    'https://your-server-ip:8443/dns-query': 'https://your-server-ip:8443/dns-query',
+    'https://your-server-ip:9443/dns-query': 'https://your-server-ip:9443/dns-query',
     /* --- toasts and confirmations raised from app.js --- */
     'Too many attempts. Try again later.': 'تلاش بیش از حد. بعداً دوباره امتحان کنید.',
     'wait fifteen minutes': 'پانزده دقیقه صبر کنید',

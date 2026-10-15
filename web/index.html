@@ -2682,7 +2682,7 @@ async function onBuySubscription(ctx, username) {
           </div>
 
           <!-- Custom DoH/DoT domain (empty = panel domain) — first, matching the title -->
-          <p class="text-[11px] font-bold text-cyan-300 mb-1.5">DNS TRANSPORTS (DoT :853 / DoH :8443)</p>
+          <p class="text-[11px] font-bold text-cyan-300 mb-1.5">DNS TRANSPORTS (DoT :853 / DoH :9443)</p>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <input type="text" id="dot-domain-input" aria-label="Custom DoH DoT domain" placeholder="Custom DoH, DoT domain (empty = panel domain)"
               class="sm:col-span-2 px-3 py-2 rounded-lg bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-cyan-400">
@@ -3042,7 +3042,7 @@ async function onBuySubscription(ctx, username) {
                 <li>Choose <strong>Custom</strong> and paste your DoH URL:</li>
               </ol>
               <div class="code-box cursor-pointer" data-copy-target="guide-doh-url" role="button" tabindex="0" aria-label="Copy DNS-over-HTTPS URL">
-                <span id="guide-doh-url">https://your-server-domain:8443/dns-query</span>
+                <span id="guide-doh-url">https://your-server-domain:9443/dns-query</span>
                 <i data-feather="copy" class="w-3.5 h-3.5 text-slate-400 hover:text-cyan-400 flex-shrink-0 ms-2"></i>
               </div>
             </div>

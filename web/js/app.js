@@ -800,7 +800,7 @@ function renderConfig(cfg) {
     // the scheme, the port and the host wrong in one string.
     const doh = (typeof cfg.doh_url === 'string' && cfg.doh_url)
       ? cfg.doh_url
-      : `http://${pubIP}:${(cfg.dns && cfg.dns.doh_port) || 8443}/dns-query`;
+      : `http://${pubIP}:${(cfg.dns && cfg.dns.doh_port) || 9443}/dns-query`;
     guideDohEl.innerText = doh;
     guideDohEl.title = doh;
   }

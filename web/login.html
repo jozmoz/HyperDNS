@@ -7,21 +7,6 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300f0ff' stroke-width='2'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3C/svg%3E">
   <title>JozmozDNS — Sign in</title>
-  <!--
-    Standalone login document (v2.1.0 Phase A).
-
-    This page deliberately does NOT load the dashboard bundle: before it existed,
-    the sign-in route served the full SPA shell to every unauthenticated visitor,
-    so the whole admin front-end — its markup, its API surface, its JS — was
-    readable pre-auth by anyone holding the namespace. This document is
-    self-contained: inline CSS and one small inline script, no external asset
-    requests at all, so there is nothing to load, nothing to fingerprint, and
-    nothing that phones home before the operator signs in.
-
-    The server replaces the value of the ADMIN_BASE variable below with the
-    install's hidden namespace ("/<16-hex>") at serve time; every fetch is built
-    from it.
-  -->
   <style>
     :root {
       --bg: #0b1220;
@@ -140,78 +125,71 @@
         <div class="brand-sub" data-i18n="sub">Standalone Controller</div>
       </div>
     </div>
-
     <form id="login-form" novalidate>
       <label for="login-username" data-i18n="username">Admin username</label>
       <input type="text" id="login-username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="admin" required>
-
       <label for="login-password" data-i18n="password">Password</label>
-      <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="••••••••••••" required>
-
+      <input type="password" id="login-password" name="password" autocomplete="current-password" placeholder="••••••••" required>
       <div id="login-2fa-row" class="hidden">
         <label for="login-code" data-i18n="twofa">Two-factor code</label>
         <input type="text" id="login-code" name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000">
       </div>
-
       <div id="login-error" class="error" role="alert" aria-live="assertive"></div>
-
       <button type="submit" id="login-submit" data-i18n="submit">Authenticate &amp; access</button>
     </form>
-
     <div class="foot">
       <button type="button" class="lang" id="lang-btn">فارسی</button>
       <span>JozmozDNS Secure Panel</span>
     </div>
   </main>
-
   <script>
     (function () {
       'use strict';
-
-      // The hidden namespace this install lives under: the server splices it in
-      // as the value of ADMIN_BASE below. Same shape the dashboard bundle
-      // derives from the address bar: exactly 16 lowercase hex characters.
       var ADMIN_BASE = "__HDNS_ADMIN_BASE__";
       var m = window.location.pathname.match(/^\/([0-9a-f]{16})(?=\/|$)/);
-      // The derived value wins when the page was reached at a matching path; the
-      // injected one covers odd proxy rewrites. An empty replacement (a root
-      // mount) degrades to the pre-v2.1 root paths.
       var BASE = m ? '/' + m[1] : ADMIN_BASE;
 
-      /* --- i18n (fa/en, client-side; no server round trip) ------------------- */
       var DICT = {
         en: {
           sub: 'Standalone Controller',
-          username: 'Admin username', password: 'Password', twofa: 'Two-factor code',
+          username: 'Admin username',
+          password: 'Password',
+          twofa: 'Two-factor code',
           submit: 'Authenticate & access',
-          errGeneric: 'Invalid credentials', errNet: 'Server connection failed',
+          errGeneric: 'Invalid credentials',
+          errNet: 'Server connection failed',
           errWait: 'Too many attempts. Wait a few minutes and try again.',
           errCode: 'Your password was accepted — enter the 6-digit code from your authenticator app.',
           switchTo: 'فارسی'
         },
         fa: {
-          sub: 'کنترل‌پنل مستقل',
-          username: 'نام کاربری مدیر', password: 'رمز عبور', twofa: 'کد دو‌مرحله‌ای',
-          submit: 'ورود به پنل',
-          errGeneric: 'نام کاربری یا رمز عبور اشتباه است', errNet: 'اتصال به سرور برقرار نشد',
-          errWait: 'تلاش‌های ناموفق زیاد است. چند دقیقه بعد دوباره امتحان کنید.',
-          errCode: 'رمز شما تأیید شد — کد ۶ رقمی اپلیکیشن احراز هویت را وارد کنید.',
+          sub: 'کنترلر مستقل هوشمند',
+          username: 'نام کاربری مدیر',
+          password: 'رمز عبور',
+          twofa: 'کد تایید دو مرحله‌ای',
+          submit: 'احراز هویت و ورود',
+          errGeneric: 'نام کاربری یا رمز عبور اشتباه است',
+          errNet: 'ارتباط با سرور برقرار نشد',
+          errWait: 'تلاش‌های ناموفق بیش از حد مجاز است. چند دقیقه صبر کنید.',
+          errCode: 'رمز عبور تایید شد — کد ۶ رقمی برنامه Authenticator را وارد کنید.',
           switchTo: 'English'
         }
       };
+
       var lang = 'en';
       try {
         lang = new URLSearchParams(window.location.search).get('lang')
+          || localStorage.getItem('JozmozDNS_lang')
           || localStorage.getItem('hdns_lang')
           || (navigator.language && navigator.language.indexOf('fa') === 0 ? 'fa' : 'en');
-      } catch (e) { /* storage blocked — default en */ }
+      } catch (e) {}
       if (lang !== 'fa') lang = 'en';
 
       function applyLang() {
         var t = DICT[lang];
         document.documentElement.lang = lang;
         document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
-        document.title = 'JozmozDNS — ' + (lang === 'fa' ? 'ورود' : 'Sign in');
+        document.title = 'JozmozDNS — ' + (lang === 'fa' ? 'ورود به پنل' : 'Sign in');
         var nodes = document.querySelectorAll('[data-i18n]');
         for (var i = 0; i < nodes.length; i++) {
           var k = nodes[i].getAttribute('data-i18n');
@@ -219,14 +197,17 @@
         }
         document.getElementById('lang-btn').textContent = t.switchTo;
       }
+
       document.getElementById('lang-btn').addEventListener('click', function () {
         lang = lang === 'fa' ? 'en' : 'fa';
-        try { localStorage.setItem('hdns_lang', lang); } catch (e) { /* private mode */ }
+        try {
+          localStorage.setItem('JozmozDNS_lang', lang);
+          localStorage.setItem('hdns_lang', lang);
+        } catch (e) {}
         applyLang();
       });
       applyLang();
 
-      /* --- Submit ------------------------------------------------------------ */
       var errBox = document.getElementById('login-error');
       var codeRow = document.getElementById('login-2fa-row');
       var submitBtn = document.getElementById('login-submit');
@@ -242,7 +223,6 @@
         var password = document.getElementById('login-password').value;
         var code = document.getElementById('login-code').value.trim();
         errBox.classList.remove('is-shown');
-
         submitBtn.disabled = true;
         fetch(BASE + '/api/auth/login', {
           method: 'POST',
@@ -255,8 +235,6 @@
               if (res.status === 429) {
                 showError(t.errWait);
               } else if (res.status === 401 && body && body.twofactor_required) {
-                // The password verified; the second factor is what failed. Reveal
-                // the code row and focus it — never shown on a plain wrong password.
                 codeRow.classList.remove('hidden');
                 document.getElementById('login-code').focus();
                 showError(t.errCode);
@@ -269,7 +247,10 @@
               showError(DICT[lang].errNet);
               return;
             }
-            try { localStorage.setItem('JozmozDNS_token', body.token); } catch (e2) { /* private mode */ }
+            try { 
+              localStorage.setItem('JozmozDNS_token', body.token);
+              localStorage.setItem('hdns_token', body.token); 
+            } catch (e2) {}
             window.location.replace(BASE + '/dash/home');
           });
         }).catch(function () {
@@ -279,7 +260,6 @@
         });
       });
 
-      // Focus the first empty field, for keyboard operators.
       var first = document.getElementById('login-username');
       if (first && !first.value) first.focus();
     })();
