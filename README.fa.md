@@ -1,7 +1,7 @@
 # ⚡ جزمز دی‌ان‌اس (JozmozDNS) — گیت‌وی گیمینگ و اسمارت دی‌ان‌اس اختصاصی ضدتحریم
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v2.3.0-00f0ff?style=for-the-badge&logo=rocket" alt="نسخه v2.3.0">
+  <img src="https://img.shields.io/badge/Release-v2.4.0-00f0ff?style=for-the-badge&logo=rocket" alt="نسخه v2.4.0">
   <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge" alt="وضعیت">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go 1.26">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary%20(Zero%20CGO)-a855f7?style=for-the-badge" alt="تک‌باینری بدون CGO">
@@ -15,7 +15,7 @@
 </p>
 
 > [!NOTE]
-> ### نسخهٔ ۲.۳.۰ — تغییر نام به JozmozDNS، نرم‌افزار دسکتاپ ویندوز با تانل کامل DNS سیستم و سازگاری FACEIT
+> ### نسخهٔ ۲.۴.۰ — تغییر نام به JozmozDNS، نرم‌افزار دسکتاپ ویندوز با تانل کامل DNS سیستم و سازگاری FACEIT
 > - **نرم‌افزار اختصاصی ویندوز با تانل کامل سیستم (System DNS Tunnel):** کلاینت دسکتاپ با استفاده از سیاست‌های NRPT ویندوز، بستن نشت‌های IPv6/Multi-Homed و مسدودسازی دور زدن پورت ۵۳، تمام ترافیک DNS سیستم را برای بازی‌های رقابتی و آنتی‌چیت‌هایی مثل **FACEIT Anti-Cheat** تانل و ایزوله می‌کند.
 > - **هوشمندی بازی‌های جدید (HGI):** افزوده‌شدن پریست‌های جامع EA FC 26، نینتندو سوییچ انلاین، CS2، والو (Valve CDN)، وار تاندر (War Thunder) و FACEIT.
 > - **کلاینت ACME توکار و Hot-Swap:** صدور و تمدید خودکار گواهینامه‌های SSL بدون نیاز به ری‌استارت سرویس.

@@ -1,7 +1,7 @@
 # ⚡ JozmozDNS — Standalone SmartDNS & Anti-Sanction Gaming Gateway
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v2.3.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
+  <img src="https://img.shields.io/badge/Release-v2.4.0-00f0ff?style=for-the-badge&logo=rocket" alt="Version">
   <img src="https://img.shields.io/badge/Status-Production--Ready-emerald?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Language-Go%201.26-00ADD8?style=for-the-badge&logo=go" alt="Go">
   <img src="https://img.shields.io/badge/Architecture-Single%20Binary%20(Zero%20CGO)-a855f7?style=for-the-badge" alt="Single Binary">
@@ -15,7 +15,7 @@
 </p>
 
 > [!NOTE]
-> ### v2.3.0 — JozmozDNS Rebrand, PC Desktop Client with Full System DNS Tunneling & Extended Gaming Presets
+> ### v2.4.0 — JozmozDNS Rebrand, PC Desktop Client with Full System DNS Tunneling & Extended Gaming Presets
 > - **Desktop PC App with Full System Tunneling**: Windows client enforces DNS resolution via Windows NRPT (Name Resolution Policy Table), neutralizes multi-homed / IPv6 DNS leaks, and blocks rogue UDP 53 bypasses — making competitive games and anti-cheats (like **FACEIT Anti-Cheat**) 100% stable without kernel-driver interference.
 > - **Extended Gaming Intelligence**: Added presets for EA FC 26, EA Services, Nintendo Switch Online, CS2, Valve CDN, War Thunder, and FACEIT.
 > - **Built-In ACME & Hot-Swap TLS**: In-process ACME client (RFC 8555) issues and automatically renews SSL certificates without restarting.
