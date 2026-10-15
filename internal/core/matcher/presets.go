@@ -539,6 +539,8 @@ var (
 		"*.discord.co",
 		"discord.gift",
 		"*.discord.gift",
+		"discord.gifts",
+		"*.discord.gifts",
 		"discord.new",
 		"*.discord.new",
 		"dis.gd",
@@ -558,7 +560,7 @@ var (
 		"discord-attachments-uploads-prd.storage.googleapis.com",
 	}
 
-	// Twitch: Live Streams & Chat
+	// Twitch: Live Streams, Chat & Amazon IVS Player CDN
 	PresetTwitch = []string{
 		"twitch.tv",
 		"*.twitch.tv",
@@ -568,14 +570,30 @@ var (
 		"*.jtvnw.net",
 		"twitchcdn.net",
 		"*.twitchcdn.net",
+		"twitchsvc.net",
+		"*.twitchsvc.net",
+		"ext-twitch.tv",
+		"*.ext-twitch.tv",
+		"live-video.net",
+		"*.live-video.net",
 	}
 
-	// Kick: Streaming Platform
+	// Kick: Streaming Platform, Amazon IVS Video & Pusher WebSocket Chat
 	PresetKick = []string{
 		"kick.com",
 		"*.kick.com",
 		"kickstream.com",
 		"*.kickstream.com",
+		"kickcdn.com",
+		"*.kickcdn.com",
+		"live-video.net",
+		"*.live-video.net",
+		"playback.live-video.net",
+		"*.playback.live-video.net",
+		"pusher.com",
+		"*.pusher.com",
+		"ws-us2.pusher.com",
+		"sockjs-us2.pusher.com",
 	}
 
 	// --- GOOGLE, AI & MAJOR SERVICES (v2.2.0) ---
@@ -682,10 +700,16 @@ var (
 		"*.scdn.co",
 		"spotifycdn.com",
 		"*.spotifycdn.com",
+		"pscdn.co",
+		"*.pscdn.co",
 		"spoti.fi",
 		"*.spoti.fi",
+		"byspotify.com",
+		"*.byspotify.com",
 		"audio-ak-spotify-com.akamaized.net",
 		"*.audio-ak-spotify-com.akamaized.net",
+		"heads4-ak-spotify-com.akamaized.net",
+		"*.heads4-ak-spotify-com.akamaized.net",
 	}
 
 	// --- DEVELOPER & AI POLICIES ---

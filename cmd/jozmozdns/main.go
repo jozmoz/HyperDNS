@@ -217,7 +217,7 @@ func main() {
 		RiotRTMPort:         2099,
 		RiotPatcherPort:     8393,
 		Timeout:             120 * time.Second,
-		EnableFragmentation: true,
+		EnableFragmentation: false,
 		FragmentSize:        2,
 		FragmentDelayMs:     5,
 	}

@@ -881,11 +881,8 @@ function renderConfig(cfg) {
   setSwitch('preset-sports-racing', cfg.rules.enable_sports_racing);
   setSwitch('preset-coop-survival', cfg.rules.enable_coop_survival);
   setSwitch('preset-platforms-extra', cfg.rules.enable_platforms_extra);
-  // One switch drives both music presets: the card is labelled "Spotify &
-  // SoundCloud" and its copy promises SoundCloud CDN streams, but only
-  // enable_spotify was ever sent, so SoundCloud could not be toggled from the
-  // dashboard at all. Shown as on when either category is on.
-  setSwitch('preset-spotify', cfg.rules.enable_spotify || cfg.rules.enable_soundcloud);
+  setSwitch('preset-spotify', cfg.rules.enable_spotify);
+  setSwitch('preset-soundcloud', cfg.rules.enable_soundcloud);
   setSwitch('preset-twitch', cfg.rules.enable_twitch);
   setSwitch('preset-kick', cfg.rules.enable_kick);
   setSwitch('preset-google', cfg.rules.enable_google);
@@ -993,7 +990,7 @@ async function saveRules() {
     enable_coop_survival: getSwitch('preset-coop-survival'),
     enable_platforms_extra: getSwitch('preset-platforms-extra'),
     enable_spotify: getSwitch('preset-spotify'),
-    enable_soundcloud: getSwitch('preset-spotify'),
+    enable_soundcloud: getSwitch('preset-soundcloud'),
     enable_twitch: getSwitch('preset-twitch'),
     enable_kick: getSwitch('preset-kick'),
     enable_google: getSwitch('preset-google'),
@@ -3038,7 +3035,7 @@ function initEventListeners() {
   });
 
   document.getElementById('profile-streamer-btn')?.addEventListener('click', () => {
-    ['preset-discord', 'preset-twitch', 'preset-kick', 'preset-spotify'].forEach(id => {
+    ['preset-discord', 'preset-twitch', 'preset-kick', 'preset-spotify', 'preset-soundcloud'].forEach(id => {
       setSwitch(id, true);
     });
     saveRules();
@@ -3064,7 +3061,7 @@ function initEventListeners() {
     'preset-discord', 'preset-ea', 'preset-blizzard', 'preset-ubisoft', 'preset-rockstar', 
     'preset-xbox', 'preset-playstation', 'preset-nintendo', 'preset-roblox',
     'preset-shooters-extra', 'preset-anime-gacha', 'preset-sports-racing', 'preset-coop-survival', 'preset-platforms-extra',
-    'preset-spotify', 'preset-twitch', 'preset-kick', 
+    'preset-spotify', 'preset-soundcloud', 'preset-twitch', 'preset-kick', 
     'preset-dev403', 'preset-adblock', 'preset-familysafe',
     // Deliberately absent from every Quick Action profile above: "Pro Gamer" turning
     // this on with one click is the exact bill nobody expects. It is opt-in only.
