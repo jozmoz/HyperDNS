@@ -270,6 +270,13 @@ func TestWarThunderMatchmakerIsForcedDirect(t *testing.T) {
 		"char.gaijinent.com",
 		"char-wt.gaijinent.com",
 		"matcher-wt.gaijinent.com",
+		"char-lw-nl-005-2.warthunder.com",
+		"chat-lw-nl-04.warthunder.com",
+		"mgate-nl-01.warthunder.com",
+		"circuit-1.warthunder.com",
+		"matchmaking.warthunder.com",
+		"cluster.warthunder.com",
+		"client-stats.warthunder.com",
 	} {
 		if rule := mustMatch(t, m, d, ActionDirect); rule != RuleUnproxyableDirect {
 			t.Errorf("Match(%q) rule = %q, want %q", d, rule, RuleUnproxyableDirect)

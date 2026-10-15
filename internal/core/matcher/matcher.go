@@ -517,6 +517,9 @@ func (m *Matcher) match(domain string, policies []string) (Action, string) {
 	if name, ok := m.realtime.lookup(d, f); ok {
 		return ActionDirect, name
 	}
+	if isWarThunderDirect(d) {
+		return ActionDirect, RuleUnproxyableDirect
+	}
 
 	// Game Intelligence Engine plane:
 	if m.gameDirect != nil {
@@ -812,5 +815,45 @@ func PolicyCatalog() []PolicyCatalogEntry {
 		})
 	}
 	return out
+}
+
+// isWarThunderDirect reports whether a domain is a War Thunder / Gaijin in-game
+// matchmaking, character, chat, or game server gateway. These communicate on
+// proprietary binary TCP 7800-7854, 5222, and UDP 20000-30000 without TLS/SNI.
+// Proxying them maps them to the VPS IP where nothing listens on those ports,
+// breaking game connections and profile loading. Direct routing lets them connect
+// straight to Gaijin clusters.
+func isWarThunderDirect(d string) bool {
+	if !strings.HasSuffix(d, ".warthunder.com") &&
+		!strings.HasSuffix(d, ".gaijin.net") &&
+		!strings.HasSuffix(d, ".gaijinent.com") {
+		return false
+	}
+
+	firstDot := strings.IndexByte(d, '.')
+	if firstDot <= 0 {
+		return false
+	}
+	label := d[:firstDot]
+
+	if strings.HasPrefix(label, "char-") ||
+		strings.HasPrefix(label, "chat-") ||
+		strings.HasPrefix(label, "mgate-") ||
+		strings.HasPrefix(label, "circuit-") ||
+		strings.HasPrefix(label, "matcher-") ||
+		label == "char" ||
+		label == "chat" ||
+		label == "matcher" ||
+		label == "matchmaking" ||
+		label == "matchmaker" ||
+		label == "cluster" ||
+		label == "game" ||
+		label == "wt-matchmaking" ||
+		label == "client-stats" ||
+		label == "telemetry" ||
+		label == "stat" {
+		return true
+	}
+	return false
 }
 
