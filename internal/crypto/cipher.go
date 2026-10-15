@@ -7,6 +7,7 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -19,15 +20,20 @@ var (
 	ErrDecryptionFailed   = errors.New("crypto: decryption failed (corrupted data or wrong key)")
 )
 
-// blindIndexInfo separates the lookup subkey from the master key. Reusing the
-// AES key for anything but AES-GCM is the classic way to weaken both, so the
-// index gets its own key derived through HKDF.
-const blindIndexInfo = "JozmozDNS:blind-index:v1"
+// blindIndexInfo separates the lookup subkey from the master key. Both the legacy
+// HyperDNS and current JozmozDNS domain separators are supported for 100% database
+// backward compatibility.
+const (
+	blindIndexInfoLegacy = "hyperdns:blind-index:v1"
+	blindIndexInfo       = "hyperdns:blind-index:v1"
+	blindIndexInfoNew    = "JozmozDNS:blind-index:v1"
+)
 
 // Cipher provides hardware-accelerated AES-256-GCM AEAD encryption/decryption.
 type Cipher struct {
-	aead   cipher.AEAD
-	macKey []byte
+	aead      cipher.AEAD
+	macKey    []byte
+	macKeyNew []byte
 }
 
 // NewCipher creates a new AES-256-GCM cipher instance from a 32-byte master key.
@@ -51,7 +57,9 @@ func NewCipher(key []byte) (*Cipher, error) {
 		return nil, fmt.Errorf("failed to derive the lookup subkey: %w", err)
 	}
 
-	return &Cipher{aead: gcm, macKey: macKey}, nil
+	macKeyNew, _ := hkdf.Key(sha256.New, key, nil, blindIndexInfoNew, 32)
+
+	return &Cipher{aead: gcm, macKey: macKey, macKeyNew: macKeyNew}, nil
 }
 
 // Encrypt encrypts plaintext using AES-256-GCM with a fresh random 12-byte nonce.
@@ -136,5 +144,34 @@ func (c *Cipher) BlindIndex(plaintext string) string {
 	mac := hmac.New(sha256.New, c.macKey)
 	mac.Write([]byte(plaintext))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+// BlindIndexNew returns the fingerprint derived using the new JozmozDNS domain separator.
+func (c *Cipher) BlindIndexNew(plaintext string) string {
+	if plaintext == "" || c == nil || len(c.macKeyNew) == 0 {
+		return ""
+	}
+	mac := hmac.New(sha256.New, c.macKeyNew)
+	mac.Write([]byte(plaintext))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+// MatchesBlindIndex returns true if storedMAC matches either the standard (legacy)
+// or new domain separator fingerprint.
+func (c *Cipher) MatchesBlindIndex(storedMAC, plaintext string) bool {
+	if plaintext == "" || storedMAC == "" || c == nil {
+		return false
+	}
+	want1 := c.BlindIndex(plaintext)
+	if subtle.ConstantTimeCompare([]byte(storedMAC), []byte(want1)) == 1 {
+		return true
+	}
+	if len(c.macKeyNew) > 0 {
+		want2 := c.BlindIndexNew(plaintext)
+		if subtle.ConstantTimeCompare([]byte(storedMAC), []byte(want2)) == 1 {
+			return true
+		}
+	}
+	return false
 }
 

@@ -408,8 +408,7 @@ func (db *DB) validateClient(bucketKey, data []byte) error {
 			if plain == "" {
 				return errors.New("client token is empty")
 			}
-			wantMAC := db.cipher.BlindIndex(plain)
-			if subtle.ConstantTimeCompare([]byte(enc.TokenMAC), []byte(wantMAC)) != 1 {
+			if !db.cipher.MatchesBlindIndex(enc.TokenMAC, plain) {
 				return errors.New("encrypted client token fingerprint does not match")
 			}
 		}
@@ -526,7 +525,8 @@ func (db *DB) FindClientByToken(token string) (*Client, error) {
 			// leading characters of a guessed token were correct.
 			switch {
 			case probe.TokenMAC != "" && len(wantMAC) > 0:
-				if subtle.ConstantTimeCompare([]byte(probe.TokenMAC), wantMAC) != 1 {
+				if subtle.ConstantTimeCompare([]byte(probe.TokenMAC), wantMAC) != 1 &&
+					subtle.ConstantTimeCompare([]byte(probe.TokenMAC), []byte(db.cipher.BlindIndexNew(token))) != 1 {
 					return nil
 				}
 			case probe.Token != "":
