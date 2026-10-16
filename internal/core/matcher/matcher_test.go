@@ -311,6 +311,40 @@ func TestSteamCloudSyncResolvesToProxy(t *testing.T) {
 	}
 }
 
+func TestGoogleAIAntigravityFlowResolveToProxy(t *testing.T) {
+	m := NewMatcher()
+
+	for _, d := range []string{
+		// Google AI Studio & Gemini
+		"aistudio.google.com",
+		"makersuite.google.com",
+		"gemini.google.com",
+		"ai.google.dev",
+		"generativelanguage.googleapis.com",
+		"aiplatform.googleapis.com",
+		"deepmind.google",
+		"deepmind.com",
+
+		// Google Antigravity & Agentic Developer Tools
+		"antigravity.google",
+		"googleantigravity.com",
+		"cloudaicompanion.googleapis.com",
+		"cloudcode-pa.googleapis.com",
+		"developerprofiles.google.com",
+
+		// Google Flow, Creative AI & Labs
+		"flow.google",
+		"flowmusic.google",
+		"labs.google",
+		"dialogflow.com",
+		"workflows.googleapis.com",
+		"tensorflow.org",
+	} {
+		mustMatch(t, m, d, ActionProxy)
+		mustMatchClient(t, m, d, []string{"enable_ai"}, ActionProxy)
+	}
+}
+
 // One domain, one home. The guard would keep working if a preset re-listed a
 // real-time name, so nothing would break — which is exactly why this needs a test:
 // the preset would claim to proxy something that never resolves to the proxy, and
