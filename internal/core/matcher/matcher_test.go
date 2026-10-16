@@ -328,6 +328,11 @@ func TestGoogleAIAntigravityFlowResolveToProxy(t *testing.T) {
 		// Google Antigravity & Agentic Developer Tools
 		"antigravity.google",
 		"googleantigravity.com",
+		"antigravity.googleapis.com",
+		"antigravity-pa.googleapis.com",
+		"antigravity-unleash.goog",
+		"aisandbox-pa.googleapis.com",
+		"alkalimakersuite-pa.googleapis.com",
 		"cloudaicompanion.googleapis.com",
 		"cloudcode-pa.googleapis.com",
 		"daily-cloudaicompanion.sandbox.googleapis.com",
@@ -346,6 +351,33 @@ func TestGoogleAIAntigravityFlowResolveToProxy(t *testing.T) {
 	} {
 		mustMatch(t, m, d, ActionProxy)
 		mustMatchClient(t, m, d, []string{"enable_ai"}, ActionProxy)
+	}
+}
+
+func TestNintendoSwitchConnectionTestIsForcedDirect(t *testing.T) {
+	m := NewMatcher()
+
+	for _, d := range []string{
+		"ctest.cdn.nintendo.net",
+		"conntest.nintendowifi.net",
+		"ctest-dl-lp1.cdn.nintendo.net",
+		"ctest-ul-lp1.cdn.nintendo.net",
+	} {
+		if rule := mustMatch(t, m, d, ActionDirect); rule != RuleUnproxyableDirect {
+			t.Errorf("Match(%q) rule = %q, want %q", d, rule, RuleUnproxyableDirect)
+		}
+		mustMatchClient(t, m, d, []string{"enable_nintendo"}, ActionDirect)
+	}
+
+	for _, d := range []string{
+		"nintendo.com",
+		"accounts.nintendo.com",
+		"nintendo.net",
+		"nintendowifi.net",
+		"nintendo.eu",
+	} {
+		mustMatch(t, m, d, ActionProxy)
+		mustMatchClient(t, m, d, []string{"enable_nintendo"}, ActionProxy)
 	}
 }
 

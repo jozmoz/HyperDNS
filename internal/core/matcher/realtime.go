@@ -137,6 +137,19 @@ var forcedDirectGroups = []forcedDirectGroup{
 			"*.char-wt.gaijinent.com",
 			"matcher-wt.gaijinent.com",
 			"*.matcher-wt.gaijinent.com",
+
+			// Nintendo Switch connection test endpoints (Akamai / Fastly CDN).
+			// Switch tests network connectivity via plain HTTP GET to these domains
+			// expecting an "ok" response. Proxying them adds latency and fails if port 80
+			// is bound or redirected. Keeping them direct guarantees instantaneous connection test.
+			"ctest.cdn.nintendo.net",
+			"*.ctest.cdn.nintendo.net",
+			"conntest.nintendowifi.net",
+			"*.conntest.nintendowifi.net",
+			"ctest-dl-lp1.cdn.nintendo.net",
+			"*.ctest-dl-lp1.cdn.nintendo.net",
+			"ctest-ul-lp1.cdn.nintendo.net",
+			"*.ctest-ul-lp1.cdn.nintendo.net",
 		},
 	},
 }
