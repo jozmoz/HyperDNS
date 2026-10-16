@@ -353,7 +353,73 @@ func DefaultSeedProfiles() []GameProfile {
 
 	addDomain(nintendoDomains, "receive-lp1.er.srv.nintendo.net", CategoryTelemetry, PolicyDirect, "nintendo", "Nintendo")
 
-	return []GameProfile{fc26, cs2, wt, nintendoProfile}
+	// 5. Google AI Suite (Antigravity, AI Studio, Flow)
+	googleAIDomains := map[string]DomainRecord{}
+	googleAI := GameProfile{
+		ID:        "google_ai",
+		Name:      "Google Antigravity & AI Studio & Flow",
+		Publisher: "Google DeepMind",
+		Enabled:   true,
+		Domains:   googleAIDomains,
+		DNSPolicies: map[DomainCategory]string{
+			CategoryAuth:         string(PolicyProxy),
+			CategoryMatchmaking:  string(PolicyProxy),
+			CategoryGameServices: string(PolicyProxy),
+			CategoryCDN:          string(PolicyDirect),
+			CategoryTelemetry:    string(PolicyDirect),
+			CategoryCandidate:    string(PolicyDirect),
+		},
+		RoutePolicy: GameRoutePolicy{
+			AutoSelectEnabled:    true,
+			PreferredNodeID:      "node_tr",
+			FallbackNodeIDs:      []string{"node_de", "node_fi"},
+			MaxRTTThresholdMs:    80.0,
+			MaxLossThresholdPct:  1.0,
+			MaxJitterThresholdMs: 5.0,
+		},
+		DiscoverySettings: GameDiscoveryConfig{
+			Enabled:               true,
+			AutoCandidateMinScore: 70,
+			KeywordPatterns:       []string{"antigravity", "aistudio", "flow", "gemini", "makersuite"},
+			KnownRootDomains:      []string{"antigravity.google", "googleantigravity.com", "aistudio.google.com", "flow.google", "deepmind.google", "deepmind.com"},
+		},
+		ConfidenceScore: 98,
+		UpdateHistory: []ProfileHistoryEntry{
+			{
+				Version:   1,
+				Timestamp: now,
+				Actor:     "system_seed",
+				Summary:   "Initialized Google Antigravity, AI Studio, and Flow profile with official Google DeepMind endpoints",
+			},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	// Google AI Domains
+	addDomain(googleAIDomains, "antigravity.google", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "googleantigravity.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "aistudio.google.com", CategoryAuth, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "makersuite.google.com", CategoryAuth, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "alkalimakersuite-pa.clients6.google.com", CategoryAuth, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "developerprofiles.google.com", CategoryAuth, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "flow.google", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "flowmusic.google", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "gemini.google.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "ai.google.dev", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "deepmind.google", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "deepmind.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "generativelanguage.googleapis.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "aiplatform.googleapis.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "cloudaicompanion.googleapis.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "cloudcode-pa.googleapis.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "labs.google", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "dialogflow.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "workflows.googleapis.com", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "tensorflow.org", CategoryGameServices, PolicyProxy, "google_ai", "Google DeepMind")
+	addDomain(googleAIDomains, "firebaselogging.googleapis.com", CategoryTelemetry, PolicyDirect, "google_ai", "Google DeepMind")
+
+	return []GameProfile{fc26, cs2, wt, nintendoProfile, googleAI}
 }
 
 // DefaultSeedRouteNodes returns the default VPS nodes representing edge routes.

@@ -76,6 +76,24 @@ func TestStore_SeedsAndProfiles(t *testing.T) {
 		t.Errorf("unexpected War Thunder publisher: %s", wt.Publisher)
 	}
 
+	// Verify Google AI Suite
+	googleAI, err := store.GetGameProfile("google_ai")
+	if err != nil {
+		t.Fatalf("GetGameProfile(google_ai): %v", err)
+	}
+	if googleAI.Publisher != "Google DeepMind" {
+		t.Errorf("unexpected Google AI publisher: %s", googleAI.Publisher)
+	}
+	if _, ok := googleAI.Domains["antigravity.google"]; !ok {
+		t.Errorf("expected antigravity.google in profile")
+	}
+	if _, ok := googleAI.Domains["aistudio.google.com"]; !ok {
+		t.Errorf("expected aistudio.google.com in profile")
+	}
+	if _, ok := googleAI.Domains["flow.google"]; !ok {
+		t.Errorf("expected flow.google in profile")
+	}
+
 	// Verify Route Nodes seed
 	nodes, err := store.ListRouteNodes()
 	if err != nil {

@@ -1358,7 +1358,7 @@ func GetAllPresets() map[string][]string {
 		"Twitch Streaming":                                        PresetTwitch,
 		"Kick Streaming":                                          PresetKick,
 		"Google Services (Search, Gmail, YouTube)":                PresetGoogle,
-		"AI Assistants & Platforms (Copilot, Gemini, Perplexity)": PresetAIAssistants,
+		"AI Assistants & Platforms (Antigravity, AI Studio, Flow, Gemini, Copilot)": PresetAIAssistants,
 		"Social & Messaging (X, Instagram, Telegram)":             PresetSocial,
 		"Developer 403 Bypass (Docker, AWS, npm, OpenAI)":         PresetDev403,
 		// Not a proxy category. rebuildPresetsLocked routes this one into the veto

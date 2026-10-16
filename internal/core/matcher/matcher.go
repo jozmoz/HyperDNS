@@ -709,7 +709,7 @@ var PresetRuleKeys = map[string]string{
 	"enable_twitch":          "Twitch Streaming",
 	"enable_kick":            "Kick Streaming",
 	"enable_google":          "Google Services (Search, Gmail, YouTube)",
-	"enable_ai":              "AI Assistants & Platforms (Copilot, Gemini, Perplexity)",
+	"enable_ai":              "AI Assistants & Platforms (Antigravity, AI Studio, Flow, Gemini, Copilot)",
 	"enable_social":          "Social & Messaging (X, Instagram, Telegram)",
 	"enable_dev403":          "Developer 403 Bypass (Docker, AWS, npm, OpenAI)",
 	"enable_downloads":       RuleDownloads,
