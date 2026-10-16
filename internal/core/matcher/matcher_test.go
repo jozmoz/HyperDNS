@@ -330,6 +330,10 @@ func TestGoogleAIAntigravityFlowResolveToProxy(t *testing.T) {
 		"googleantigravity.com",
 		"cloudaicompanion.googleapis.com",
 		"cloudcode-pa.googleapis.com",
+		"daily-cloudaicompanion.sandbox.googleapis.com",
+		"content-generativelanguage.googleapis.com",
+		"alkali-pa.clients6.google.com",
+		"oauth2.googleapis.com",
 		"developerprofiles.google.com",
 
 		// Google Flow, Creative AI & Labs
