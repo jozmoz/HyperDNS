@@ -124,7 +124,11 @@
       "crossout.net",
       "enlisted.net",
       "steamusercontent.com",
-      "storage.googleapis.com"
+      "storage.googleapis.com",
+      "playdeadlock.com",
+      "project8.com",
+      "valve.org",
+      "steam-chat.com"
     ],
     "custom_blocked": [],
     "custom_direct": [
@@ -133,7 +137,14 @@
       "ctest-ul-lp1.cdn.nintendo.net",
       "conntest.nintendowifi.net",
       "char.gaijinent.com",
-      "matcher.gaijinent.com"
+      "matcher.gaijinent.com",
+      "steamserver.net",
+      "*.steamserver.net",
+      "relays.steamserver.net",
+      "steamcontent.com",
+      "*.steamcontent.com",
+      "akamaihd.net",
+      "*.akamaihd.net"
     ],
     "custom_records": {}
   },

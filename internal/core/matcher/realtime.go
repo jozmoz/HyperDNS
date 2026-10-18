@@ -76,6 +76,12 @@ var forcedDirectGroups = []forcedDirectGroup{
 			// bop.vivox.com and v5.vivox.com hosts that preset named individually.
 			"vivox.com",
 			"*.vivox.com",
+
+			// Valve SDR (Steam Datagram Relay) in-game UDP routing for Deadlock, CS2, Dota 2.
+			// Matches communicate directly with SDR relay nodes over UDP (ports 27015-27200).
+			// Keeping SDR relay discovery and ping endpoints direct prevents routing UDP packets to the TCP proxy.
+			"relays.steamserver.net",
+			"*.relays.steamserver.net",
 		},
 	},
 	{

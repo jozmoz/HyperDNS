@@ -305,9 +305,28 @@ func TestSteamCloudSyncResolvesToProxy(t *testing.T) {
 		"steamusercontent.com",
 		"ugc.steamusercontent.com",
 		"s.team",
+		"playdeadlock.com",
+		"forums.playdeadlock.com",
+		"project8.com",
+		"valve.org",
 	} {
 		mustMatch(t, m, d, ActionProxy)
 		mustMatchClient(t, m, d, []string{"enable_steam"}, ActionProxy)
+	}
+}
+
+func TestSteamSDRRelaysAreForcedDirect(t *testing.T) {
+	m := NewMatcher()
+
+	for _, d := range []string{
+		"relays.steamserver.net",
+		"lux.relays.steamserver.net",
+		"fra.relays.steamserver.net",
+	} {
+		if rule := mustMatch(t, m, d, ActionDirect); rule != RuleRealtimeDirect {
+			t.Errorf("Match(%q) rule = %q, want %q", d, rule, RuleRealtimeDirect)
+		}
+		mustMatchClient(t, m, d, []string{"enable_steam"}, ActionDirect)
 	}
 }
 

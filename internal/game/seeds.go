@@ -451,7 +451,76 @@ func DefaultSeedProfiles() []GameProfile {
 	addDomain(googleAIDomains, "firebaseinstallations.googleapis.com", CategoryTelemetry, PolicyDirect, "google_ai", "Google DeepMind")
 	addDomain(googleAIDomains, "firebaseremoteconfig.googleapis.com", CategoryTelemetry, PolicyDirect, "google_ai", "Google DeepMind")
 
-	return []GameProfile{fc26, cs2, wt, nintendoProfile, googleAI}
+	// 6. Deadlock (Valve Corporation)
+	deadlockDomains := map[string]DomainRecord{}
+	deadlockProfile := GameProfile{
+		ID:        "deadlock",
+		Name:      "Deadlock",
+		Publisher: "Valve Corporation",
+		Enabled:   true,
+		Domains:   deadlockDomains,
+		DNSPolicies: map[DomainCategory]string{
+			CategoryAuth:         string(PolicyProxy),
+			CategoryMatchmaking:  string(PolicyDirect),
+			CategoryGameServices: string(PolicyProxy),
+			CategoryCDN:          string(PolicyDirect),
+			CategoryTelemetry:    string(PolicyDirect),
+			CategoryCandidate:    string(PolicyDirect),
+		},
+		RoutePolicy: GameRoutePolicy{
+			AutoSelectEnabled:    true,
+			PreferredNodeID:      "node_tr",
+			FallbackNodeIDs:      []string{"node_de", "node_fi"},
+			MaxRTTThresholdMs:    65.0,
+			MaxLossThresholdPct:  1.0,
+			MaxJitterThresholdMs: 4.0,
+		},
+		DiscoverySettings: GameDiscoveryConfig{
+			Enabled:               true,
+			AutoCandidateMinScore: 75,
+			KeywordPatterns:       []string{"deadlock", "project8", "playdeadlock", "steamserver", "valvesoftware"},
+			KnownRootDomains:      []string{"playdeadlock.com", "project8.com", "steampowered.com", "valve.org"},
+		},
+		ConfidenceScore: 98,
+		UpdateHistory: []ProfileHistoryEntry{
+			{
+				Version:   1,
+				Timestamp: now,
+				Actor:     "system_seed",
+				Summary:   "Initialized Deadlock profile with official Valve/Steam SDR endpoints",
+			},
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	// Deadlock Domains - PROXY (Web, Auth, Cloud, Hero Builds, Lobby)
+	addDomain(deadlockDomains, "playdeadlock.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "forums.playdeadlock.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "beta.playdeadlock.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "preview.playdeadlock.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "project8.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "valve.net", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "valve.org", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "beta.valve.org", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "api.steampowered.com", CategoryAuth, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "steampowered.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "steamcommunity.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "steamgames.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "steamstatic.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "steamusercontent.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "ugc.steamusercontent.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "storage.googleapis.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "steam-chat.com", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "s.team", CategoryGameServices, PolicyProxy, "deadlock", "Valve Corporation")
+
+	// Deadlock Domains - DIRECT (SDR Relays & CDN)
+	addDomain(deadlockDomains, "relays.steamserver.net", CategoryMatchmaking, PolicyDirect, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "steamserver.net", CategoryMatchmaking, PolicyDirect, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "steamcontent.com", CategoryCDN, PolicyDirect, "deadlock", "Valve Corporation")
+	addDomain(deadlockDomains, "akamaihd.net", CategoryCDN, PolicyDirect, "deadlock", "Valve Corporation")
+
+	return []GameProfile{fc26, cs2, wt, nintendoProfile, googleAI, deadlockProfile}
 }
 
 // DefaultSeedRouteNodes returns the default VPS nodes representing edge routes.
@@ -473,7 +542,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.5.0",
+			Version:        "2.6.0",
 		},
 		{
 			ID:             "node_de",
@@ -490,7 +559,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.5.0",
+			Version:        "2.6.0",
 		},
 		{
 			ID:             "node_fi",
@@ -507,7 +576,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.5.0",
+			Version:        "2.6.0",
 		},
 	}
 }

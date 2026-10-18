@@ -44,7 +44,7 @@ func TestDownloadVetoEnabledRestoresTheProxyPath(t *testing.T) {
 	m.SetRuleEnabled("enable_downloads", true)
 
 	rule := mustMatch(t, m, "steamcontent.com", ActionProxy)
-	if rule != "Steam & Valve (CS2, Dota 2)" {
+	if rule != "Steam & Valve (CS2, Dota 2, Deadlock)" {
 		t.Errorf("rule = %q, want the Steam preset — with the veto lifted the name must be "+
 			"attributed to whoever actually proxies it", rule)
 	}

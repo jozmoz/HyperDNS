@@ -94,6 +94,21 @@ func TestStore_SeedsAndProfiles(t *testing.T) {
 		t.Errorf("expected flow.google in profile")
 	}
 
+	// Verify Deadlock
+	deadlock, err := store.GetGameProfile("deadlock")
+	if err != nil {
+		t.Fatalf("GetGameProfile(deadlock): %v", err)
+	}
+	if deadlock.Publisher != "Valve Corporation" {
+		t.Errorf("unexpected Deadlock publisher: %s", deadlock.Publisher)
+	}
+	if _, ok := deadlock.Domains["playdeadlock.com"]; !ok {
+		t.Errorf("expected playdeadlock.com in profile")
+	}
+	if _, ok := deadlock.Domains["relays.steamserver.net"]; !ok {
+		t.Errorf("expected relays.steamserver.net in profile")
+	}
+
 	// Verify Route Nodes seed
 	nodes, err := store.ListRouteNodes()
 	if err != nil {

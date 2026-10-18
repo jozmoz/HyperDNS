@@ -686,7 +686,7 @@ func (m *Matcher) SetGameRules(gameProxied, gameBlocked, gameDirect []string) {
 var PresetRuleKeys = map[string]string{
 	"enable_riot":            "Riot Games & Valorant",
 	"enable_epic":            "Epic Games & Fortnite",
-	"enable_steam":           "Steam & Valve (CS2, Dota 2)",
+	"enable_steam":           "Steam & Valve (CS2, Dota 2, Deadlock)",
 	"enable_pubg":            "PUBG & Krafton",
 	"enable_call_of_duty":    "Call of Duty & Activision",
 	"enable_supercell":       "Supercell (Clash & Brawl Stars)",
