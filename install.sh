@@ -829,6 +829,7 @@ chmod +x "/usr/local/bin/jozmozdns"
 ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/jdns" 2>/dev/null || true
 ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/JozmozDNS" 2>/dev/null || true
 ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/jmdns" 2>/dev/null || true
+ln -sf "/usr/local/bin/jozmozdns" "/usr/local/bin/hyperdns" 2>/dev/null || true
 
 # 7. Generate dedicated SSL Certificate (covering IP and localhost)
 echo -e "\n${CYAN}[4/5] Configuring SSL Certificate and systemd service...${NC}"
@@ -906,8 +907,11 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
+Alias=jozmozdns.service hyperdns.service
 EOF
 
+ln -sf /etc/systemd/system/JozmozDNS.service /etc/systemd/system/jozmozdns.service 2>/dev/null || true
+ln -sf /etc/systemd/system/JozmozDNS.service /etc/systemd/system/hyperdns.service 2>/dev/null || true
 systemctl daemon-reload
 
 # 8. Initial Bootstrap & Service Startup
