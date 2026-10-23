@@ -858,6 +858,14 @@ const portalErrorHTML = `<!DOCTYPE html>
         {{- end}}
       </div>
 
+      <div style="margin-top: 1rem; padding: 0.75rem; border-radius: 8px; background: rgba(255, 255, 255, 0.04); text-align: center; font-size: 0.85rem;">
+        <div style="font-weight: bold; margin-bottom: 0.4rem;">{{- if .IsFa}}ارتباط با ادمین جهت تمدید یا پشتیبانی:{{- else}}Contact Admin for renewal &amp; support:{{- end}}</div>
+        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+          <a href="mailto:support@jozmoz.tech" style="color: inherit; text-decoration: underline;">support@jozmoz.tech</a>
+          <span style="color: inherit;">Telegram: @jozm0z</span>
+        </div>
+      </div>
+
       <div class="footer">JozmozDNS {{.Version}}</div>
     </div>
   </div>
@@ -1315,6 +1323,21 @@ const portalPageHTML = `<!DOCTYPE html>
          data-msg-reason-expired="{{.T.MsgRegisterExpired}}"
          data-msg-reason-quota="{{.T.MsgRegisterQuota}}"
          data-msg-reason-conflict="{{.T.MsgRegisterConflict}}"></div>
+
+    <!-- Admin & Support Contact Card -->
+    <div class="card" style="margin-top: 1.25rem; text-align: center; border: 1px solid rgba(255, 255, 255, 0.1);">
+      <div class="title" style="margin-bottom: 0.75rem; justify-content: center; font-size: 0.95rem;">
+        {{- if .IsFa}}ارتباط با ادمین و پشتیبانی اشتراک{{- else}}Support &amp; Admin Contact{{- end}}
+      </div>
+      <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; font-size: 0.9rem;">
+        <a href="mailto:support@jozmoz.tech" class="btn" style="display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none; padding: 0.5rem 1rem;">
+          ✉️ support@jozmoz.tech
+        </a>
+        <span class="btn" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; cursor: default;">
+          ✈️ Telegram: @jozm0z
+        </span>
+      </div>
+    </div>
 
     <div class="footer">
       JozmozDNS Smart Controller • UDP/TCP SmartDNS &amp; Transparent SNI Proxy Engine

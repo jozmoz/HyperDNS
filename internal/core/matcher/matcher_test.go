@@ -1043,3 +1043,62 @@ func TestConcurrentMatchDuringReload(t *testing.T) {
 	wg.Wait()
 }
 
+func TestV280CatalogCoverage(t *testing.T) {
+	m := NewMatcher()
+
+	// Verify newly added AI, Antigravity, and developer tools resolve to ActionProxy
+	aiAndDevProxied := []string{
+		"antigravity.google",
+		"antigravity.googleapis.com",
+		"antigravity-pa.googleapis.com",
+		"cursor.com",
+		"api.cursor.sh",
+		"cursorapi.com",
+		"windsurf.com",
+		"claude.com",
+		"sora.com",
+		"notebooklm.google.com",
+		"idx.dev",
+		"gitlab.com",
+		"production.cloudflare.docker.com",
+		"ghcr.io",
+		"figma.com",
+		"notion.so",
+		"ojrq.net",
+		"sub.ojrq.net",
+		"2checkout.com",
+		"avangate.com",
+		"malwarebytes.com",
+		"razer.com",
+		"corsair.com",
+	}
+
+	for _, d := range aiAndDevProxied {
+		action, rule := m.Match(d)
+		if action != ActionProxy {
+			t.Errorf("Match(%q) = %v (%s), want PROXY", d, action, rule)
+		}
+	}
+
+	// Verify critical direct domains remain ActionDirect
+	directDomains := []string{
+		"relays.steamserver.net",
+		"sdr-iad.relays.steamserver.net",
+		"bdnc.net",
+		"cloud.bdnc.net",
+		"download.bitdefender.com",
+		"cdn.bitdefender.com",
+		"b-cdn.net",
+		"char.gaijinent.com",
+		"matcher.gaijinent.com",
+	}
+
+	for _, d := range directDomains {
+		action, rule := m.Match(d)
+		if action != ActionDirect {
+			t.Errorf("Match(%q) = %v (%s), want DIRECT", d, action, rule)
+		}
+	}
+}
+
+
