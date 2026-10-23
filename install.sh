@@ -795,7 +795,7 @@ pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 
 CACHE_BUSTER=$(date +%s)
 echo -e "  Downloading latest JozmozDNS binary from GitHub..."
-rm -f "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/JozmozDNS" 2>/dev/null || true
+rm -rf "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/JozmozDNS" 2>/dev/null || true
 curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/jozmozdns-linux?t=${CACHE_BUSTER}" || \
 curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/hyperdns-linux?t=${CACHE_BUSTER}" || true
 
