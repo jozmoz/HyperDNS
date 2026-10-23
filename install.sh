@@ -795,12 +795,20 @@ pkill -9 -f "${INSTALL_DIR}/JozmozDNS" 2>/dev/null || true
 
 CACHE_BUSTER=$(date +%s)
 echo -e "  Downloading latest JozmozDNS binary from GitHub..."
-curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "https://github.com/jozmoz/HyperDNS/releases/latest/download/jozmozdns-linux" 2>/dev/null || \
-curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/jozmozdns-linux?t=${CACHE_BUSTER}" 2>/dev/null || \
-curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/JozmozDNS-linux?t=${CACHE_BUSTER}" 2>/dev/null || true
+rm -f "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/JozmozDNS" 2>/dev/null || true
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/jozmozdns-linux?t=${CACHE_BUSTER}" || \
+curl -fsSL --progress-bar -o "$INSTALL_DIR/jozmozdns" "${REPO_RAW}/hyperdns-linux?t=${CACHE_BUSTER}" || true
 
-if [ ! -s "$INSTALL_DIR/jozmozdns" ] || [ ! -x "$INSTALL_DIR/jozmozdns" ]; then
-    echo -e "  ${YELLOW}Notice: Pre-built binary not found. Building directly from source via Go...${NC}"
+chmod 755 "$INSTALL_DIR/jozmozdns" 2>/dev/null || true
+is_valid_elf=false
+if [ -s "$INSTALL_DIR/jozmozdns" ]; then
+    if head -c 4 "$INSTALL_DIR/jozmozdns" 2>/dev/null | grep -q $'\x7fELF'; then
+        is_valid_elf=true
+    fi
+fi
+
+if [ "$is_valid_elf" = false ]; then
+    echo -e "  ${YELLOW}Notice: Pre-built binary not found or corrupted. Building directly from source via Go...${NC}"
     if ! command -v go >/dev/null 2>&1; then
         echo -e "  Installing Go build toolchain..."
         if command -v apt-get >/dev/null 2>&1; then
@@ -818,8 +826,9 @@ if [ ! -s "$INSTALL_DIR/jozmozdns" ] || [ ! -x "$INSTALL_DIR/jozmozdns" ]; then
     rm -rf "$TMP_BUILD"
 fi
 
-chmod +x "$INSTALL_DIR/jozmozdns"
-ln -sf "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/JozmozDNS" 2>/dev/null || true
+chmod 755 "$INSTALL_DIR/jozmozdns"
+cp -f "$INSTALL_DIR/jozmozdns" "$INSTALL_DIR/JozmozDNS"
+chmod 755 "$INSTALL_DIR/JozmozDNS"
 ln -sf "$INSTALL_DIR" "/opt/jozmozdns" 2>/dev/null || true
 
 # Install management CLI menu
