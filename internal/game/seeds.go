@@ -542,7 +542,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.6.0",
+			Version:        "2.7.0",
 		},
 		{
 			ID:             "node_de",
@@ -559,7 +559,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.6.0",
+			Version:        "2.7.0",
 		},
 		{
 			ID:             "node_fi",
@@ -576,7 +576,7 @@ func DefaultSeedRouteNodes() []RouteNode {
 			Status:         NodeHealthy,
 			LastCheck:      now,
 			SyncStatus:     SyncSynced,
-			Version:        "2.6.0",
+			Version:        "2.7.0",
 		},
 	}
 }

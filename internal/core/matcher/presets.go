@@ -948,6 +948,32 @@ var (
 		"*.ai.google.dev",
 		"flow.google",
 		"*.flow.google",
+
+		// Bitdefender Security, Central & GravityZone Cloud
+		"bitdefender.com",
+		"*.bitdefender.com",
+		"bitdefender.net",
+		"*.bitdefender.net",
+		"central.bitdefender.com",
+		"login.bitdefender.com",
+		"my.bitdefender.com",
+		"pan.bitdefender.com",
+		"upgrade.bitdefender.com",
+		"update.bitdefender.com",
+		"upgr-mm.bitdefender.com",
+		"nimbus.bitdefender.net",
+		"*.nimbus.bitdefender.net",
+		"eu.nimbus.bitdefender.net",
+		"us.nimbus.bitdefender.net",
+		"mclb-gcp.nimbus.bitdefender.net",
+		"catch-nimbus.bitdefender.net",
+		"cloud.bitdefender.net",
+		"*.cloud.bitdefender.net",
+		"gpn.bitdefender.net",
+		"*.gpn.bitdefender.net",
+		"gravityzone.bitdefender.com",
+		"cloud.gravityzone.bitdefender.com",
+		"cloudgz.bitdefender.com",
 	}
 
 	// --- SECURITY & PRIVACY SINKHOLE POLICIES ---

@@ -82,6 +82,11 @@ var forcedDirectGroups = []forcedDirectGroup{
 			// Keeping SDR relay discovery and ping endpoints direct prevents routing UDP packets to the TCP proxy.
 			"relays.steamserver.net",
 			"*.relays.steamserver.net",
+
+			// Bitdefender Network Cloud (real-time threat intelligence and hash reputation queries).
+			// Low-latency query path for instant local antivirus verdicts.
+			"bdnc.net",
+			"*.bdnc.net",
 		},
 	},
 	{
@@ -156,6 +161,14 @@ var forcedDirectGroups = []forcedDirectGroup{
 			"*.ctest-dl-lp1.cdn.nintendo.net",
 			"ctest-ul-lp1.cdn.nintendo.net",
 			"*.ctest-ul-lp1.cdn.nintendo.net",
+
+			// Bitdefender heavy package installer downloads and CDNs.
+			// Similar to dl.google.com, large setup package binaries are routed directly
+			// to avoid saturating VPS bandwidth and preserve line rate for the user.
+			"download.bitdefender.com",
+			"cdn.bitdefender.com",
+			"b-cdn.net",
+			"*.b-cdn.net",
 		},
 	},
 }

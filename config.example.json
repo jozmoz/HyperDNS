@@ -128,7 +128,10 @@
       "playdeadlock.com",
       "project8.com",
       "valve.org",
-      "steam-chat.com"
+      "steam-chat.com",
+      "bitdefender.com",
+      "bitdefender.net",
+      "gravityzone.bitdefender.com"
     ],
     "custom_blocked": [],
     "custom_direct": [
@@ -144,7 +147,13 @@
       "steamcontent.com",
       "*.steamcontent.com",
       "akamaihd.net",
-      "*.akamaihd.net"
+      "*.akamaihd.net",
+      "bdnc.net",
+      "*.bdnc.net",
+      "download.bitdefender.com",
+      "cdn.bitdefender.com",
+      "b-cdn.net",
+      "*.b-cdn.net"
     ],
     "custom_records": {}
   },

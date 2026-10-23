@@ -400,6 +400,54 @@ func TestNintendoSwitchConnectionTestIsForcedDirect(t *testing.T) {
 	}
 }
 
+func TestBitdefenderSecurityAndGravityZone(t *testing.T) {
+	m := NewMatcher()
+
+	// Direct routing: Real-time hash reputation (bdnc.net) and installer CDNs
+	for _, d := range []string{
+		"bdnc.net",
+		"cloud.bdnc.net",
+		"eu.bdnc.net",
+	} {
+		if rule := mustMatch(t, m, d, ActionDirect); rule != RuleRealtimeDirect {
+			t.Errorf("Match(%q) rule = %q, want %q", d, rule, RuleRealtimeDirect)
+		}
+		mustMatchClient(t, m, d, []string{"enable_dev403"}, ActionDirect)
+	}
+
+	for _, d := range []string{
+		"download.bitdefender.com",
+		"cdn.bitdefender.com",
+		"b-cdn.net",
+		"test.b-cdn.net",
+	} {
+		if rule := mustMatch(t, m, d, ActionDirect); rule != RuleUnproxyableDirect {
+			t.Errorf("Match(%q) rule = %q, want %q", d, rule, RuleUnproxyableDirect)
+		}
+		mustMatchClient(t, m, d, []string{"enable_dev403"}, ActionDirect)
+	}
+
+	// Proxy routing: Cloud core (nimbus / GCP), Central login, license & updates
+	for _, d := range []string{
+		"bitdefender.com",
+		"central.bitdefender.com",
+		"login.bitdefender.com",
+		"my.bitdefender.com",
+		"upgrade.bitdefender.com",
+		"update.bitdefender.com",
+		"nimbus.bitdefender.net",
+		"eu.nimbus.bitdefender.net",
+		"mclb-gcp.nimbus.bitdefender.net",
+		"cloud.bitdefender.net",
+		"gpn.bitdefender.net",
+		"gravityzone.bitdefender.com",
+		"cloudgz.bitdefender.com",
+	} {
+		mustMatch(t, m, d, ActionProxy)
+		mustMatchClient(t, m, d, []string{"enable_dev403"}, ActionProxy)
+	}
+}
+
 // One domain, one home. The guard would keep working if a preset re-listed a
 // real-time name, so nothing would break — which is exactly why this needs a test:
 // the preset would claim to proxy something that never resolves to the proxy, and
