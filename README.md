@@ -95,7 +95,7 @@ and 8443 (DoH).
 ### Option 1: One-Line Linux Installer (Recommended)
 Run as `root` on Ubuntu, Debian, or AlmaLinux/Rocky/CentOS:
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/JozmozDNS/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
 ```
 
 > **Interactive Terminal Console (`jdns`, `jozmozdns`, `jmdns` or `JozmozDNS`):**
@@ -121,7 +121,7 @@ sudo ./bin/jozmozdns_linux_amd64 -server -web-port 8080
 
 ### Option 3: Compile from Source
 ```bash
-git clone https://github.com/jozmoz/JozmozDNS.git
+git clone https://github.com/jozmoz/HyperDNS.git
 cd "JozmozDNS"
 go build -ldflags="-s -w" -o bin/jozmozdns ./cmd/JozmozDNS
 ./bin/jozmozdns -server
@@ -129,7 +129,7 @@ go build -ldflags="-s -w" -o bin/jozmozdns ./cmd/JozmozDNS
 
 ### Option 4: Docker / Docker Compose
 ```bash
-git clone https://github.com/jozmoz/JozmozDNS.git
+git clone https://github.com/jozmoz/HyperDNS.git
 cd "JozmozDNS"
 mkdir -p data certs
 docker compose up -d

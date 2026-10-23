@@ -12,7 +12,7 @@
 
 [Unit]
 Description=JozmozDNS Telegram Sales & Subscription Bot
-Documentation=https://github.com/jozmoz/JozmozDNS
+Documentation=https://github.com/jozmoz/HyperDNS
 After=JozmozDNS.service
 Wants=JozmozDNS.service
 

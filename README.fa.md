@@ -88,7 +88,7 @@ JozmozDNS یک فایل باینری استاتیک و بدون وابستگی �
 <div dir="ltr">
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/JozmozDNS/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/jozmoz/HyperDNS/main/install.sh)
 ```
 
 </div>
@@ -125,7 +125,7 @@ sudo ./bin/jozmozdns_linux_amd64 -server -web-port 8080
 <div dir="ltr">
 
 ```bash
-git clone https://github.com/jozmoz/JozmozDNS.git
+git clone https://github.com/jozmoz/HyperDNS.git
 cd "JozmozDNS"
 go build -ldflags="-s -w" -o bin/jozmozdns ./cmd/JozmozDNS
 ./bin/jozmozdns -server
@@ -138,7 +138,7 @@ go build -ldflags="-s -w" -o bin/jozmozdns ./cmd/JozmozDNS
 <div dir="ltr">
 
 ```bash
-git clone https://github.com/jozmoz/JozmozDNS.git
+git clone https://github.com/jozmoz/HyperDNS.git
 cd "JozmozDNS"
 mkdir -p data certs
 docker compose up -d

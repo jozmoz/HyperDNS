@@ -46,7 +46,7 @@ echo "  ██║██║   ██║ ███╔╝  ██║╚██╔╝
 echo "  ██║╚██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║ ╚████║███████║"
 echo "  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
 echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
-echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/JozmozDNS${NC}"
+echo -e "       ${YELLOW}Automated 1-Line Installer · GitHub: https://github.com/jozmoz/HyperDNS${NC}"
 echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}\n"
 
 # Helper: Detect if Port is occupied on a specific IP or wildcard

@@ -1,7 +1,7 @@
 # JozmozDNS systemd unit.
 [Unit]
 Description=JozmozDNS — Standalone SmartDNS & Gaming Gateway
-Documentation=https://github.com/jozmoz/JozmozDNS
+Documentation=https://github.com/jozmoz/HyperDNS
 After=network.target network-online.target
 Wants=network-online.target
 

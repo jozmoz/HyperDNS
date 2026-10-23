@@ -2,7 +2,7 @@
 # ==============================================================================
 # JozmozDNS — Interactive Terminal Management Console
 # Usage: jdns or jozmozdns (alias: jmdns, JozmozDNS)
-# GitHub: https://github.com/jozmoz/JozmozDNS
+# GitHub: https://github.com/jozmoz/HyperDNS
 # ==============================================================================
 
 set +e
@@ -66,7 +66,7 @@ show_banner() {
     echo "  ██║╚██████╔╝███████╗██║ ╚═╝ ██║╚██████╔╝███████╗██████╔╝██║ ╚████║███████║"
     echo "  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═══╝╚══════╝"
     echo -e "       ${PURPLE}⚡ Standalone SmartDNS & Anti-Sanction Gaming Gateway ⚡${NC}"
-    echo -e "       ${YELLOW}Management Console · GitHub: github.com/jozmoz/JozmozDNS${NC}"
+    echo -e "       ${YELLOW}Management Console · GitHub: github.com/jozmoz/HyperDNS${NC}"
     echo ""
     echo -e "  ${BOLD}Status:${NC} $(get_service_status) | ${BOLD}Server IP:${NC} ${CYAN}$(get_public_ip)${NC}"
     echo -e "${CYAN}────────────────────────────────────────────────────────────────────────${NC}"
@@ -1165,7 +1165,7 @@ ENVEOF
             cat > "$bot_unit" <<'SVCEOF'
 [Unit]
 Description=JozmozDNS Telegram Sales & Subscription Bot
-Documentation=https://github.com/jozmoz/JozmozDNS
+Documentation=https://github.com/jozmoz/HyperDNS
 After=JozmozDNS.service
 Wants=JozmozDNS.service
 
