@@ -24,6 +24,38 @@ func runCommand(name string, args ...string) (string, error) {
 }
 
 func findPhysicalInterface() string {
+	// 1. Try native Go net.Interfaces() without CIM/WMI
+	ifaces, err := net.Interfaces()
+	if err == nil {
+		for _, iface := range ifaces {
+			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+				continue
+			}
+			lower := strings.ToLower(iface.Name)
+			if strings.Contains(lower, "jozmoz") || strings.Contains(lower, "wintun") ||
+				strings.Contains(lower, "tun") || strings.Contains(lower, "tap") ||
+				strings.Contains(lower, "vpn") || strings.Contains(lower, "wireguard") {
+				continue
+			}
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, addr := range addrs {
+				ipNet, ok := addr.(*net.IPNet)
+				if !ok {
+					continue
+				}
+				ip4 := ipNet.IP.To4()
+				if ip4 == nil || ip4.IsLoopback() || ip4.IsLinkLocalUnicast() {
+					continue
+				}
+				return iface.Name
+			}
+		}
+	}
+
+	// 2. Fallback to PowerShell
 	psCmd := `(Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Where-Object { $_.InterfaceAlias -notlike '*Jozmoz*' -and $_.InterfaceAlias -notlike '*Wintun*' -and $_.InterfaceAlias -notlike '*tun*' } | Sort-Object RouteMetric | Select-Object -First 1).InterfaceAlias`
 	out, err := runCommand("powershell", "-NoProfile", "-Command", psCmd)
 	if err == nil && len(strings.TrimSpace(out)) > 0 {
@@ -38,13 +70,12 @@ func findPhysicalInterface() string {
 func configureAdapter(name, ip, dnsServer string) error {
 	log.Printf("[JozmozTun] Configuring adapter %s (IP: %s, DNS: %s)...", name, ip, dnsServer)
 
-	// Wait up to 5 seconds for the Wintun adapter to appear in Windows
+	// Wait up to 6 seconds for the Wintun adapter to appear in Windows network subsystem
 	var found bool
-	for i := 0; i < 25; i++ {
-		out, err := runCommand("powershell", "-NoProfile", "-Command", fmt.Sprintf("Get-NetAdapter -Name '%s' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ifIndex", name))
-		if err == nil && len(strings.TrimSpace(out)) > 0 {
+	for i := 0; i < 30; i++ {
+		if _, err := net.InterfaceByName(name); err == nil {
 			found = true
-			log.Printf("[JozmozTun] Adapter %s detected with ifIndex %s", name, out)
+			log.Printf("[JozmozTun] Adapter %s detected via network subsystem", name)
 			break
 		}
 		time.Sleep(200 * time.Millisecond)
@@ -57,7 +88,7 @@ func configureAdapter(name, ip, dnsServer string) error {
 	// Configure Static IP, on-link route 0.0.0.0/0, Metric, and Profile exactly like xray_tun
 	psConfig := fmt.Sprintf(`
 		$ErrorActionPreference = 'SilentlyContinue'
-		$ad = Get-NetAdapter -Name '%s'
+		$ad = Get-NetAdapter -Name '%s' -ErrorAction SilentlyContinue
 		if ($ad) {
 			$cur = (Get-NetIPAddress -InterfaceIndex $ad.ifIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).IPAddress
 			if ($cur -ne '%s') {
@@ -74,7 +105,7 @@ func configureAdapter(name, ip, dnsServer string) error {
 			# Set DNS on this adapter
 			Set-DnsClientServerAddress -InterfaceIndex $ad.ifIndex -ServerAddresses @('%s', '1.1.1.1') -ErrorAction SilentlyContinue
 			
-			# Set highest priority metric (1) like xray_tun
+			# Set highest priority metric (1) so Windows selects it as primary connection
 			Set-NetIPInterface -InterfaceIndex $ad.ifIndex -InterfaceMetric 1 -AutomaticMetric Disabled -ErrorAction SilentlyContinue
 			
 			# Name resolution and network profile
